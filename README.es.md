@@ -61,8 +61,12 @@ instalación local; no debe considerarse una firma de distribución definitiva.
 Para usar el emulador con un replay CAN/GPS local:
 
 ```bash
+python3 -m pip install -r requirements-emulator.txt
 ./scripts/emulator.sh --replay /ruta/al/can_bus_log.jsonl
 ```
+
+El replay GPS usa la API de control del emulador para que posición, velocidad y
+rumbo lleguen juntos a Android y el mapa siga la dirección real del recorrido.
 
 Los ficheros que deban seleccionarse mediante el selector de documentos de
 Android se pueden copiar al emulador con:

@@ -63,8 +63,12 @@ signature.
 To run the emulator with a local CAN/GPS replay:
 
 ```bash
+python3 -m pip install -r requirements-emulator.txt
 ./scripts/emulator.sh --replay /path/to/can_bus_log.jsonl
 ```
+
+The GPS replay uses the emulator control API so recorded position, speed and
+bearing reach Android together and the map follows the real travel direction.
 
 Files needed by Android's document picker can be copied to the emulator with:
 

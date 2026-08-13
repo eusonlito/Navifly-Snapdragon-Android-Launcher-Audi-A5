@@ -11,6 +11,8 @@ visual assets.
 - MapLibre Native is provided by the MapLibre project under its published
   open-source license.
 - OkHttp is provided by Square under Apache License 2.0.
+- gRPC Python is used only by the local emulator replay tooling and is
+  provided by the gRPC project under Apache License 2.0.
 - Material Design Icons used by vehicle witnesses are provided by
   Pictogrammers/Templarian under Apache License 2.0.
 

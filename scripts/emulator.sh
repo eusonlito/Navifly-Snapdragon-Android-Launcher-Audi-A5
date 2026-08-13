@@ -311,7 +311,6 @@ python3 "$SCRIPT_DIR/replay-emulator-gps.py" \
 GPS_REPLAY_LOG="$REPLAY_WORK_DIR/gps-replay.log"
 python3 "$SCRIPT_DIR/replay-emulator-gps.py" \
     "$REPLAY_LOG" \
-    --adb "$ADB_PATH" \
     --serial "$TARGET_SERIAL" \
     --loop >"$GPS_REPLAY_LOG" 2>&1 &
 GPS_REPLAY_PID=$!

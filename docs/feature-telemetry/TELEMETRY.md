@@ -288,9 +288,11 @@ archivo respetando sus timestamps originales.
   callback y decodificador que usa la unidad física.
 * Si el servicio real se conecta, el replay se cancela inmediatamente.
 * La variante `release` no empaqueta el archivo ni puede activar el replay.
-* `scripts/emulator.sh` reproduce además las entradas `GPS_LOCATION` del mismo JSONL en
-  la consola GPS del emulador, con sus marcas de tiempo originales. El mapa no
-  usa coordenadas de demostración ni una posición fija durante este flujo.
+* `scripts/emulator.sh` reproduce además las entradas `GPS_LOCATION` del mismo
+  JSONL mediante la API de control gRPC del emulador, con sus marcas de tiempo
+  originales y conservando posición, velocidad y rumbo. El mapa no usa
+  coordenadas de demostración ni una posición fija durante este flujo. Esta
+  herramienta requiere instalar previamente `requirements-emulator.txt`.
 * También reproduce por timestamp los estados iniciales y cambios de
   `KESAIWEI_RECORD_BELT`, `KESAIWEI_RECORD_PARK` y luces capturados desde el
   ContentProvider cuando están presentes en el fichero seleccionado.
