@@ -1,0 +1,61 @@
+# Gradle and Android generated output
+.gradle/
+**/build/
+out/
+local.properties
+
+# Local delivery, diagnostics and reverse-engineering workspaces
+dropbox
+dropbox/
+debug/
+/screenshots/
+.firmware-cache/
+local/
+.kotlin/
+__pycache__/
+*.py[cod]
+
+# IDE and operating-system metadata
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Compiled artifacts and external binary libraries
+*.apk
+*.aab
+*.aar
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.dex
+*.class
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.obj
+
+# Logs, captures, databases and runtime data
+*.log
+*.jsonl
+*.db
+*.db-*
+*.sqlite
+
+# Secrets and signing material
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+*.properties.local
+
+# Boot workspaces are local. Only the reproducible default and tooling ship.
+boot/*
+!boot/default/
+!boot/default/**
+!boot/scripts/
+!boot/scripts/**

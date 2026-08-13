@@ -1,0 +1,3 @@
+# Shared Compound Engineering configuration.
+# All generated artifacts live alongside the project's existing documentation.
+docs_root: docs

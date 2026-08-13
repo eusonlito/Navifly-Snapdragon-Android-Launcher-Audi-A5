@@ -1,0 +1,1058 @@
+{
+  "schema": 1,
+  "snapshot_id": "d941ef16657cc2e90be1d73b6e00e7f84db270033930a1d07ac8a333b15f94d3",
+  "source_name": "a5-system-analysis-20260809-194801.zip",
+  "packages": [
+    {
+      "package": "com.ankai.cardvr",
+      "label": "HD DVR",
+      "version_name": "v1.0.0",
+      "version_code": 50000,
+      "uid": 10125,
+      "system_app": false,
+      "sha256": "fece6b6147c44fd5fa2321cf38c1c66f6d5fd573ee1f32366bc95d597b9d32db",
+      "size": 4084271,
+      "object": "objects/fe/fece6b6147c44fd5fa2321cf38c1c66f6d5fd573ee1f32366bc95d597b9d32db",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_LOGS",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.WRITE_SETTINGS"
+      ],
+      "launchable_activities": [
+        "com.ankai.cardvr.ui.MainActivity"
+      ],
+      "min_sdk": "16",
+      "target_sdk": "19",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libcrypto.so",
+        "lib/arm64-v8a/libidvr.so",
+        "lib/arm64-v8a/libsecurity.so",
+        "lib/armeabi-v7a/libcrypto.so",
+        "lib/armeabi-v7a/libidvr.so",
+        "lib/armeabi-v7a/libsecurity.so"
+      ]
+    },
+    {
+      "package": "com.choiceway.weather",
+      "label": "Tiempo",
+      "version_name": "240329-15:55:34",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "bdae87fb92cada317cec2fd86a48e6779bc591482d19af1b163d8f2b9799e07c",
+      "size": 22519608,
+      "object": "objects/bd/bdae87fb92cada317cec2fd86a48e6779bc591482d19af1b163d8f2b9799e07c",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [
+        "com.choiceway.weather.MainActivity",
+        "com.choiceway.weather.UIActivity"
+      ],
+      "min_sdk": "24",
+      "target_sdk": "28",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.ivicar.avm",
+      "label": "Vista panorámica 360",
+      "version_name": "2026.01.28-14:46",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "42b1aac0f6ebf6b9d051d3ab7ca4fcc6b24628cb9d4ea3468a0604b0309d20e0",
+      "size": 46111130,
+      "object": "objects/42/42b1aac0f6ebf6b9d051d3ab7ca4fcc6b24628cb9d4ea3468a0604b0309d20e0",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ADD_TRUSTED_DISPLAY",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.CAMERA",
+        "android.permission.CAPTURE_SECURE_VIDEO_OUTPUT",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.EXPAND_STATUS_BAR",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.INTERNET",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.REORDER_TASKS",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.AvmActivity"
+      ],
+      "min_sdk": "28",
+      "target_sdk": "29",
+      "dex_files": [
+        "classes.dex",
+        "classes2.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libais_fibo_carcam.so",
+        "lib/arm64-v8a/libcamera2pic.so",
+        "lib/arm64-v8a/libcert.so",
+        "lib/arm64-v8a/libicar3dalgo.so",
+        "lib/arm64-v8a/libicaravm_jni.so",
+        "lib/arm64-v8a/libyuv.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.ambient",
+      "label": "Iluminación Ambiental",
+      "version_name": "1.0-2025-06-30:16-36",
+      "version_code": 1,
+      "uid": 10070,
+      "system_app": true,
+      "sha256": "f1707e71ef1f2285653e4820886a657655223995168ea957fe08de4365488622",
+      "size": 10622517,
+      "object": "objects/f1/f1707e71ef1f2285653e4820886a657655223995168ea957fe08de4365488622",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ambient.MainActivity"
+      ],
+      "min_sdk": "30",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.apkinstall",
+      "label": "Instalador de aplicaciones",
+      "version_name": "1.0-2026-03-19:16-03",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "04c22a30e86791ba4fa929362e8b047470ae91015bbcb570ffa98a9666b8b2df",
+      "size": 7991785,
+      "object": "objects/04/04c22a30e86791ba4fa929362e8b047470ae91015bbcb570ffa98a9666b8b2df",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_MOCK_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_CONFIGURATION",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.DELETE_PACKAGES",
+        "android.permission.INSTALL_PACKAGES",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.RECOVERY",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.SET_TIME_ZONE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.apkinstall.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.btsuite",
+      "label": "Teléfono bluetooth",
+      "version_name": "1.0-2026-03-30:15-46",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "53a4b8c0ce10a4cc74119e8ba039c542788f8822ece209da07f9ba0fbc46037e",
+      "size": 70512477,
+      "object": "objects/53/53a4b8c0ce10a4cc74119e8ba039c542788f8822ece209da07f9ba0fbc46037e",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.GET_TASKS",
+        "android.permission.INJECT_EVENTS",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RUN_INSTRUMENTATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "com.example.READ_DATA_PERMISSION",
+        "com.szchoiceway.btsuite.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        "com.szchoiceway.permission.broadcast"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.btsuite.BTMainActivity"
+      ],
+      "min_sdk": "30",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex",
+        "classes10.dex",
+        "classes11.dex",
+        "classes12.dex",
+        "classes13.dex",
+        "classes14.dex",
+        "classes15.dex",
+        "classes16.dex",
+        "classes17.dex",
+        "classes18.dex",
+        "classes19.dex",
+        "classes2.dex",
+        "classes20.dex",
+        "classes21.dex",
+        "classes22.dex",
+        "classes23.dex",
+        "classes24.dex",
+        "classes3.dex",
+        "classes4.dex",
+        "classes5.dex",
+        "classes6.dex",
+        "classes7.dex",
+        "classes8.dex",
+        "classes9.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libcamera.so",
+        "lib/arm64-v8a/libmmkv.so",
+        "lib/arm64-v8a/libserial_port.so",
+        "lib/armeabi/libcamera.so",
+        "lib/armeabi/libserial_port.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.carktv",
+      "label": "Car KTV",
+      "version_name": "2024-11-25-10:42:52",
+      "version_code": 1,
+      "uid": 10063,
+      "system_app": true,
+      "sha256": "11185f4a3045c223d624432c04f750a06af988bfcea6a180773c6260b4bf3446",
+      "size": 9830119,
+      "object": "objects/11/11185f4a3045c223d624432c04f750a06af988bfcea6a180773c6260b4bf3446",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [],
+      "launchable_activities": [
+        "com.szchoiceway.carktv.ui.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.customerui",
+      "label": "CustomerUI",
+      "version_name": "1.02026-03-30:15-53",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "07ae2c09a7a706ff1660629bb56b0814448d84d128646328a44eb41a5cad9ebb",
+      "size": 261697364,
+      "object": "objects/07/07ae2c09a7a706ff1660629bb56b0814448d84d128646328a44eb41a5cad9ebb",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.CONTROL_DISPLAY_BRIGHTNESS",
+        "android.permission.CONTROL_DISPLAY_COLOR_TRANSFORMS",
+        "android.permission.DELETE_PACKAGES",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.INJECT_EVENTS",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.KILL_BACKGROUND_PROCESSES",
+        "android.permission.MEDIA_CONTENT_CONTROL",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE",
+        "android.permission.REBOOT",
+        "android.permission.SET_TIME",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "com.szchoiceway.customerui.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.customerui.MainActivity"
+      ],
+      "min_sdk": "29",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex",
+        "classes2.dex",
+        "classes3.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.dsp",
+      "label": "DSP",
+      "version_name": "2024-11-25-10:42:00",
+      "version_code": 1,
+      "uid": 10064,
+      "system_app": true,
+      "sha256": "d0b0e059b46e5ecd7f3aff2f0327fe513a65eec99227ad67c17c5b2f50c7b1d5",
+      "size": 9955433,
+      "object": "objects/d0/d0b0e059b46e5ecd7f3aff2f0327fe513a65eec99227ad67c17c5b2f50c7b1d5",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [],
+      "launchable_activities": [
+        "com.szchoiceway.dsp.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.equalizer",
+      "label": "EQ",
+      "version_name": "1.02026-03-30:15-56",
+      "version_code": 1,
+      "uid": 10061,
+      "system_app": true,
+      "sha256": "228f10517777af403e5d7dca121751d1b9d67e0ad858360759edc8715ab5b61f",
+      "size": 25508134,
+      "object": "objects/22/228f10517777af403e5d7dca121751d1b9d67e0ad858360759edc8715ab5b61f",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.equalizer.MainActivity"
+      ],
+      "min_sdk": "28",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.eventcenter",
+      "label": "EventCenter",
+      "version_name": "1.0-2026-03-30:15-56",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "7a0bd57dd825816b7b4530fc1779af885649194a23532c77b68bcab627ab164c",
+      "size": 58021184,
+      "object": "objects/7a/7a0bd57dd825816b7b4530fc1779af885649194a23532c77b68bcab627ab164c",
+      "priority": 0,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_MOCK_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_ADVERTISE",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_PRIVILEGED",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.CALL_PHONE",
+        "android.permission.CAMERA",
+        "android.permission.CLEAR_APP_USER_DATA",
+        "android.permission.DELETE_PACKAGES",
+        "android.permission.FORCE_STOP_PACKAGES",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.GET_TASKS",
+        "android.permission.GET_TOP_ACTIVITY_INFO",
+        "android.permission.INJECT_EVENTS",
+        "android.permission.INSTALL_GRANT_RUNTIME_PERMISSIONS",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.MODIFY_PHONE_STATE",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RUN_INSTRUMENTATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.WRITE_SECURE_SETTINGS",
+        "android.permission.WRITE_SETTINGS"
+      ],
+      "launchable_activities": [],
+      "min_sdk": "29",
+      "target_sdk": "29",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libcamera.so",
+        "lib/arm64-v8a/libcamera_utils.so",
+        "lib/arm64-v8a/libimage_processing_util_jni.so",
+        "lib/arm64-v8a/libkswlicense.so",
+        "lib/arm64-v8a/libserial_port.so",
+        "lib/arm64-v8a/libyuv.so",
+        "lib/arm64-v8a/libyuvutils.so",
+        "lib/armeabi/libcamera.so",
+        "lib/armeabi/libserial_port.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.fatset",
+      "label": "FatSet",
+      "version_name": "1.02026-03-30:15-56",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "fb5a56a36207bffb5524e982cbbff252fe1e56f90cb1f17b3e1fdbb680c82163",
+      "size": 16493240,
+      "object": "objects/fb/fb5a56a36207bffb5524e982cbbff252fe1e56f90cb1f17b3e1fdbb680c82163",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_MOCK_LOCATION",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_CONFIGURATION",
+        "android.permission.CLEAR_APP_CACHE",
+        "android.permission.CLEAR_APP_USER_DATA",
+        "android.permission.DELETE_PACKAGES",
+        "android.permission.DEVICE_POWER",
+        "android.permission.GET_TASKS",
+        "android.permission.GET_TOP_ACTIVITY_INFO",
+        "android.permission.INSTALL_PACKAGES",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_OWNER_DATA",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.WRITE_OWNER_DATA",
+        "android.permission.WRITE_SETTINGS"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.fatset.FatSetMainActivity"
+      ],
+      "min_sdk": "29",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libyuv.so",
+        "lib/arm64-v8a/libyuvutils.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.ksw_aux",
+      "label": "AUX",
+      "version_name": "1.0-2024-07-13:14-31",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "14be67febc4319c2dd9623733f7c0a38790280a30a2f09e27160eb012b3a28f9",
+      "size": 6587474,
+      "object": "objects/14/14be67febc4319c2dd9623733f7c0a38790280a30a2f09e27160eb012b3a28f9",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_aux.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.ksw_cmmb",
+      "label": "TV",
+      "version_name": "1.0-2024-07-13:14-31",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "9863b75a96bf49815818adbec2734fb4a520f67ac4ec7a0fa97d99389427ea3c",
+      "size": 6419293,
+      "object": "objects/98/9863b75a96bf49815818adbec2734fb4a520f67ac4ec7a0fa97d99389427ea3c",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_cmmb.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.ksw_dashboard",
+      "label": "Panel",
+      "version_name": "1.02026-03-30:15-56",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "e2e89823972089572822eb51ef4437eaa5d608df60057e43d65caa1b6a872347",
+      "size": 117044449,
+      "object": "objects/e2/e2e89823972089572822eb51ef4437eaa5d608df60057e43d65caa1b6a872347",
+      "priority": 0,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.INTERACT_ACROSS_USERS"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_dashboard.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "30",
+      "dex_files": [
+        "classes.dex",
+        "classes2.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.ksw_dvd",
+      "label": "DVD",
+      "version_name": "1.0",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "9faf6eec2b22361e80e84fdc83288f9483d8cd612aff974f297e639acea8fce0",
+      "size": 6419294,
+      "object": "objects/9f/9faf6eec2b22361e80e84fdc83288f9483d8cd612aff974f297e639acea8fce0",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_dvd.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.ksw_dvr",
+      "label": "DVR",
+      "version_name": "1.0-2024-07-13:11-18",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "8cb6137982533c7cddc758084597ee125d36fac9dc6487460410265fae9f46b1",
+      "size": 6415384,
+      "object": "objects/8c/8cb6137982533c7cddc758084597ee125d36fac9dc6487460410265fae9f46b1",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_dvr.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.ksw_fc",
+      "label": "Front Camera",
+      "version_name": "1.0-2024-07-13:11-18",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "52f80166a2f7882a67f8e5edd6740e715da452ce298e5cb1701aca89d7517fcd",
+      "size": 6448699,
+      "object": "objects/52/52f80166a2f7882a67f8e5edd6740e715da452ce298e5cb1701aca89d7517fcd",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.SYSTEM_OVERLAY_WINDOW"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.ksw_fc.MainActivity"
+      ],
+      "min_sdk": "28",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.logcapture",
+      "label": "LogCapture",
+      "version_name": "1.0",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "40b6b76c2e4305237d169ed5720cd0ecef813396fe73eb298eba8add8cd38a33",
+      "size": 3620317,
+      "object": "objects/40/40b6b76c2e4305237d169ed5720cd0ecef813396fe73eb298eba8add8cd38a33",
+      "priority": 2,
+      "status": "decompilada",
+      "permissions": [
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_LOGS",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.WRITE_MEDIA_STORAGE"
+      ],
+      "launchable_activities": [],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.musicplayer",
+      "label": "Musique",
+      "version_name": "1.0-2026-03-30:15-46",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "1c1132f6bf71c71ec2227a5742158269aeed51036452a95604be5aee734fe4c7",
+      "size": 70018332,
+      "object": "objects/1c/1c1132f6bf71c71ec2227a5742158269aeed51036452a95604be5aee734fe4c7",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.INJECT_EVENTS",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.RUN_INSTRUMENTATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "com.szchoiceway.musicplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        "com.szchoiceway.permission.broadcast"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.musicplayer.MainActivity"
+      ],
+      "min_sdk": "30",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex",
+        "classes10.dex",
+        "classes11.dex",
+        "classes12.dex",
+        "classes13.dex",
+        "classes14.dex",
+        "classes15.dex",
+        "classes16.dex",
+        "classes17.dex",
+        "classes18.dex",
+        "classes19.dex",
+        "classes2.dex",
+        "classes20.dex",
+        "classes21.dex",
+        "classes22.dex",
+        "classes23.dex",
+        "classes24.dex",
+        "classes3.dex",
+        "classes4.dex",
+        "classes5.dex",
+        "classes6.dex",
+        "classes7.dex",
+        "classes8.dex",
+        "classes9.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libdav1d.so",
+        "lib/arm64-v8a/libijkffmpeg.so",
+        "lib/arm64-v8a/libijkplayer.so",
+        "lib/arm64-v8a/libijksdl.so",
+        "lib/arm64-v8a/libmmkv.so",
+        "lib/armeabi-v7a/libmmkv.so",
+        "lib/x86/libmmkv.so",
+        "lib/x86_64/libmmkv.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.navigation",
+      "label": "navegación",
+      "version_name": "1.02025-09-06:17-08",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "61c58c1460a282b4d226cea117f6a3d4a2f9d5055a8e73ccebe39cc8f1c6c5d0",
+      "size": 6817566,
+      "object": "objects/61/61c58c1460a282b4d226cea117f6a3d4a2f9d5055a8e73ccebe39cc8f1c6c5d0",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.navigation.MainActivity"
+      ],
+      "min_sdk": "26",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.providers.settings",
+      "label": "SysVar Storage",
+      "version_name": "14",
+      "version_code": 34,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "7d0ad489dc25a9e008093104cceb13ab3d67b23be70160267fc23f2be7061398",
+      "size": 91014,
+      "object": "objects/7d/7d0ad489dc25a9e008093104cceb13ab3d67b23be70160267fc23f2be7061398",
+      "priority": 0,
+      "status": "decompilada",
+      "permissions": [],
+      "launchable_activities": [],
+      "min_sdk": "34",
+      "target_sdk": "34",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.settings",
+      "label": "Settings",
+      "version_name": "1.02026-03-30:15-57",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "7b2f4a2562f4a07529de496b7391530be61f8dcbac72400821f29eb802528c15",
+      "size": 42067588,
+      "object": "objects/7b/7b2f4a2562f4a07529de496b7391530be61f8dcbac72400821f29eb802528c15",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.CHANGE_CONFIGURATION",
+        "android.permission.DEVICE_POWER",
+        "android.permission.GET_TASKS",
+        "android.permission.GET_TOP_ACTIVITY_INFO",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.INTERNET",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.MOUNT_UNMOUNT_FILESYSTEMS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_OWNER_DATA",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE",
+        "android.permission.SET_TIME",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.WRITE_OWNER_DATA",
+        "android.permission.WRITE_SETTINGS"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.settings.MainActivity"
+      ],
+      "min_sdk": "31",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libvudroid.so",
+        "lib/armeabi/libvudroid.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.testtools",
+      "label": "测试工具",
+      "version_name": "251022-16:50:34",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "9da612ce9cb98aba4d40584b58cee893373d1f5dc4380802831d90aa20c38b70",
+      "size": 13495334,
+      "object": "objects/9d/9da612ce9cb98aba4d40584b58cee893373d1f5dc4380802831d90aa20c38b70",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_PHONE_STATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [],
+      "min_sdk": "26",
+      "target_sdk": "28",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libcamera_utils.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.transmitbt",
+      "label": "Transmisión BT",
+      "version_name": "1.0-2025-07-29:09-32",
+      "version_code": 2,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "8de98f4caf2a35b7c48ccde431a1cee70f379336372d7d4a1fbb665a79337eef",
+      "size": 6739824,
+      "object": "objects/8d/8de98f4caf2a35b7c48ccde431a1cee70f379336372d7d4a1fbb665a79337eef",
+      "priority": 2,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.LOCAL_MAC_ADDRESS"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.transmitbt.MainActivity"
+      ],
+      "min_sdk": "31",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libserial_port.so",
+        "lib/armeabi/libserial_port.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.updatemcu",
+      "label": "actualización Mcu",
+      "version_name": "1.02025-11-27:16-17",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "2149cdb5c416dc9edf3203916c7a333a6405aaa8b34d00ade2c2129e62ea8602",
+      "size": 6765802,
+      "object": "objects/21/2149cdb5c416dc9edf3203916c7a333a6405aaa8b34d00ade2c2129e62ea8602",
+      "priority": 1,
+      "status": "decompilada_parcial",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RUN_INSTRUMENTATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [],
+      "min_sdk": "29",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex"
+      ],
+      "native_libraries": []
+    },
+    {
+      "package": "com.szchoiceway.videoplayer",
+      "label": "HD-Video",
+      "version_name": "1.0-2026-03-30:15-46",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "bebb6e5879ab015af6e11c57c41340048cf0a76bcf166520a7917ee33ea25ec5",
+      "size": 113586456,
+      "object": "objects/be/bebb6e5879ab015af6e11c57c41340048cf0a76bcf166520a7917ee33ea25ec5",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.INJECT_EVENTS",
+        "android.permission.INTERACT_ACROSS_USERS",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RUN_INSTRUMENTATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "com.szchoiceway.permission.broadcast",
+        "com.szchoiceway.videoplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+      ],
+      "launchable_activities": [
+        "com.szchoiceway.videoplayer.MainActivity"
+      ],
+      "min_sdk": "30",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex",
+        "classes10.dex",
+        "classes11.dex",
+        "classes12.dex",
+        "classes13.dex",
+        "classes14.dex",
+        "classes15.dex",
+        "classes16.dex",
+        "classes17.dex",
+        "classes18.dex",
+        "classes19.dex",
+        "classes2.dex",
+        "classes20.dex",
+        "classes21.dex",
+        "classes22.dex",
+        "classes23.dex",
+        "classes3.dex",
+        "classes4.dex",
+        "classes5.dex",
+        "classes6.dex",
+        "classes7.dex",
+        "classes8.dex",
+        "classes9.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libavcodec.so",
+        "lib/arm64-v8a/libavformat.so",
+        "lib/arm64-v8a/libavutil.so",
+        "lib/arm64-v8a/libc++_shared.so",
+        "lib/arm64-v8a/libdav1d.so",
+        "lib/arm64-v8a/libffmpeg_mediametadataretriever_jni.so",
+        "lib/arm64-v8a/libijkffmpeg.so",
+        "lib/arm64-v8a/libijkplayer.so",
+        "lib/arm64-v8a/libijksdl.so",
+        "lib/arm64-v8a/libmmkv.so",
+        "lib/arm64-v8a/libswscale.so",
+        "lib/arm64-v8a/libvlc.so",
+        "lib/arm64-v8a/libvlcjni.so"
+      ]
+    },
+    {
+      "package": "com.szchoiceway.zxwmedia",
+      "label": "ZXWMedia",
+      "version_name": "1.0-2026-03-30:15-46",
+      "version_code": 1,
+      "uid": 1000,
+      "system_app": true,
+      "sha256": "dfe90b515dda309b3290e5f4d02812ec0f86f6ef4abad683c71ffaee15b9b291",
+      "size": 9429457,
+      "object": "objects/df/dfe90b515dda309b3290e5f4d02812ec0f86f6ef4abad683c71ffaee15b9b291",
+      "priority": 3,
+      "status": "indexada",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "launchable_activities": [],
+      "min_sdk": "30",
+      "target_sdk": "31",
+      "dex_files": [
+        "classes.dex",
+        "classes2.dex",
+        "classes3.dex",
+        "classes4.dex"
+      ],
+      "native_libraries": [
+        "lib/arm64-v8a/libmmkv.so",
+        "lib/armeabi-v7a/libmmkv.so",
+        "lib/x86/libmmkv.so",
+        "lib/x86_64/libmmkv.so"
+      ]
+    }
+  ]
+}

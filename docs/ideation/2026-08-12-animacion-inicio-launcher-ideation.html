@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ideation: Animación de inicio del launcher</title>
+  <style>
+    :root { color-scheme: dark; --bg:#050708; --panel:#0c1215; --line:#26343a; --text:#edf3f5; --muted:#9eacb2; --cyan:#00cbe6; --soft:#10242a; --warn:#ffb24a; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.6 Inter,Roboto,Arial,sans-serif; }
+    main { width:min(960px,calc(100% - 40px)); margin:48px auto; }
+    header, section { margin-bottom:42px; }
+    h1 { font-size:2rem; line-height:1.15; margin:.3rem 0 .8rem; }
+    h2 { font-size:1.35rem; margin:0 0 16px; }
+    h3 { font-size:1.12rem; margin:0 0 12px; }
+    p { max-width:72ch; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:.76rem; font-weight:700; }
+    .meta, .stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .chip { border:1px solid var(--line); background:#091014; border-radius:999px; padding:5px 11px; color:var(--muted); }
+    .context { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; }
+    .axes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .axis { background:var(--soft); border-radius:10px; padding:14px; color:#c8e9ef; }
+    .jump { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 18px; padding:0; list-style:none; }
+    a { color:var(--cyan); }
+    article { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; margin:0 0 16px; }
+    article.top { background:#0d171a; }
+    dl { display:grid; grid-template-columns:120px 1fr; gap:8px 16px; margin:18px 0 0; }
+    dt { color:var(--muted); text-transform:uppercase; font-size:.76rem; letter-spacing:.08em; }
+    dd { margin:0; }
+    .timeline { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:16px 0; }
+    .phase { min-height:72px; background:#091014; border:1px solid var(--line); border-radius:9px; padding:10px; }
+    .phase b { display:block; color:var(--cyan); font-size:.8rem; }
+    table { width:100%; border-collapse:collapse; background:var(--panel); border-radius:12px; overflow:hidden; }
+    th,td { padding:11px 13px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; }
+    footer { color:#738188; border-top:1px solid var(--line); padding-top:18px; margin-top:48px; font-size:.78rem; }
+    code { color:#c8e9ef; }
+    @media(max-width:700px){ .axes,.timeline{grid-template-columns:1fr;} dl{grid-template-columns:1fr;} main{width:min(100% - 24px,960px);margin:24px auto;} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Ideation · interfaz OEM</div>
+    <h1>Animación de inicio del launcher</h1>
+    <p>Direcciones para sustituir el barrido actual por una bienvenida perceptible, elegante y segura, sin retrasar los datos reales ni la carga asíncrona del mapa.</p>
+    <div class="meta">
+      <span class="chip">Fecha: <time datetime="2026-08-12">2026-08-12</time></span>
+      <span class="chip">Tema: animacion-inicio-launcher</span>
+      <span class="chip">Foco: impacto visible con lenguaje OEM</span>
+      <span class="chip">Modo: repo-grounded</span>
+    </div>
+  </header>
+
+  <section id="grounding-context">
+    <h2>Grounding Context</h2>
+    <div class="context">
+      <p>El efecto vigente dura 800 ms y consiste únicamente en una cabeza blanca de 34° y 2,4 dp que recorre cada escala de 270°. En una pantalla de 2400×896 ocupa muy poca masa visual y compite con un cockpit ya completamente visible.</p>
+      <p>La telemetría y MapLibre deben inicializarse sin depender de la animación, pero la presentación visual puede reservar los datos hasta el cierre del autocheque. Se mantienen las restricciones de evitar animaciones continuas, partículas, grandes degradados y colores de alerta usados como decoración. Las referencias oficiales de diseño para conducción favorecen movimiento informativo y un cierre inequívoco.</p>
+    </div>
+  </section>
+
+  <section id="topic-axes">
+    <h2>Topic Axes</h2>
+    <div class="axes">
+      <div class="axis"><strong>Impacto visual</strong><br>El gesto debe aprovechar la escala panorámica y ser visible a plena luz.</div>
+      <div class="axis"><strong>Claridad semántica</strong><br>No simular velocidad, RPM, alertas ni estados que el coche no ha emitido.</div>
+      <div class="axis"><strong>Fiabilidad de arranque</strong><br>Mapa y telemetría cargan por separado, aunque su presentación se revele al finalizar el efecto.</div>
+    </div>
+  </section>
+
+  <section id="ranked-ideas">
+    <h2>Ranked Ideas</h2>
+    <ul class="jump">
+      <li><a href="#idea-1">1. Autocheque panorámico de instrumentos</a></li>
+      <li><a href="#idea-2">2. Cadencia material por capas</a></li>
+      <li><a href="#idea-3">3. Ignition Trace contenido</a></li>
+    </ul>
+
+    <article id="idea-1" class="top">
+      <div class="eyebrow">1 · recomendada</div>
+      <h3>Autocheque panorámico de instrumentos</h3>
+      <p>Los dos relojes realizan un encendido simétrico y coordinado que utiliza toda su escala, no una pequeña luz viajera. Durante el autocheque se muestran únicamente sus formas, marcas y remates metálicos; los valores reales se revelan juntos en la fase final. La aplicación puede recibir telemetría y preparar el mapa desde el principio, pero el resultado visual no aparece hasta que la secuencia ha construido el cockpit.</p>
+      <div class="timeline" aria-label="Secuencia temporal conceptual">
+        <div class="phase"><b>0–250 ms</b>Negro absoluto; aparecen tenuemente las dos siluetas circulares.</div>
+        <div class="phase"><b>250–1.250 ms</b>Marcas y numeración recorren progresivamente los 270° de ambos relojes.</div>
+        <div class="phase"><b>1.050–1.750 ms</b>Coronas e interiores ganan profundidad; los arcos reales se forman hasta su posición.</div>
+        <div class="phase"><b>1.700–2.200 ms</b>Aparecen cifras, marcha, cabecera y pie; el contraste se asienta en el estado definitivo.</div>
+      </div>
+      <dl>
+        <dt>Axis</dt><dd>Impacto visual</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> el gesto actual sólo cubre 34° de una escala de 270° (<code>ProgressRingIndicator.kt:275-288</code>); la geometría completa ya existe y está cacheada.</dd>
+        <dt>Rationale</dt><dd>Multiplica la superficie animada sin mover elementos ni condicionar MapLibre. La revelación final de los datos convierte la secuencia en un verdadero encendido del cuadro y da sentido a la simetría de los instrumentos.</dd>
+        <dt>Downsides</dt><dd>Debe evitar el cian durante el recorrido y no iluminar testigos; un contraste excesivo parecería una lectura falsa o deslumbraría de noche.</dd>
+        <dt>Confidence</dt><dd>94%</dd>
+        <dt>Complexity</dt><dd>Media</dd>
+      </dl>
+    </article>
+
+    <article id="idea-2">
+      <div class="eyebrow">2 · alternativa sobria</div>
+      <h3>Cadencia material por capas</h3>
+      <p>No hay elemento que recorra la pantalla. Primero toman presencia los aros y marcas principales, después los arcos reales y finalmente cabecera y pie realizan un asentamiento mínimo de contraste. Se siente como un sistema eléctrico que estabiliza sus módulos.</p>
+      <dl>
+        <dt>Axis</dt><dd>Claridad semántica</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> el lenguaje aprobado prima negro, titanio, cian localizado y transiciones con propósito (<code>docs/design/IDEAS.md:8-15,212-230</code>).</dd>
+        <dt>Rationale</dt><dd>Es la opción más OEM y menos intrusiva; no sugiere ninguna medida inexistente y mantiene la interfaz completamente operativa.</dd>
+        <dt>Downsides</dt><dd>Si la diferencia de contraste es pequeña volverá a ser casi invisible con luz diurna; si es grande se percibirá como parpadeo.</dd>
+        <dt>Confidence</dt><dd>78%</dd>
+        <dt>Complexity</dt><dd>Baja</dd>
+      </dl>
+    </article>
+
+    <article id="idea-3">
+      <div class="eyebrow">3 · firma panorámica</div>
+      <h3>Ignition Trace contenido</h3>
+      <p>Una línea técnica muy fina nace en el centro de la zona de accesos y se extiende una sola vez mientras ambos relojes completan su autocheque. El gesto conecta el ancho completo de la consola, pero termina en titanio oscuro y no deja una decoración nueva.</p>
+      <dl>
+        <dt>Axis</dt><dd>Fiabilidad de arranque</dd>
+        <dt>Basis</dt><dd><strong>reasoned:</strong> un único progreso compartido puede coordinar superficies Compose existentes sin sincronizarse con el mapa ni introducir trabajo continuo.</dd>
+        <dt>Rationale</dt><dd>Añade una firma propia y muy visible al formato panorámico conservando datos, geometría y comportamiento asíncrono.</dd>
+        <dt>Downsides</dt><dd>Es fácil que parezca aftermarket o que vuelva a remarcar las barras, algo que ya se descartó visualmente. Sólo merece prototipo como acento secundario.</dd>
+        <dt>Confidence</dt><dd>64%</dd>
+        <dt>Complexity</dt><dd>Media</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="rejection-summary">
+    <h2>Rejection Summary</h2>
+    <table>
+      <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Paso de contacto panorámico</td><td>Demasiado genérico y atraviesa demasiadas superficies para el valor que aporta.</td></tr>
+        <tr><td>2</td><td>Twin Calibration en contrafase</td><td>Se integra en la propuesta principal, pero se descarta el sentido inverso por teatralidad y falsa lectura mecánica.</td></tr>
+        <tr><td>3</td><td>Map Aperture</td><td>Convierte el mapa asíncrono en protagonista y puede crear un doble salto fallback→mapa.</td></tr>
+        <tr><td>4</td><td>Horizonte de ignición</td><td>Revela contenido durante 1,8 s y contradice la disponibilidad inmediata de los datos.</td></tr>
+        <tr><td>5</td><td>Handshake mecánico</td><td>Acopla la percepción de arranque a la llegada de CAN y puede parecer incompleto cuando una señal tarda.</td></tr>
+        <tr><td>6</td><td>Revelado por ausencia</td><td>Las máscaras y el bajo contraste perjudican la lectura inmediata y recuerdan a un fallo de panel.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="composition-signal">Composed 2026-08-12T12:00+02:00 by ce-ideate from the current launcher startup-animation request.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Paquete de arranque reproducible generado desde bootanimation.mp4.
+
+Resolución: 2400x896. Cadencia: 24 fps. Bucle: continuo.
+Escalado proporcional sin recorte ni deformación. Fondo detectado: #000000.
+bootlogo.zip usa exactamente el primer fotograma de bootanimation.zip.
+
+Para regenerarlo desde la raíz del repositorio:
+
+  ./boot/scripts/generate.sh default
+
+1. Copia bootlogo.zip y bootanimation.zip a una ubicación seleccionable desde FatSet.
+2. Importa primero bootanimation.zip y comprueba el arranque.
+3. Importa bootlogo.zip desde Logo de arranque.
+4. Vuelve a la galería y selecciona el nuevo logo importado.
+5. Conserva disponible la opción Recuperar por si el firmware rechaza un paquete.
