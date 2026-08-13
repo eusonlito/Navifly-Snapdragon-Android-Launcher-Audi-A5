@@ -101,7 +101,7 @@ La interacción debe ser mínima para evitar distracciones:
   existe una muestra GPS reciente, evitando alternancias entre precisiones.
 * El rumbo sólo cambia con GPS y movimiento suficiente; se interpola el camino
   angular más corto y se amortigua el 35 % de cada corrección.
-* Un gesto de pellizco permite zoom fraccionario continuo entre 12 y 18. El
+* Un gesto de pellizco permite zoom fraccionario continuo entre 0 y 18. El
   valor se persiste por estilo y se restaura entre sesiones.
 * MapLibre mantiene tiles vectoriales en memoria durante cambios de cámara y zoom, sin
   cancelar la cola por cada muestra GPS.

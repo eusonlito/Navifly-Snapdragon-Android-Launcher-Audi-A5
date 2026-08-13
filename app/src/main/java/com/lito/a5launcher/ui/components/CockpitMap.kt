@@ -145,6 +145,12 @@ private const val POI_PULSE_BASE_SIZE = 1.56f
 private const val CAMERA_FRAME_INTERVAL_NANOS = 33_333_333L
 private const val CAMERA_MINIMUM_PIXEL_MOVEMENT = .5
 private const val CAMERA_MINIMUM_BEARING_CHANGE = .2f
+internal const val MAP_MINIMUM_ZOOM = 0.0
+internal const val MAP_MAXIMUM_ZOOM = 18.0
+internal const val MAP_DEFAULT_ZOOM = 16.0
+
+internal fun clampMapZoom(zoom: Double): Double =
+    zoom.coerceIn(MAP_MINIMUM_ZOOM, MAP_MAXIMUM_ZOOM)
 
 enum class MapTileStyle(
     val displayName: String,
@@ -732,9 +738,9 @@ private fun CockpitMapView(
         MapStyleCache(File(context.filesDir, "map-styles"), ::downloadMapStyleJson)
     }
     val initialZoom = remember(zoomPreferenceKey, tileStyle) {
-        preferences.getFloat("zoom_$zoomPreferenceKey", 16f)
+        preferences.getFloat("zoom_$zoomPreferenceKey", MAP_DEFAULT_ZOOM.toFloat())
             .toDouble()
-            .coerceIn(12.0, 18.0)
+            .let(::clampMapZoom)
     }
     val session = remember(cacheGeneration, tileStyle, zoomPreferenceKey) {
         MapViewSession("M-${UUID.randomUUID().toString().take(8)}")
@@ -782,8 +788,8 @@ private fun CockpitMapView(
                                 getMapAsync { map ->
                                     session.map = map
                                     session.mapReady.complete(map)
-                                    map.setMinZoomPreference(12.0)
-                                    map.setMaxZoomPreference(18.0)
+                                    map.setMinZoomPreference(MAP_MINIMUM_ZOOM)
+                                    map.setMaxZoomPreference(MAP_MAXIMUM_ZOOM)
                                     map.uiSettings.apply {
                                         isCompassEnabled = false
                                         isLogoEnabled = false
@@ -831,7 +837,7 @@ private fun CockpitMapView(
                                     map.addOnCameraIdleListener {
                                         if (session.userGestureActive) {
                                             session.userGestureActive = false
-                                            val zoom = map.cameraPosition.zoom.coerceIn(12.0, 18.0)
+                                            val zoom = clampMapZoom(map.cameraPosition.zoom)
                                             session.currentZoom = zoom
                                             preferences.edit {
                                                 putFloat("zoom_$zoomPreferenceKey", zoom.toFloat())

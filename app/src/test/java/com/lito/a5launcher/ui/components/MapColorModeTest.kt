@@ -5,6 +5,13 @@ import org.junit.Test
 
 class MapColorModeTest {
     @Test
+    fun mapZoomSupportsTheFullMapLibreZoomOutRange() {
+        assertEquals(0.0, clampMapZoom(-1.0), 0.0)
+        assertEquals(7.5, clampMapZoom(7.5), 0.0)
+        assertEquals(18.0, clampMapZoom(19.0), 0.0)
+    }
+
+    @Test
     fun automaticModeFollowsSystemNightWhenVehicleStateIsUnavailable() {
         assertEquals(
             MapTileStyle.POSITRON,
