@@ -60,6 +60,9 @@ internal class GooglePlacesDestinationResolver(
             location: KnownLocation?,
             localeTag: String,
         ): Request {
+            require(search.mode != DestinationSearchMode.NEAREST || location != null) {
+                "A validated location is required for nearest-place searches"
+            }
             val locale = Locale.forLanguageTag(localeTag)
             val body = JSONObject()
                 .put("textQuery", search.query.trim())
@@ -72,7 +75,12 @@ internal class GooglePlacesDestinationResolver(
                     JSONObject().put(
                         "circle",
                         JSONObject()
-                            .put("center", JSONObject().put("latitude", it.latitude).put("longitude", it.longitude))
+                            .put(
+                                "center",
+                                JSONObject()
+                                    .put("latitude", it.latitude)
+                                    .put("longitude", it.longitude),
+                            )
                             .put("radius", 50_000.0),
                     ),
                 )

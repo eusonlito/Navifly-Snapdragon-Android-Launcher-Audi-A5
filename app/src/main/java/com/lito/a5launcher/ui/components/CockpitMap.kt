@@ -9,9 +9,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -79,8 +76,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.currentStateAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.lito.a5launcher.R
+import com.lito.a5launcher.location.LocationRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -133,7 +132,6 @@ import kotlin.math.hypot
 import kotlin.math.pow
 
 private const val LOCATION_PREFS = "cockpit_map_location"
-private const val GPS_STALE_AFTER_MS = 30_000L
 private const val POI_SOURCE_ID = "private-poi-sources"
 private const val POI_PULSE_FIRST_LAYER_ID = "private-poi-pulse-first"
 private const val POI_PULSE_SECOND_LAYER_ID = "private-poi-pulse-second"
@@ -359,6 +357,7 @@ private class MapViewSession(val id: String) {
 internal fun CockpitMap(
     poiSnapshot: PoiSnapshot,
     poiRepository: PoiRepository,
+    locationRepository: LocationRepository,
     modifier: Modifier = Modifier,
     tileStyle: MapTileStyle = MapTileStyle.POSITRON,
     colorMode: MapColorMode = MapColorMode.AUTOMATIC,
@@ -377,9 +376,6 @@ internal fun CockpitMap(
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     val lifecycleActive = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
-    val preferences = remember {
-        context.getSharedPreferences(LOCATION_PREFS, Context.MODE_PRIVATE)
-    }
     val debugLogger = remember { MapDebugLogger.get(context) }
     val cockpitId = remember { "C-${UUID.randomUUID().toString().take(8)}" }
     val currentDebugEnabled by rememberUpdatedState(debugEnabled)
@@ -389,19 +385,12 @@ internal fun CockpitMap(
     var permissionGranted by remember {
         mutableStateOf(hasLocationPermission(context))
     }
-    var position by remember {
+    val locationState by locationRepository.state.collectAsStateWithLifecycle()
+    var position by remember(locationRepository) {
         mutableStateOf(
-            if (preferences.contains("latitude")) {
-                MapPosition(
-                    preferences.getLong("latitude", 0L).let(Double::fromBits),
-                    preferences.getLong("longitude", 0L).let(Double::fromBits),
-                    preferences.getFloat("bearing", 0f),
-                    0f,
-                )
-            } else {
-                // Neutral initial framing until Android supplies a real or last-known fix.
-                MapPosition(40.4168, -3.7038, 0f, 0f)
-            }
+            locationState.position?.let {
+                MapPosition(it.latitude, it.longitude, it.bearing, it.speedMps)
+            } ?: MapPosition(40.4168, -3.7038, 0f, 0f)
         )
     }
     val motionSmoother = remember {
@@ -409,8 +398,6 @@ internal fun CockpitMap(
             add(position.toMotionSample(SystemClock.elapsedRealtime()))
         }
     }
-    var hasKnownPosition by remember { mutableStateOf(preferences.contains("latitude")) }
-    var lastGpsFixElapsed by remember { mutableLongStateOf(0L) }
     var tick by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     val statusInitializing = stringResource(R.string.map_status_initializing)
     val statusLoading = stringResource(R.string.map_status_loading)
@@ -426,6 +413,18 @@ internal fun CockpitMap(
     var rendererStarted by remember { mutableStateOf(false) }
     val cameraTracking = remember { MapCameraTrackingState() }
     val networkAvailable = rememberNetworkAvailability(context, lifecycleActive)
+
+    LaunchedEffect(locationState.position) {
+        locationState.position?.let {
+            val acceptedPosition = MapPosition(it.latitude, it.longitude, it.bearing, it.speedMps)
+            position = acceptedPosition
+            motionSmoother.add(
+                acceptedPosition.toMotionSample(
+                    it.acceptedElapsedMillis ?: SystemClock.elapsedRealtime()
+                )
+            )
+        }
+    }
     LaunchedEffect(Unit) {
         // MapView and its SQL cache must never compete with the first frames of
         // the HOME activity. Render the complete cockpit first, then attach the
@@ -466,109 +465,16 @@ internal fun CockpitMap(
         }
     }
 
-    DisposableEffect(permissionGranted, lifecycleActive) {
+    DisposableEffect(permissionGranted, lifecycleActive, locationRepository) {
         if (!permissionGranted || !lifecycleActive) {
             return@DisposableEffect onDispose {}
         }
-
-        val locationManager = context.getSystemService(LocationManager::class.java)
-        var lastAcceptedLocation: Location? = null
-        var filteredBearing = position.bearing
-        val listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                val now = SystemClock.elapsedRealtime()
-                val isGps = location.provider == LocationManager.GPS_PROVIDER
-                if (!isGps && lastGpsFixElapsed > 0L && now - lastGpsFixElapsed < 15_000L) {
-                    diagnostic("GPS MUESTRA RECHAZADA | proveedor=${location.provider} | motivo=GPS reciente")
-                    return
-                }
-                val maximumAccuracy = if (isGps) 50f else 100f
-                if (location.hasAccuracy() && location.accuracy > maximumAccuracy) {
-                    diagnostic(
-                        "GPS MUESTRA RECHAZADA | proveedor=${location.provider}" +
-                            " | motivo=precisión | precisión=${location.accuracy}m"
-                    )
-                    return
-                }
-                val previous = lastAcceptedLocation
-                if (previous != null) {
-                    val elapsedSeconds = (
-                        location.elapsedRealtimeNanos - previous.elapsedRealtimeNanos
-                        ).coerceAtLeast(1L) / 1_000_000_000.0
-                    val impliedSpeed = previous.distanceTo(location) / elapsedSeconds
-                    if (impliedSpeed > 90.0) {
-                        diagnostic(
-                            "GPS MUESTRA RECHAZADA | proveedor=${location.provider}" +
-                                " | motivo=salto | velocidad_implícita=${"%.1f".format(impliedSpeed)}m/s"
-                        )
-                        return
-                    }
-                }
-                val speed = if (location.hasSpeed()) location.speed else 0f
-                if (isGps && location.hasBearing() && speed >= 2.5f) {
-                    val delta = shortestBearingDelta(filteredBearing, location.bearing)
-                    // Damp noisy GPS headings while still allowing normal junctions.
-                    filteredBearing = normalizeDegrees(filteredBearing + delta * .35f)
-                }
-                val acceptedPosition = MapPosition(
-                    location.latitude,
-                    location.longitude,
-                    filteredBearing,
-                    speed,
-                )
-                position = acceptedPosition
-                motionSmoother.add(
-                    acceptedPosition.toMotionSample(location.elapsedRealtimeNanos / 1_000_000L)
-                )
-                lastAcceptedLocation = Location(location)
-                hasKnownPosition = true
-                if (isGps) {
-                    lastGpsFixElapsed = now
-                }
-                diagnostic(
-                    "GPS MUESTRA ACEPTADA | proveedor=${location.provider}" +
-                        " | lat=${location.latitude} | lon=${location.longitude}" +
-                        " | precisión=${location.accuracy}m | velocidad=${speed}m/s" +
-                        " | rumbo=$filteredBearing"
-                )
-                preferences.edit {
-                    putLong("latitude", location.latitude.toBits())
-                    putLong("longitude", location.longitude.toBits())
-                    putFloat("bearing", filteredBearing)
-                }
-            }
-
-            @Deprecated("Deprecated in Android")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-        }
-
-        registerLocationUpdates(locationManager, listener) { lastKnown ->
-            if (!hasKnownPosition) {
-                val recoveredPosition = MapPosition(
-                    lastKnown.latitude,
-                    lastKnown.longitude,
-                    if (lastKnown.hasBearing()) lastKnown.bearing else 0f,
-                    if (lastKnown.hasSpeed()) lastKnown.speed else 0f,
-                )
-                position = recoveredPosition
-                motionSmoother.add(
-                    recoveredPosition.toMotionSample(
-                        lastKnown.elapsedRealtimeNanos.takeIf { it > 0L }?.div(1_000_000L)
-                            ?: SystemClock.elapsedRealtime()
-                    )
-                )
-                hasKnownPosition = true
-            }
-        }
-
-        onDispose {
-            locationManager.removeUpdates(listener)
-        }
+        val stop = locationRepository.start(diagnostic)
+        onDispose(stop)
     }
 
-    val gpsAvailable = permissionGranted &&
-        lastGpsFixElapsed > 0L &&
-        tick - lastGpsFixElapsed <= GPS_STALE_AFTER_MS
+    val hasKnownPosition = locationState.position != null
+    val gpsAvailable = permissionGranted && locationState.gpsAvailable(tick)
 
     LaunchedEffect(debugEnabled, effectiveTileStyle) {
         debugLogger.setEnabled(debugEnabled)
@@ -1471,20 +1377,6 @@ private fun rememberNetworkAvailability(context: Context, active: Boolean): Bool
         onDispose { connectivity.unregisterNetworkCallback(callback) }
     }
     return available
-}
-
-@SuppressLint("MissingPermission")
-private fun registerLocationUpdates(
-    manager: LocationManager,
-    listener: LocationListener,
-    onLastKnown: (Location) -> Unit,
-) {
-    listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
-        if (manager.allProviders.contains(provider) && manager.isProviderEnabled(provider)) {
-            manager.getLastKnownLocation(provider)?.let(onLastKnown)
-            manager.requestLocationUpdates(provider, 1_000L, 2f, listener)
-        }
-    }
 }
 
 private fun hasLocationPermission(context: Context): Boolean =

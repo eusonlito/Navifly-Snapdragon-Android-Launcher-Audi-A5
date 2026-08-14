@@ -63,13 +63,6 @@ internal object AssistantPrompt {
                 "Never invent coordinates or claim navigation started before the tool is called. " +
                 "Keep spoken answers short and driving-safe."
         )
-        request.knownLocation?.let {
-            append(
-                " Current or last known position is ${it.latitude},${it.longitude}; " +
-                    "it is ${it.ageMillis / 1000} seconds old. Mention that age when stale " +
-                    "and it affects a nearby search."
-            )
-        }
     }
 
     val destinationSearchParametersJson = """

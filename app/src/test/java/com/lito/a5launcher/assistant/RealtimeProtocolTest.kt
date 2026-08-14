@@ -15,7 +15,7 @@ class RealtimeProtocolTest {
         assertEquals(null, request.header("OpenAI-Beta"))
 
         val session = OpenAiProtocol.sessionUpdate(
-            AssistantSessionRequest("es-ES", emptyList(), null),
+            AssistantSessionRequest("es-ES", emptyList()),
         ).getJSONObject("session")
         val audio = session.getJSONObject("audio")
         assertEquals(24_000, audio.getJSONObject("input").getJSONObject("format").getInt("rate"))
@@ -65,7 +65,7 @@ class RealtimeProtocolTest {
 
     @Test
     fun geminiSetupIncludesSearchAndNavigationTool() {
-        val setup = GeminiProtocol.setup(AssistantSessionRequest("es-ES", emptyList(), null))
+        val setup = GeminiProtocol.setup(AssistantSessionRequest("es-ES", emptyList()))
             .getJSONObject("setup")
         assertTrue(!setup.has("responseModalities"))
         assertEquals(
@@ -144,9 +144,26 @@ class RealtimeProtocolTest {
         assertEquals("model", gemini.getJSONArray("turns").getJSONObject(1).getString("role"))
         assertTrue(gemini.getBoolean("turnComplete"))
 
-        val request = AssistantSessionRequest("es-ES", history, null)
+        val request = AssistantSessionRequest("es-ES", history)
         assertTrue(!AssistantPrompt.build(request).contains("Busca Ordes"))
         assertTrue(!GeminiProtocol.setup(request).getJSONObject("setup").has("historyConfig"))
+    }
+
+    @Test
+    fun providerPromptNeverContainsVehicleCoordinates() {
+        val request = AssistantSessionRequest(
+            localeTag = "es-ES",
+            history = emptyList(),
+        )
+
+        val prompt = AssistantPrompt.build(request)
+
+        assertTrue(
+            AssistantSessionRequest::class.java.declaredFields.none {
+                it.name.contains("location", ignoreCase = true)
+            },
+        )
+        assertTrue(!prompt.contains("Current or last known position"))
     }
 }
 

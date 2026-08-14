@@ -88,6 +88,7 @@ import com.lito.a5launcher.assistant.AssistantRobotButton
 import com.lito.a5launcher.assistant.AssistantSettings
 import com.lito.a5launcher.assistant.AssistantSettingsPanel
 import com.lito.a5launcher.assistant.AssistantCredentialTester
+import com.lito.a5launcher.location.LocationRepository
 import com.lito.a5launcher.assistant.AssistantState
 import com.lito.a5launcher.assistant.AssistantStatusPanel
 import com.lito.a5launcher.ui.theme.*
@@ -323,6 +324,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var mapDiagnostics by remember { mutableStateOf(MapDiagnostics()) }
     val coroutineScope = rememberCoroutineScope()
     val poiRepository = remember { PoiRepository(context.applicationContext) }
+    val locationRepository = remember(context) { LocationRepository(context) }
     var poiSnapshot by remember { mutableStateOf(PoiSnapshot()) }
     var poiNotice by remember { mutableStateOf<FloatingNotification?>(null) }
     LaunchedEffect(poiNotice) {
@@ -396,6 +398,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             context,
             coroutineScope,
             viewModel::launchNavigation,
+            locationRepository,
         )
     }
     LaunchedEffect(poiRepository) {
@@ -614,6 +617,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                         cacheGeneration = cacheGeneration,
                         poiSnapshot = poiSnapshot,
                         poiRepository = poiRepository,
+                        locationRepository = locationRepository,
                         debugEnabled = mapDebugEnabled,
                         onDiagnosticsChanged = { mapDiagnostics = it },
                     )

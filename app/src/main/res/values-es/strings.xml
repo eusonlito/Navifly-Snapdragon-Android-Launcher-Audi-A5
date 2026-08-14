@@ -63,6 +63,7 @@
     <string name="assistant_error_places_key">Configura la clave API de Google Maps Platform para las búsquedas cercanas.</string>
     <string name="assistant_destination_not_found">No se ha encontrado ningún destino cercano que coincida.</string>
     <string name="assistant_destination_search_failed">No se ha podido buscar el destino cercano.</string>
+    <string name="assistant_destination_location_unavailable">Necesito una ubicación actual para buscar el destino más cercano.</string>
     <string name="launcher_settings_tab_map">Mapa</string>
     <string name="launcher_settings_tab_assistant">Asistente IA</string>
     <string name="launcher_settings_tab_system">Sistema</string>

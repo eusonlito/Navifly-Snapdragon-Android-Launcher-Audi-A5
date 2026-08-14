@@ -80,8 +80,26 @@ data class ConversationTurn(val role: ConversationRole, val text: String)
 data class AssistantSessionRequest(
     val localeTag: String,
     val history: List<ConversationTurn>,
-    val knownLocation: KnownLocation?,
 )
+
+internal sealed interface DestinationSearchRoute {
+    data class TextNavigation(val query: String) : DestinationSearchRoute
+    data class NearbySearch(
+        val search: DestinationSearch,
+        val location: KnownLocation,
+    ) : DestinationSearchRoute
+    data object LocationUnavailable : DestinationSearchRoute
+}
+
+internal fun destinationSearchRoute(
+    search: DestinationSearch,
+    location: KnownLocation?,
+): DestinationSearchRoute = when (search.mode) {
+    DestinationSearchMode.RELEVANCE -> DestinationSearchRoute.TextNavigation(search.query)
+    DestinationSearchMode.NEAREST -> location?.let {
+        DestinationSearchRoute.NearbySearch(search, it)
+    } ?: DestinationSearchRoute.LocationUnavailable
+}
 
 sealed interface DestinationValidation {
     data class Valid(val destination: NavigationDestination) : DestinationValidation

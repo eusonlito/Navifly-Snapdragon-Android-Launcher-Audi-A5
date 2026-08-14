@@ -1,13 +1,12 @@
 package com.lito.a5launcher.assistant
 
 import android.content.Context
-import android.location.Location
-import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.lito.a5launcher.R
+import com.lito.a5launcher.location.LocationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -40,10 +39,11 @@ interface AssistantCredentialTester {
 
 data class AssistantCredentialTestResult(val successful: Boolean, val message: String)
 
-class AssistantController(
+internal class AssistantController(
     context: Context,
     private val scope: CoroutineScope,
     private val onNavigate: (NavigationRequest) -> Boolean,
+    private val locationRepository: LocationRepository,
     openAiProvider: RealtimeVoiceProvider? = null,
     geminiProvider: RealtimeVoiceProvider? = null,
 ) : AssistantCredentialTester {
@@ -68,7 +68,6 @@ class AssistantController(
     private var destinationCall: Call? = null
     private var connectionTestCancel: (() -> Unit)? = null
     private var connectionTestId = 0L
-    private var activeKnownLocation: KnownLocation? = null
     private var actionHandled = false
     private var activeProvider: RealtimeVoiceProvider? = null
     private var observedProvider = settings.provider
@@ -108,11 +107,9 @@ class AssistantController(
         // Connecting is intentionally silent: "Listening" is only shown once
         // the provider is ready and microphone capture has actually started.
         _uiState.value = AssistantUiState(AssistantState.Ready)
-        activeKnownLocation = lastKnownLocation()
         val request = AssistantSessionRequest(
             localeTag = Locale.getDefault().toLanguageTag(),
             history = history.toList(),
-            knownLocation = activeKnownLocation,
         )
         activeProvider = provider(provider)
         session = activeProvider?.connect(key, request, listenerFor(turnId, provider))
@@ -301,7 +298,6 @@ class AssistantController(
         actionLaunchJob = null
         destinationCall?.cancel()
         destinationCall = null
-        activeKnownLocation = null
         audio.stopRecording()
         audio.stopPlayback()
         session?.cancel()
@@ -380,9 +376,17 @@ class AssistantController(
                     finishConversation(text(R.string.assistant_destination_empty))
                     return@launchMain
                 }
-                if (search.mode == DestinationSearchMode.RELEVANCE) {
-                    openDestinationSearch(search.query)
-                    return@launchMain
+                val route = destinationSearchRoute(search, currentKnownLocation())
+                when (route) {
+                    is DestinationSearchRoute.TextNavigation -> {
+                        openDestinationSearch(route.query)
+                        return@launchMain
+                    }
+                    DestinationSearchRoute.LocationUnavailable -> {
+                        finishConversation(text(R.string.assistant_destination_location_unavailable))
+                        return@launchMain
+                    }
+                    is DestinationSearchRoute.NearbySearch -> Unit
                 }
                 val placesKey = settings.placesApiKey()
                 if (placesKey.isNullOrBlank()) {
@@ -396,8 +400,8 @@ class AssistantController(
                 destinationCall?.cancel()
                 destinationCall = destinationResolver.resolve(
                     apiKey = placesKey,
-                    search = search,
-                    location = activeKnownLocation,
+                    search = route.search,
+                    location = route.location,
                     localeTag = Locale.getDefault().toLanguageTag(),
                 ) { result ->
                     scope.launchMain {
@@ -467,7 +471,6 @@ class AssistantController(
             actionLaunchJob = null
             val opened = onNavigate(request)
             activeTurnId++
-            activeKnownLocation = null
             _uiState.value = AssistantUiState(
                 if (opened) initialState()
                 else AssistantState.Error(text(R.string.assistant_error_no_navigation)),
@@ -591,14 +594,15 @@ class AssistantController(
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
-    @Suppress("MissingPermission")
-    private fun lastKnownLocation(): KnownLocation? {
-        val manager = ContextCompat.getSystemService(appContext, LocationManager::class.java) ?: return null
-        val location = manager.getProviders(true).asSequence().mapNotNull { provider ->
-            runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
-        }.maxByOrNull(Location::getElapsedRealtimeNanos) ?: return null
-        val age = (SystemClock.elapsedRealtimeNanos() - location.elapsedRealtimeNanos) / 1_000_000L
-        return KnownLocation(location.latitude, location.longitude, age.coerceAtLeast(0L))
+    private fun currentKnownLocation(): KnownLocation? {
+        val now = SystemClock.elapsedRealtime()
+        val position = locationRepository.state.value.activePosition(now) ?: return null
+        val acceptedAt = position.acceptedElapsedMillis ?: return null
+        return KnownLocation(
+            latitude = position.latitude,
+            longitude = position.longitude,
+            ageMillis = (now - acceptedAt).coerceAtLeast(0L),
+        )
     }
 
     private fun CoroutineScope.launchMain(block: () -> Unit) = launch(kotlinx.coroutines.Dispatchers.Main) { block() }

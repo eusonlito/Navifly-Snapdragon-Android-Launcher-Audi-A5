@@ -64,6 +64,7 @@
     <string name="assistant_error_places_key">Configure the Google Maps Platform API key for nearby searches.</string>
     <string name="assistant_destination_not_found">No matching nearby destination was found.</string>
     <string name="assistant_destination_search_failed">The nearby destination search failed.</string>
+    <string name="assistant_destination_location_unavailable">A current location is required to search for the nearest destination.</string>
     <string name="launcher_settings_tab_map">Map</string>
     <string name="launcher_settings_tab_assistant">AI Assistant</string>
     <string name="launcher_settings_tab_system">System</string>
