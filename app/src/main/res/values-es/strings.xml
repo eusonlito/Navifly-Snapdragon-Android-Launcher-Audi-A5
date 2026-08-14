@@ -7,6 +7,7 @@
     <string name="telemetry_notification_title">A5 Cockpit</string>
     <string name="telemetry_notification_text">Registrando los datos del trayecto actual</string>
     <string name="assistant_voice">Asistente IA</string>
+    <string name="assistant_initializing">Iniciando, espere…</string>
     <string name="assistant_listening">Escuchando…</string>
     <string name="assistant_processing">Esperando Respuesta…</string>
     <string name="assistant_responding">Respondiendo…</string>

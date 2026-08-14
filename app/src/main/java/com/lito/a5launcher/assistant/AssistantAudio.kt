@@ -27,6 +27,7 @@ internal class AssistantAudio(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun recordClosedTurn(
         sampleRate: Int,
+        onStarted: () -> Unit,
         onChunk: (ByteArray) -> Unit,
         onLevel: (Int) -> Unit,
         onFinished: (SpeechCaptureResult) -> Unit,
@@ -66,10 +67,21 @@ internal class AssistantAudio(private val context: Context) {
             recorder = localRecorder
             recordingToken = localToken
         }
-        localRecorder.startRecording()
+        val started = runCatching { localRecorder.startRecording() }.isSuccess
+        if (!started) {
+            synchronized(this) {
+                if (recorder === localRecorder) recorder = null
+                if (recordingToken === localToken) recordingToken = null
+            }
+            noiseSuppressor?.release()
+            localRecorder.release()
+            onFailure(context.getString(R.string.assistant_error_microphone_unavailable))
+            return
+        }
+        val startedAt = SystemClock.elapsedRealtime()
+        onStarted()
         val localThread = thread(start = false, name = "assistant-audio-capture", isDaemon = true) {
             val buffer = ByteArray(CHUNK_BYTES)
-            val startedAt = SystemClock.elapsedRealtime()
             val speechWindow = SpeechCaptureWindow()
             var result = SpeechCaptureResult.CANCELLED
             try {
@@ -282,7 +294,7 @@ internal class SpeechCaptureWindow {
     private companion object {
         const val SPEECH_AMPLITUDE = 450
         const val END_SILENCE_MS = 2_000L
-        const val INITIAL_SPEECH_TIMEOUT_MS = 5_000L
+        const val INITIAL_SPEECH_TIMEOUT_MS = 3_000L
         const val MAX_TURN_MS = 12_000L
     }
 }

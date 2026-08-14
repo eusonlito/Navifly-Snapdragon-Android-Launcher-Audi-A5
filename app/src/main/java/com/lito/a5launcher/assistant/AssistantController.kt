@@ -104,9 +104,7 @@ internal class AssistantController(
         outputTranscript.clear()
         inputTranscript.clear()
         actionHandled = false
-        // Connecting is intentionally silent: "Listening" is only shown once
-        // the provider is ready and microphone capture has actually started.
-        _uiState.value = AssistantUiState(AssistantState.Ready)
+        _uiState.value = AssistantUiState(AssistantState.Initializing)
         val request = AssistantSessionRequest(
             localeTag = Locale.getDefault().toLanguageTag(),
             history = history.toList(),
@@ -318,9 +316,13 @@ internal class AssistantController(
         override fun onReady() {
             scope.launchMain {
             if (!isActive(turnId)) return@launchMain
-            _uiState.value = _uiState.value.copy(status = AssistantState.Listening)
             audio.recordClosedTurn(
                 sampleRate = activeProvider?.inputSampleRate ?: 16_000,
+                onStarted = {
+                    if (isActive(turnId)) {
+                        _uiState.value = _uiState.value.copy(status = AssistantState.Listening)
+                    }
+                },
                 onChunk = { chunk -> if (isActive(turnId)) session?.sendAudio(chunk) },
                 onLevel = { amplitude ->
                     scope.launchMain {

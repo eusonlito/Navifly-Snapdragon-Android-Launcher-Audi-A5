@@ -23,7 +23,9 @@ el coste de iniciar Realtime/Live y procesar audio sólo para validar acceso.
 ## Límites de alcance
 
 - Una pulsación inicia un único turno de micrófono; no hay escucha permanente.
-  Si no comienza a hablarse en cinco segundos, el turno se cierra silenciosamente.
+  La conexión del proveedor muestra `Iniciando, espere…`; cuando el micrófono
+  empieza a capturar cambia a `Escuchando…`. Si no comienza a hablarse en tres
+  segundos desde ese momento, el turno se cierra silenciosamente.
   Una vez detectada voz, espera dos segundos completos de silencio antes de dar
   el turno por terminado.
 - La alerta pasa de `Escuchando` a `Esperando respuesta` y después muestra la

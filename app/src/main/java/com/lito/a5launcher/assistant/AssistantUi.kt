@@ -102,12 +102,9 @@ fun AssistantStatusPanel(
     modifier: Modifier = Modifier,
 ) {
     val text = when (state) {
-        AssistantState.Disabled, AssistantState.Ready -> null
-        AssistantState.Listening -> stringResource(R.string.assistant_listening)
-        AssistantState.Processing -> stringResource(R.string.assistant_processing)
-        AssistantState.Speaking -> stringResource(R.string.assistant_responding)
         is AssistantState.Offline -> state.message
         is AssistantState.Error -> state.message
+        else -> assistantStatusTextResource(state)?.let { stringResource(it) }
     }
     val detail = when (action) {
         is AssistantAction.Searching -> stringResource(
@@ -139,6 +136,15 @@ fun AssistantStatusPanel(
             audioLevel.takeIf { state == AssistantState.Listening }?.let { AssistantAudioMeter(it) }
         }
     }
+}
+
+internal fun assistantStatusTextResource(state: AssistantState): Int? = when (state) {
+    AssistantState.Disabled, AssistantState.Ready -> null
+    AssistantState.Initializing -> R.string.assistant_initializing
+    AssistantState.Listening -> R.string.assistant_listening
+    AssistantState.Processing -> R.string.assistant_processing
+    AssistantState.Speaking -> R.string.assistant_responding
+    is AssistantState.Offline, is AssistantState.Error -> null
 }
 
 @Composable

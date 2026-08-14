@@ -22,6 +22,7 @@ enum class AssistantCredentialKind(val model: String) {
 sealed interface AssistantState {
     data object Disabled : AssistantState
     data object Ready : AssistantState
+    data object Initializing : AssistantState
     data object Listening : AssistantState
     data object Processing : AssistantState
     data object Speaking : AssistantState
