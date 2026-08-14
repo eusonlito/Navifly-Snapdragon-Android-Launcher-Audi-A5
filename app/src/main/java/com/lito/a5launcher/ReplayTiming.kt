@@ -35,16 +35,43 @@ internal class ReplayTimeline private constructor(
     companion object {
         private const val NANOS_PER_MILLISECOND = 1_000_000L
 
-        fun from(timestamps: List<ReplayTimestamp>): ReplayTimeline? {
-            if (timestamps.isEmpty()) return null
-            val clock = if (timestamps.all { it.elapsedRealtimeNanos != null }) {
-                ReplayClock.ELAPSED_REALTIME_NANOS
-            } else {
-                ReplayClock.TIMESTAMP_MILLIS
+        fun from(timestamps: Iterable<ReplayTimestamp>): ReplayTimeline? =
+            from(timestamps.asSequence())
+
+        fun from(timestamps: Sequence<ReplayTimestamp>): ReplayTimeline? {
+            var count = 0
+            var completeMonotonicClock = true
+            var completeWallClock = true
+            var minimumMonotonic = Long.MAX_VALUE
+            var maximumMonotonic = Long.MIN_VALUE
+            var minimumWall = Long.MAX_VALUE
+            var maximumWall = Long.MIN_VALUE
+
+            timestamps.forEach { timestamp ->
+                count++
+                timestamp.elapsedRealtimeNanos?.let { tick ->
+                    minimumMonotonic = minOf(minimumMonotonic, tick)
+                    maximumMonotonic = maxOf(maximumMonotonic, tick)
+                } ?: run { completeMonotonicClock = false }
+                timestamp.timestampMillis?.let { tick ->
+                    minimumWall = minOf(minimumWall, tick)
+                    maximumWall = maxOf(maximumWall, tick)
+                } ?: run { completeWallClock = false }
             }
-            val ticks = timestamps.mapNotNull { it.tick(clock) }
-            if (ticks.size != timestamps.size) return null
-            return ReplayTimeline(clock, ticks.min(), ticks.max())
+            if (count == 0) return null
+            return when {
+                completeMonotonicClock -> ReplayTimeline(
+                    ReplayClock.ELAPSED_REALTIME_NANOS,
+                    minimumMonotonic,
+                    maximumMonotonic,
+                )
+                completeWallClock -> ReplayTimeline(
+                    ReplayClock.TIMESTAMP_MILLIS,
+                    minimumWall,
+                    maximumWall,
+                )
+                else -> null
+            }
         }
     }
 }

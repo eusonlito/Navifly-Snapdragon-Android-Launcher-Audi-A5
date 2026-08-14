@@ -53,10 +53,6 @@ internal data class PoiSnapshot(
     val categoryCatalog: PoiCategoryCatalog? = null,
 ) {
     val totalPoints: Int get() = sources.sumOf(PoiSource::pointCount)
-    val referencedIconCodes: Set<String> = sources.asSequence()
-        .flatMap { it.features.asSequence() }
-        .mapNotNull { categoryCatalog?.styles?.get(it.category)?.icon }
-        .toSet()
     val hasPulsingPoints: Boolean = sources.any { source ->
         source.features.any { categoryCatalog?.styles?.get(it.category)?.pulseEnabled == true }
     }
@@ -86,8 +82,11 @@ internal data class PoiSnapshot(
 }
 
 internal fun PoiSnapshot.iconsReferencedBySources(): List<PoiIcon> {
-    if (referencedIconCodes.isEmpty()) return emptyList()
-    return icons.filter { it.code in referencedIconCodes }
+    val referencedIcons = sources.asSequence()
+        .flatMap { it.features.asSequence() }
+        .mapNotNull { categoryCatalog?.styles?.get(it.category)?.icon }
+        .toSet()
+    return icons.filter { it.code in referencedIcons }
 }
 
 internal object PoiGeoJsonParser {

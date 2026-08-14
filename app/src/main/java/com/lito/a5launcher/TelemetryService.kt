@@ -190,20 +190,20 @@ class TelemetryService : Service() {
             try {
                 requireNotNull(mEvtService) { "EventService returned a null binder interface" }
                     .setDashBoardCallback(mDashBoardCallback)
-                reconnectPolicy.onConnected()
+                reconnectPolicy.reset()
                 eventConnectionJob?.cancel()
                 eventConnectionJob = null
                 stopTelemetryReplay()
                 Log.i(TAG, "DashBoardCallback successfully registered.")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to set dashboard callback: ${e.message}", e)
-                handleEventServiceFailure(EventServiceFailure.CALLBACK_REGISTRATION_FAILED)
+                handleEventServiceFailure()
             }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.i(TAG, "EventService disconnected.")
-            handleEventServiceFailure(EventServiceFailure.DISCONNECTED)
+            handleEventServiceFailure()
         }
 
         override fun onBindingDied(name: ComponentName?) {
@@ -304,7 +304,7 @@ class TelemetryService : Service() {
         }.onFailure {
             Log.w(TAG, "SysVar observer unavailable: ${it.message}")
         }
-        startEventServiceConnection(immediate = true)
+        startEventServiceConnection(initialDelayMs = 0L)
         // The provider does not exist in the emulator. The capture did not store
         // its belt value, so replay starts with the belt buckled.
         if (BuildConfig.TELEMETRY_REPLAY_ENABLED && !isBound) {
@@ -435,7 +435,7 @@ class TelemetryService : Service() {
         _tripElapsedRealtimeMsFlow.value = metrics.elapsedMs
         _tripDistanceKmFlow.value = metrics.distanceKm
         _averageConsumptionFlow.value = metrics.averageConsumption
-        _rangeFlow.value = displayedEstimatedRange(metrics.estimatedRangeKm)
+        _rangeFlow.value = authoritativeRangeKm(metrics)
     }
 
     private fun restoreDistanceSinceRefuel() {
@@ -537,44 +537,39 @@ class TelemetryService : Service() {
         }
     }
 
-    private fun startEventServiceConnection(
-        immediate: Boolean,
-        failure: EventServiceFailure? = null,
-    ) {
+    private fun startEventServiceConnection(initialDelayMs: Long) {
         if (shuttingDown || mEvtService != null || eventConnectionJob?.isActive == true) return
         eventConnectionJob = scope.launch {
-            if (!immediate) {
-                delay(reconnectPolicy.delayAfter(requireNotNull(failure)))
-            }
+            if (initialDelayMs > 0L) delay(initialDelayMs)
             while (isActive && !shuttingDown && mEvtService == null) {
                 disconnectEventService()
                 if (attemptEventServiceBind()) return@launch
                 if (BuildConfig.TELEMETRY_REPLAY_ENABLED) startTelemetryReplay()
-                delay(reconnectPolicy.delayAfter(EventServiceFailure.BIND_REJECTED))
+                delay(reconnectPolicy.nextDelayMs())
             }
         }
     }
 
     private fun attemptEventServiceBind(): Boolean = try {
-            val bindIntent = Intent("com.szchoiceway.eventcenter.EventService").apply {
-                setPackage("com.szchoiceway.eventcenter")
-            }
-            isBound = bindService(bindIntent, mSerCon, Context.BIND_AUTO_CREATE)
-            Log.i(TAG, "Binding attempt to EventService: $isBound")
-            isBound
-        } catch (e: Exception) {
-            Log.e(TAG, "Error binding to EventService: ${e.message}", e)
-            isBound = false
-            false
+        val bindIntent = Intent("com.szchoiceway.eventcenter.EventService").apply {
+            setPackage("com.szchoiceway.eventcenter")
         }
+        isBound = bindService(bindIntent, mSerCon, Context.BIND_AUTO_CREATE)
+        Log.i(TAG, "Binding attempt to EventService: $isBound")
+        isBound
+    } catch (e: Exception) {
+        Log.e(TAG, "Error binding to EventService: ${e.message}", e)
+        isBound = false
+        false
+    }
 
-    private fun handleEventServiceFailure(failure: EventServiceFailure) {
+    private fun handleEventServiceFailure() {
         if (shuttingDown) return
         eventConnectionJob?.cancel()
         eventConnectionJob = null
         disconnectEventService()
         if (BuildConfig.TELEMETRY_REPLAY_ENABLED) startTelemetryReplay()
-        startEventServiceConnection(immediate = false, failure = failure)
+        startEventServiceConnection(initialDelayMs = reconnectPolicy.nextDelayMs())
     }
 
     private fun startTelemetryReplay() {
@@ -584,39 +579,47 @@ class TelemetryService : Service() {
             replayActive = true
             Log.i(TAG, "Starting real-trip telemetry replay from $REPLAY_ASSET")
 
+            val records = try {
+                assets.open(REPLAY_ASSET).bufferedReader().useLines { lines ->
+                    lines.mapNotNull(::parseReplayRecord).toList()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Telemetry replay failed: ${e.message}", e)
+                replayActive = false
+                return@launch
+            }
+            val timeline = ReplayTimeline.from(records.asSequence().map(ReplayRecord::timestamp))
+            if (timeline == null) {
+                Log.e(TAG, "Telemetry replay failed: incomplete timing timeline")
+                replayActive = false
+                return@launch
+            }
+
             while (isActive && mEvtService == null) {
                 var replayedEvents = 0
 
                 try {
-                    val records = assets.open(REPLAY_ASSET).bufferedReader().useLines { lines ->
-                        lines.mapNotNull(::parseReplayRecord).toList()
-                    }
-                    val timeline = ReplayTimeline.from(records.map(ReplayRecord::timestamp))
-                        ?: error("Replay does not contain a complete timing timeline")
                     val cycleStartedAt = SystemClock.elapsedRealtime()
                     for (record in records) {
-                        if (!record.shouldEmit) continue
+                        val payload = record.payload ?: continue
                         val targetOffset = timeline.offsetMillis(record.timestamp) ?: continue
                         val remainingDelay = targetOffset -
                             (SystemClock.elapsedRealtime() - cycleStartedAt)
                         if (remainingDelay > 0L) delay(remainingDelay)
                         if (!isActive || mEvtService != null) break
 
-                        if (record.isAidl) {
-                            val bytes = hexToByteArray(record.json.optString("bytes_hex"))
-                            mDashBoardCallback.notifyEvt(
-                                record.json.optInt("msg_what"),
-                                record.json.optInt("arg1"),
-                                record.json.optInt("arg2"),
-                                bytes,
-                                record.json.optString("str")
+                        when (payload) {
+                            is ReplayPayload.Aidl -> mDashBoardCallback.notifyEvt(
+                                payload.message,
+                                payload.arg1,
+                                payload.arg2,
+                                hexToByteArray(payload.bytesHex),
+                                payload.text,
                             )
-                        } else {
-                            val enabled = record.json.optString("value") == "1"
-                            when (record.providerKey) {
-                                KESAIWEI_RECORD_BELT -> _seatbeltFlow.value = enabled
-                                KESAIWEI_RECORD_PARK -> _parkingBrakeFlow.value = enabled
-                                KSW_DATA_SMALL_LIGHT_ON -> _lightsOnFlow.value = enabled
+                            is ReplayPayload.Provider -> when (payload.key) {
+                                KESAIWEI_RECORD_BELT -> _seatbeltFlow.value = payload.enabled
+                                KESAIWEI_RECORD_PARK -> _parkingBrakeFlow.value = payload.enabled
+                                KSW_DATA_SMALL_LIGHT_ON -> _lightsOnFlow.value = payload.enabled
                             }
                         }
                         replayedEvents++
@@ -639,12 +642,21 @@ class TelemetryService : Service() {
     }
 
     private data class ReplayRecord(
-        val json: JSONObject,
         val timestamp: ReplayTimestamp,
-        val isAidl: Boolean,
-        val providerKey: String,
-        val shouldEmit: Boolean,
+        val payload: ReplayPayload?,
     )
+
+    private sealed interface ReplayPayload {
+        data class Aidl(
+            val message: Int,
+            val arg1: Int,
+            val arg2: Int,
+            val bytesHex: String,
+            val text: String,
+        ) : ReplayPayload
+
+        data class Provider(val key: String, val enabled: Boolean) : ReplayPayload
+    }
 
     private fun parseReplayRecord(line: String): ReplayRecord? {
         val json = runCatching { JSONObject(line) }.getOrNull() ?: return null
@@ -659,14 +671,24 @@ class TelemetryService : Service() {
         val contributesToTimeline = isAidl || isRelevantProviderState || source == "GPS_LOCATION"
         if (!contributesToTimeline) return null
         return ReplayRecord(
-            json = json,
             timestamp = ReplayTimestamp(
                 timestampMillis = json.longOrNull("timestamp"),
                 elapsedRealtimeNanos = json.longOrNull("elapsed_realtime_nanos"),
             ),
-            isAidl = isAidl,
-            providerKey = providerKey,
-            shouldEmit = isAidl || isRelevantProviderState,
+            payload = when {
+                isAidl -> ReplayPayload.Aidl(
+                    message = json.optInt("msg_what"),
+                    arg1 = json.optInt("arg1"),
+                    arg2 = json.optInt("arg2"),
+                    bytesHex = json.optString("bytes_hex"),
+                    text = json.optString("str"),
+                )
+                isRelevantProviderState -> ReplayPayload.Provider(
+                    key = providerKey,
+                    enabled = json.optString("value") == "1",
+                )
+                else -> null
+            },
         )
     }
 
@@ -706,8 +728,8 @@ class TelemetryService : Service() {
         val parkingBrake = getRecordBooleanOrNull(KESAIWEI_RECORD_PARK)
         val seatbelt = getRecordBooleanOrNull(KESAIWEI_RECORD_BELT)
         val lightsOn = getRecordBooleanOrNull(KSW_DATA_SMALL_LIGHT_ON)
-        _parkingBrakeFlow.value = retainLastKnownBoolean(_parkingBrakeFlow.value, parkingBrake)
-        _seatbeltFlow.value = retainLastKnownBoolean(_seatbeltFlow.value, seatbelt)
+        _parkingBrakeFlow.value = parkingBrake ?: _parkingBrakeFlow.value
+        _seatbeltFlow.value = seatbelt ?: _seatbeltFlow.value
         if (lightsOn != null) _lightsOnFlow.value = lightsOn
         Log.d(
             TAG,

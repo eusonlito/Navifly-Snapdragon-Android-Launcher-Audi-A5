@@ -79,6 +79,9 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.lito.a5launcher.R
+import com.lito.a5launcher.normalizeDegrees
+import com.lito.a5launcher.shortestBearingDelta
+import com.lito.a5launcher.location.LOCATION_PREFERENCES
 import com.lito.a5launcher.location.LocationRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CompletableDeferred
@@ -131,7 +134,6 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
 
-private const val LOCATION_PREFS = "cockpit_map_location"
 private const val POI_SOURCE_ID = "private-poi-sources"
 private const val POI_PULSE_FIRST_LAYER_ID = "private-poi-pulse-first"
 private const val POI_PULSE_SECOND_LAYER_ID = "private-poi-pulse-second"
@@ -386,13 +388,10 @@ internal fun CockpitMap(
         mutableStateOf(hasLocationPermission(context))
     }
     val locationState by locationRepository.state.collectAsStateWithLifecycle()
-    var position by remember(locationRepository) {
-        mutableStateOf(
-            locationState.position?.let {
-                MapPosition(it.latitude, it.longitude, it.bearing, it.speedMps)
-            } ?: MapPosition(40.4168, -3.7038, 0f, 0f)
-        )
-    }
+    val fallbackPosition = remember { MapPosition(40.4168, -3.7038, 0f, 0f) }
+    val position = locationState.position?.let {
+        MapPosition(it.latitude, it.longitude, it.bearing, it.speedMps)
+    } ?: fallbackPosition
     val motionSmoother = remember {
         MapMotionSmoother().apply {
             add(position.toMotionSample(SystemClock.elapsedRealtime()))
@@ -417,7 +416,6 @@ internal fun CockpitMap(
     LaunchedEffect(locationState.position) {
         locationState.position?.let {
             val acceptedPosition = MapPosition(it.latitude, it.longitude, it.bearing, it.speedMps)
-            position = acceptedPosition
             motionSmoother.add(
                 acceptedPosition.toMotionSample(
                     it.acceptedElapsedMillis ?: SystemClock.elapsedRealtime()
@@ -638,7 +636,7 @@ private fun CockpitMapView(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val preferences = remember {
-        context.getSharedPreferences(LOCATION_PREFS, Context.MODE_PRIVATE)
+        context.getSharedPreferences(LOCATION_PREFERENCES, Context.MODE_PRIVATE)
     }
     val styleCache = remember {
         MapStyleCache(File(context.filesDir, "map-styles"), ::downloadMapStyleJson)
@@ -1237,11 +1235,6 @@ private fun Throwable.diagnosticDescription(): String =
         .joinToString(" <- ") { cause ->
             "${cause.javaClass.name}: ${cause.message.orEmpty()}"
         }
-
-internal fun normalizeDegrees(value: Float): Float = ((value % 360f) + 360f) % 360f
-
-internal fun shortestBearingDelta(from: Float, to: Float): Float =
-    ((to - from + 540f) % 360f) - 180f
 
 @Composable
 private fun RecenterMapButton(

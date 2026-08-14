@@ -166,8 +166,14 @@ class EmulatorGpsClient:
 
 
 def parse_log(path: Path) -> tuple[ReplayTimeline, list[dict[str, object]]]:
-    replayable_events: list[dict[str, object]] = []
     locations: list[dict[str, object]] = []
+    replayable_count = 0
+    complete_monotonic_clock = True
+    complete_wall_clock = True
+    minimum_monotonic: int | None = None
+    maximum_monotonic: int | None = None
+    minimum_wall: int | None = None
+    maximum_wall: int | None = None
 
     with path.open(encoding="utf-8") as source:
         for line in source:
@@ -184,7 +190,29 @@ def parse_log(path: Path) -> tuple[ReplayTimeline, list[dict[str, object]]]:
             ) or source_type == "GPS_LOCATION"
             if not replayable:
                 continue
-            replayable_events.append(event)
+            replayable_count += 1
+
+            monotonic_tick = event.get("elapsed_realtime_nanos")
+            if isinstance(monotonic_tick, int):
+                minimum_monotonic = (
+                    monotonic_tick
+                    if minimum_monotonic is None
+                    else min(minimum_monotonic, monotonic_tick)
+                )
+                maximum_monotonic = (
+                    monotonic_tick
+                    if maximum_monotonic is None
+                    else max(maximum_monotonic, monotonic_tick)
+                )
+            else:
+                complete_monotonic_clock = False
+
+            wall_tick = event.get("timestamp")
+            if isinstance(wall_tick, int):
+                minimum_wall = wall_tick if minimum_wall is None else min(minimum_wall, wall_tick)
+                maximum_wall = wall_tick if maximum_wall is None else max(maximum_wall, wall_tick)
+            else:
+                complete_wall_clock = False
 
             if source_type == "GPS_LOCATION":
                 latitude = event.get("latitude")
@@ -192,25 +220,25 @@ def parse_log(path: Path) -> tuple[ReplayTimeline, list[dict[str, object]]]:
                 if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
                     locations.append(event)
 
-    if not replayable_events:
+    if replayable_count == 0:
         raise ValueError("El log no contiene eventos reproducibles")
     if not locations:
         raise ValueError("El log no contiene posiciones GPS")
-    if all(isinstance(event.get("elapsed_realtime_nanos"), int) for event in replayable_events):
-        clock_key = "elapsed_realtime_nanos"
-        ticks_per_second = 1_000_000_000
+    if complete_monotonic_clock:
+        clock_key, ticks_per_second = "elapsed_realtime_nanos", 1_000_000_000
+        start_tick, end_tick = minimum_monotonic, maximum_monotonic
+    elif complete_wall_clock:
+        clock_key, ticks_per_second = "timestamp", 1_000
+        start_tick, end_tick = minimum_wall, maximum_wall
     else:
-        clock_key = "timestamp"
-        ticks_per_second = 1_000
-    ticks = [event.get(clock_key) for event in replayable_events]
-    if not all(isinstance(tick, int) for tick in ticks):
+        raise ValueError("El log no contiene una cronología completa")
+    if start_tick is None or end_tick is None:
         raise ValueError(f"El log no contiene una cronología completa en {clock_key}")
-    integer_ticks = [int(tick) for tick in ticks]
     return ReplayTimeline(
         clock_key,
         ticks_per_second,
-        min(integer_ticks),
-        max(integer_ticks),
+        start_tick,
+        end_tick,
     ), locations
 
 

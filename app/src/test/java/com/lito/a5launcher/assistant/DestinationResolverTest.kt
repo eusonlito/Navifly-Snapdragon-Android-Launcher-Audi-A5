@@ -12,7 +12,7 @@ class DestinationResolverTest {
         val request = GooglePlacesDestinationResolver.buildRequest(
             apiKey = "places-secret",
             search = DestinationSearch("gasolinera", DestinationSearchMode.NEAREST),
-            location = KnownLocation(42.34, -7.86, 1_000),
+            location = KnownLocation(42.34, -7.86),
             localeTag = "es-ES",
         )
 

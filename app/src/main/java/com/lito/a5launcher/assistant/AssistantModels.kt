@@ -35,7 +35,6 @@ sealed interface AssistantAction {
 data class KnownLocation(
     val latitude: Double,
     val longitude: Double,
-    val ageMillis: Long,
 )
 
 data class NavigationDestination(

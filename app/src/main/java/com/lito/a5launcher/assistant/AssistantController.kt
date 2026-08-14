@@ -595,13 +595,12 @@ internal class AssistantController(
     }
 
     private fun currentKnownLocation(): KnownLocation? {
-        val now = SystemClock.elapsedRealtime()
-        val position = locationRepository.state.value.activePosition(now) ?: return null
-        val acceptedAt = position.acceptedElapsedMillis ?: return null
+        val position = locationRepository.state.value.activePosition(
+            SystemClock.elapsedRealtime(),
+        ) ?: return null
         return KnownLocation(
             latitude = position.latitude,
             longitude = position.longitude,
-            ageMillis = (now - acceptedAt).coerceAtLeast(0L),
         )
     }
 

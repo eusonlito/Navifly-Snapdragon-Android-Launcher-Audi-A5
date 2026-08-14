@@ -399,7 +399,7 @@ data class DistanceSinceRefuelSnapshot(
 /**
  * Confirms refuelling from the coarse integer fuel level shared by the trip and
  * distance trackers. The baseline only follows decreases; increases must reach
- * three litres while stationary and remain present for two consecutive samples.
+ * three litres while stationary and remain at or above that threshold for two samples.
  */
 class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }

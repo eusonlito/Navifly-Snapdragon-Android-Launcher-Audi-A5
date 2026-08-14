@@ -1,10 +1,25 @@
 package com.lito.a5launcher.location
 
+import android.location.LocationManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocationValidatorTest {
+    @Test
+    fun availableProvidersAreRegisteredEvenWhenInitiallyDisabled() {
+        assertEquals(
+            listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER),
+            availableLocationProviders(
+                listOf(
+                    LocationManager.PASSIVE_PROVIDER,
+                    LocationManager.NETWORK_PROVIDER,
+                    LocationManager.GPS_PROVIDER,
+                ),
+            ),
+        )
+    }
+
     @Test
     fun sharedValidatorRejectsInaccurateFixesAndImpossibleJumps() {
         val validator = LocationValidator()

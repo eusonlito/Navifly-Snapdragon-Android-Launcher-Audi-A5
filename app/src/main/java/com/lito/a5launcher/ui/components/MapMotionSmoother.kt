@@ -1,11 +1,14 @@
 package com.lito.a5launcher.ui.components
 
+import com.lito.a5launcher.MAX_PLAUSIBLE_LOCATION_SPEED_MPS
+import com.lito.a5launcher.geodesicDistanceMetres
+import com.lito.a5launcher.normalizeDegrees
+import com.lito.a5launcher.shortestBearingDelta
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
-import kotlin.math.sqrt
 
 internal data class MapMotionSample(
     val latitude: Double,
@@ -127,8 +130,13 @@ internal class MapMotionSmoother(
     private fun shouldReset(previous: MapMotionSample, next: MapMotionSample): Boolean {
         val elapsedMs = next.elapsedRealtimeMs - previous.elapsedRealtimeMs
         if (elapsedMs <= 0L || elapsedMs > RESET_AFTER_GAP_MS) return true
-        val metresPerSecond = distanceMetres(previous, next) / (elapsedMs / 1_000.0)
-        return metresPerSecond > MAX_PLAUSIBLE_SPEED_MPS
+        val metresPerSecond = geodesicDistanceMetres(
+            previous.latitude,
+            previous.longitude,
+            next.latitude,
+            next.longitude,
+        ) / (elapsedMs / 1_000.0)
+        return metresPerSecond > MAX_PLAUSIBLE_LOCATION_SPEED_MPS
     }
 
     private fun interpolate(
@@ -168,17 +176,6 @@ internal class MapMotionSmoother(
         )
     }
 
-    private fun distanceMetres(first: MapMotionSample, second: MapMotionSample): Double {
-        val latitudeDelta = Math.toRadians(second.latitude - first.latitude)
-        val longitudeDelta = Math.toRadians(second.longitude - first.longitude)
-        val firstLatitude = Math.toRadians(first.latitude)
-        val secondLatitude = Math.toRadians(second.latitude)
-        val a = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
-            cos(firstLatitude) * cos(secondLatitude) *
-            sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
-        return 2 * EARTH_RADIUS_METRES * atan2(sqrt(a), sqrt(1 - a))
-    }
-
     private fun interpolateLongitude(start: Double, end: Double, progress: Double): Double {
         return normalizeLongitude(start + shortestLongitudeDelta(start, end) * progress)
     }
@@ -196,7 +193,6 @@ internal class MapMotionSmoother(
     private companion object {
         const val EARTH_RADIUS_METRES = 6_371_000.0
         const val MIN_PREDICTION_SPEED_MPS = .8f
-        const val MAX_PLAUSIBLE_SPEED_MPS = 90.0
         const val RESET_AFTER_GAP_MS = 10_000L
     }
 

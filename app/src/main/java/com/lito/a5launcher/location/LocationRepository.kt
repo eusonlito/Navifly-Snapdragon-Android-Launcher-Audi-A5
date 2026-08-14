@@ -6,18 +6,17 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.core.content.edit
+import com.lito.a5launcher.MAX_PLAUSIBLE_LOCATION_SPEED_MPS
+import com.lito.a5launcher.geodesicDistanceMetres
+import com.lito.a5launcher.normalizeDegrees
+import com.lito.a5launcher.shortestBearingDelta
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 internal const val ACTIVE_LOCATION_MAX_AGE_MS = 30_000L
 private const val RECENT_GPS_PRIORITY_MS = 15_000L
-private const val MAXIMUM_IMPLIED_SPEED_MPS = 90.0
-private const val LOCATION_PREFERENCES = "cockpit_map_location"
+internal const val LOCATION_PREFERENCES = "cockpit_map_location"
 
 internal enum class LocationProvider { GPS, NETWORK }
 
@@ -90,8 +89,13 @@ internal class LocationValidator(initialBearing: Float = 0f) {
             val elapsedSeconds =
                 (sample.elapsedRealtimeNanos - previous.elapsedRealtimeNanos).coerceAtLeast(1L) /
                     1_000_000_000.0
-            val impliedSpeed = distanceMetres(previous, sample) / elapsedSeconds
-            if (impliedSpeed > MAXIMUM_IMPLIED_SPEED_MPS) {
+            val impliedSpeed = geodesicDistanceMetres(
+                previous.latitude,
+                previous.longitude,
+                sample.latitude,
+                sample.longitude,
+            ) / elapsedSeconds
+            if (impliedSpeed > MAX_PLAUSIBLE_LOCATION_SPEED_MPS) {
                 return LocationDecision.Rejected(LocationRejection.IMPOSSIBLE_JUMP)
             }
         }
@@ -121,21 +125,6 @@ internal class LocationValidator(initialBearing: Float = 0f) {
         )
     }
 
-    private fun distanceMetres(first: LocationSample, second: LocationSample): Double {
-        val latitudeDelta = Math.toRadians(second.latitude - first.latitude)
-        val longitudeDelta = Math.toRadians(second.longitude - first.longitude)
-        val firstLatitude = Math.toRadians(first.latitude)
-        val secondLatitude = Math.toRadians(second.latitude)
-        val a = sin(latitudeDelta / 2.0) * sin(latitudeDelta / 2.0) +
-            cos(firstLatitude) * cos(secondLatitude) *
-            sin(longitudeDelta / 2.0) * sin(longitudeDelta / 2.0)
-        return 6_371_000.0 * 2.0 * atan2(sqrt(a), sqrt(1.0 - a))
-    }
-
-    private fun shortestBearingDelta(from: Float, to: Float): Float =
-        ((to - from + 540f) % 360f) - 180f
-
-    private fun normalizeDegrees(value: Float): Float = (value % 360f + 360f) % 360f
 }
 
 internal class LocationRepository(context: Context) {
@@ -169,18 +158,13 @@ internal class LocationRepository(context: Context) {
                 manager = locationManager
                 listener = createdListener
                 runCatching {
-                    val enabledProviders = listOf(
-                        LocationManager.GPS_PROVIDER,
-                        LocationManager.NETWORK_PROVIDER,
-                    ).filter {
-                        locationManager.allProviders.contains(it) && locationManager.isProviderEnabled(it)
-                    }
+                    val availableProviders = availableLocationProviders(locationManager.allProviders)
                     if (_state.value.position == null) {
-                        enabledProviders.mapNotNull(locationManager::getLastKnownLocation)
+                        availableProviders.mapNotNull(locationManager::getLastKnownLocation)
                             .maxByOrNull(Location::getElapsedRealtimeNanos)
                             ?.let(::accept)
                     }
-                    enabledProviders.forEach {
+                    availableProviders.forEach {
                         locationManager.requestLocationUpdates(it, 1_000L, 2f, createdListener)
                     }
                 }.onFailure {
@@ -238,3 +222,7 @@ internal class LocationRepository(context: Context) {
 
     private fun emit(message: String) = observers.forEach { it(message) }
 }
+
+internal fun availableLocationProviders(allProviders: Collection<String>): List<String> =
+    listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+        .filter(allProviders::contains)

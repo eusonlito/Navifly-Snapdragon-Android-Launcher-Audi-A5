@@ -30,7 +30,7 @@ class DestinationSearchRoutingTest {
 
     @Test
     fun nearestSearchWithValidatedLocationIsSentToPlaces() {
-        val location = KnownLocation(43.0, -8.0, 500)
+        val location = KnownLocation(43.0, -8.0)
         val search = DestinationSearch("gasolinera", DestinationSearchMode.NEAREST)
 
         val route = destinationSearchRoute(search, location)
