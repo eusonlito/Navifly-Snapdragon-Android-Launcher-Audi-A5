@@ -67,8 +67,17 @@ for path in "${candidates[@]}"; do
     [[ $path == .gitignore || $path == scripts/check-public-repo.sh ]] && continue
     [[ -f $path ]] && grep -Iq . "$path" && text_candidates+=("$path")
 done
-if ((${#text_candidates[@]})) && grep -En '(/home/[^/]+|Dropbox|dropbox/)' "${text_candidates[@]}"; then
-    fail "a public text file contains a personal path or Dropbox dependency"
+if ((${#text_candidates[@]})) && grep -En '/home/[^/]+' "${text_candidates[@]}"; then
+    fail "a public text file contains a personal path"
+fi
+
+dropbox_text_candidates=()
+for path in "${text_candidates[@]}"; do
+    [[ $path == README.md || $path == README.es.md ]] && continue
+    dropbox_text_candidates+=("$path")
+done
+if ((${#dropbox_text_candidates[@]})) && grep -En '(Dropbox|dropbox/)' "${dropbox_text_candidates[@]}"; then
+    fail "a public text file contains a Dropbox dependency"
 fi
 
 secret_pattern='(sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'

@@ -114,6 +114,41 @@ assert_allowed_near_matches() {
     (cd "$repository" && ./scripts/check-public-repo.sh >/dev/null)
 }
 
+assert_readme_dropbox_recommendation_allowed() {
+    local repository="$TEST_ROOT/readme-dropbox"
+    local provider_name=Drop
+
+    provider_name+=box
+
+    create_repository "$repository"
+    printf '%s can be used as an optional file-transfer method.\n' "$provider_name" > "$repository/README.md"
+    printf '%s puede utilizarse como método opcional de transferencia.\n' "$provider_name" > "$repository/README.es.md"
+    git -C "$repository" add README.md README.es.md
+    (cd "$repository" && ./scripts/check-public-repo.sh >/dev/null)
+}
+
+assert_dropbox_dependency_rejected() {
+    local repository="$TEST_ROOT/dropbox-dependency"
+    local output
+    local provider_name=Drop
+
+    provider_name+=box
+
+    create_repository "$repository"
+    mkdir -p "$repository/docs"
+    printf 'The runtime depends on %s.\n' "$provider_name" > "$repository/docs/runtime.txt"
+    git -C "$repository" add docs/runtime.txt
+
+    if output=$(cd "$repository" && ./scripts/check-public-repo.sh 2>&1); then
+        printf 'Expected provider dependency outside the README files to be rejected\n' >&2
+        exit 1
+    fi
+    grep -Fq "a public text file contains a ${provider_name} dependency" <<<"$output" || {
+        printf 'Unexpected provider dependency rejection: %s\n' "$output" >&2
+        exit 1
+    }
+}
+
 assert_rejected local-root 'LoCaL/private.bin'
 assert_rejected debug-root 'DeBuG/private.bin'
 assert_rejected binary-dropbox 'DROPBOX/private.bin' binary
@@ -122,6 +157,8 @@ assert_rejected update-race-root 'Update-Race-Radars.SH'
 assert_rejected update-race-nested 'tools/Update-Race-Radars.SH'
 assert_rejected race-spain 'catalog/RACE-SPAIN.geojson'
 assert_allowed_near_matches
+assert_readme_dropbox_recommendation_allowed
+assert_dropbox_dependency_rejected
 assert_required_rejected missing-compile 'scripts/compile.sh' missing \
     'missing required file: scripts/compile.sh'
 assert_required_rejected untracked-emulator 'scripts/emulator.sh' untracked \
