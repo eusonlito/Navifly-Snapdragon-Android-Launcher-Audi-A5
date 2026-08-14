@@ -1,5 +1,6 @@
 package com.lito.a5launcher.ui.components
 
+import org.maplibre.android.maps.MapLibreMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -135,6 +136,19 @@ class MapMotionSmootherTest {
                 zoom = 16.0,
             ),
         )
+    }
+
+    @Test
+    fun `any manual camera gesture including zoom starts exploration`() {
+        val tracking = MapCameraTrackingState()
+
+        assertEquals(
+            true,
+            tracking.onCameraMoveStarted(
+                MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE,
+            ),
+        )
+        assertEquals(false, tracking.isFollowing)
     }
 
     @Test

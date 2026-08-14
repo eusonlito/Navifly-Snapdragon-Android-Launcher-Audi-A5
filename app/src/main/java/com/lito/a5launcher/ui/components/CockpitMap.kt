@@ -316,6 +316,10 @@ internal class MapCameraTrackingState {
         return true
     }
 
+    fun onCameraMoveStarted(reason: Int): Boolean =
+        reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE &&
+            startExploration()
+
     fun recenter(): Boolean {
         val changed = !isFollowing
         isFollowing = true
@@ -731,11 +735,13 @@ private fun CockpitMapView(
                                         }
                                     )
                                     map.addOnCameraMoveStartedListener { reason ->
-                                        if (
-                                            reason ==
-                                            MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE
-                                        ) {
+                                        if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
                                             session.userGestureActive = true
+                                        }
+                                        if (cameraTracking.onCameraMoveStarted(reason)) {
+                                            onDiagnostic(
+                                                "${session.id} CÁMARA | exploración manual"
+                                            )
                                         }
                                     }
                                     map.addOnCameraIdleListener {
