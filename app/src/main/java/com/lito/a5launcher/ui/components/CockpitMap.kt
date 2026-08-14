@@ -148,6 +148,7 @@ private const val CAMERA_MINIMUM_BEARING_CHANGE = .2f
 internal const val MAP_MINIMUM_ZOOM = 0.0
 internal const val MAP_MAXIMUM_ZOOM = 18.0
 internal const val MAP_DEFAULT_ZOOM = 16.0
+internal const val MAP_DARK_ACTIVATION_DELAY_MS = 60_000L
 
 internal fun clampMapZoom(zoom: Double): Double =
     zoom.coerceIn(MAP_MINIMUM_ZOOM, MAP_MAXIMUM_ZOOM)
@@ -179,6 +180,36 @@ internal fun resolveMapTileStyle(
         if (vehicleLightsOn ?: systemNight) MapTileStyle.DARK else preferredLightStyle
     MapColorMode.LIGHT -> preferredLightStyle
     MapColorMode.DARK -> MapTileStyle.DARK
+}
+
+internal data class DelayedVehicleLightsState(
+    val effectiveLightsOn: Boolean? = null,
+    private val pendingSinceMs: Long? = null,
+) {
+    fun update(lightsOn: Boolean?, nowMs: Long): DelayedVehicleLightsState {
+        if (lightsOn == null) return this
+        if (effectiveLightsOn == null) {
+            return copy(
+                effectiveLightsOn = lightsOn,
+                pendingSinceMs = null,
+            )
+        }
+        if (!lightsOn) {
+            return copy(effectiveLightsOn = false, pendingSinceMs = null)
+        }
+        if (effectiveLightsOn == true) return this
+
+        val startedAt = pendingSinceMs ?: nowMs
+        return if (nowMs - startedAt >= MAP_DARK_ACTIVATION_DELAY_MS) {
+            copy(effectiveLightsOn = true, pendingSinceMs = null)
+        } else {
+            copy(effectiveLightsOn = false, pendingSinceMs = startedAt)
+        }
+    }
+
+    fun remainingDelayMs(nowMs: Long): Long? = pendingSinceMs?.let {
+        (MAP_DARK_ACTIVATION_DELAY_MS - (nowMs - it)).coerceAtLeast(0L)
+    }
 }
 
 /** OpenFreeMap's near-black defaults need more separation on the vehicle display. */

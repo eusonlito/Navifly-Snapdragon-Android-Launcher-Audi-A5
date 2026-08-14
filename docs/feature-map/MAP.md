@@ -206,8 +206,12 @@ la precarga de tiles.
 El launcher ofrece tres políticas persistentes en Ajustes:
 
 * **Automático:** sigue las luces del coche mediante
-  `KSW_DATA_SMALL_LIGHT_ON`. Si el proveedor del fabricante no está disponible,
-  usa como respaldo el modo nocturno comunicado por Android.
+  `KSW_DATA_SMALL_LIGHT_ON`. Si el coche ya arranca con las luces encendidas,
+  activa el estilo oscuro inmediatamente. Durante la marcha exige que las luces
+  permanezcan encendidas durante 60 segundos para evitar cambios breves en
+  túneles; al apagarlas vuelve al estilo claro sin demora. Si el proveedor del
+  fabricante no está disponible, usa como respaldo el modo nocturno comunicado
+  por Android.
 * **Claro:** conserva el estilo claro seleccionado (Positron, Liberty o Bright)
   aunque Android active el modo nocturno.
 * **Oscuro:** parte del estilo Dark de OpenFreeMap y aplica una paleta nocturna

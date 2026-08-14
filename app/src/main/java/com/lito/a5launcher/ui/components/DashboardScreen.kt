@@ -4,6 +4,7 @@ import android.graphics.drawable.Drawable
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -299,6 +300,18 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             } ?: MapColorMode.AUTOMATIC
         )
     }
+    var delayedVehicleLights by remember { mutableStateOf(DelayedVehicleLightsState()) }
+    LaunchedEffect(lightsOn) {
+        val nowMs = SystemClock.elapsedRealtime()
+        delayedVehicleLights = delayedVehicleLights.update(lightsOn, nowMs)
+        delayedVehicleLights.remainingDelayMs(nowMs)?.let { remainingMs ->
+            kotlinx.coroutines.delay(remainingMs)
+            delayedVehicleLights = delayedVehicleLights.update(
+                lightsOn = lightsOn,
+                nowMs = SystemClock.elapsedRealtime(),
+            )
+        }
+    }
     var mapCacheLimit by remember {
         val storedCacheLimit = launcherPreferences.getString(
             "map_cache_limit",
@@ -311,7 +324,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
     val darkModeActive = resolveMapTileStyle(
         colorMode = mapColorMode,
-        vehicleLightsOn = lightsOn,
+        vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
         systemNight = systemNight,
         preferredLightStyle = mapTileStyle,
     ) == MapTileStyle.DARK
@@ -612,7 +625,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                         modifier = Modifier.fillMaxSize(),
                         tileStyle = mapTileStyle,
                         colorMode = mapColorMode,
-                        vehicleLightsOn = lightsOn,
+                        vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
                         cacheLimit = mapCacheLimit,
                         cacheGeneration = cacheGeneration,
                         poiSnapshot = poiSnapshot,

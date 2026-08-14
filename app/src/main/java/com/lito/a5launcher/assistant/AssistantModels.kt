@@ -2,6 +2,9 @@ package com.lito.a5launcher.assistant
 
 internal const val ASSISTANT_MESSAGE_VISIBLE_MS = 3_000L
 
+internal fun normalizedAssistantText(text: CharSequence?): String? =
+    text?.toString()?.trim()?.takeIf(String::isNotBlank)
+
 enum class AssistantProvider(
     val model: String,
 ) {

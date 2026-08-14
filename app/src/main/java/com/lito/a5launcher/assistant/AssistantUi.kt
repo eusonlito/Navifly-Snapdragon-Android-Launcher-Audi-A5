@@ -119,9 +119,7 @@ fun AssistantStatusPanel(
             action.destination,
         )
         AssistantAction.AnswerReady -> stringResource(R.string.assistant_action_answer_ready)
-        null -> heardText?.takeIf(String::isNotBlank)?.let {
-            stringResource(R.string.assistant_action_understood, it)
-        }
+        null -> normalizedAssistantText(heardText)
     }
     AnimatedVisibility(
         visible = text != null,

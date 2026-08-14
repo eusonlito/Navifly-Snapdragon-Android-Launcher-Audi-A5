@@ -22,7 +22,7 @@ internal class AssistantAudio(private val context: Context) {
     private var recorder: AudioRecord? = null
     private var recordingToken: AtomicBoolean? = null
     private var captureThread: Thread? = null
-    private var audioTrack: AudioTrack? = null
+    private val playback = ReusableAudioPlayback(::createPlaybackHandle)
 
     @SuppressLint("MissingPermission")
     fun recordClosedTurn(
@@ -129,9 +129,12 @@ internal class AssistantAudio(private val context: Context) {
     }
 
     @Synchronized
-    fun play(pcm16: ByteArray, sampleRate: Int) {
-        if (pcm16.isEmpty()) return
-        stopPlayback()
+    fun play(pcm16: ByteArray, sampleRate: Int): Boolean = playback.play(pcm16, sampleRate)
+
+    @Synchronized
+    fun repeat(): Boolean = playback.repeat()
+
+    private fun createPlaybackHandle(pcm16: ByteArray, sampleRate: Int): PcmPlaybackHandle? {
         val track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -149,33 +152,17 @@ internal class AssistantAudio(private val context: Context) {
             .setTransferMode(AudioTrack.MODE_STATIC)
             .setBufferSizeInBytes(pcm16.size)
             .build()
-        audioTrack = track
-        track.setNotificationMarkerPosition(pcm16.size / 2)
-        track.setPlaybackPositionUpdateListener(
-            object : AudioTrack.OnPlaybackPositionUpdateListener {
-                override fun onMarkerReached(completedTrack: AudioTrack) {
-                    synchronized(this@AssistantAudio) {
-                        if (audioTrack === completedTrack) {
-                            completedTrack.release()
-                            audioTrack = null
-                        }
-                    }
-                }
-
-                override fun onPeriodicNotification(track: AudioTrack) = Unit
-            },
-        )
-        track.write(pcm16, 0, pcm16.size)
-        track.play()
+        val written = track.write(pcm16, 0, pcm16.size)
+        if (written != pcm16.size) {
+            track.release()
+            return null
+        }
+        return AudioTrackPlaybackHandle(track)
     }
 
     @Synchronized
     fun stopPlayback() {
-        audioTrack?.let {
-            runCatching { it.stop() }
-            it.release()
-        }
-        audioTrack = null
+        playback.release()
     }
 
     fun release() {
@@ -200,6 +187,64 @@ internal class AssistantAudio(private val context: Context) {
     private companion object {
         const val CHUNK_BYTES = 3_200
         const val STOP_JOIN_MS = 500L
+    }
+}
+
+internal interface PcmPlaybackHandle {
+    fun start(): Boolean
+    fun repeat(): Boolean
+    fun release()
+}
+
+internal class ReusableAudioPlayback(
+    private val createHandle: (ByteArray, Int) -> PcmPlaybackHandle?,
+) {
+    private var handle: PcmPlaybackHandle? = null
+
+    fun play(pcm16: ByteArray, sampleRate: Int): Boolean {
+        release()
+        if (pcm16.isEmpty()) return false
+        val created = createHandle(pcm16, sampleRate) ?: return false
+        if (!created.start()) {
+            created.release()
+            return false
+        }
+        handle = created
+        return true
+    }
+
+    fun repeat(): Boolean {
+        val current = handle ?: return false
+        if (current.repeat()) return true
+        release()
+        return false
+    }
+
+    fun release() {
+        handle?.release()
+        handle = null
+    }
+}
+
+private class AudioTrackPlaybackHandle(private val track: AudioTrack) : PcmPlaybackHandle {
+    override fun start(): Boolean = runCatching {
+        track.play()
+        true
+    }.getOrDefault(false)
+
+    override fun repeat(): Boolean = runCatching {
+        if (track.playState != AudioTrack.PLAYSTATE_STOPPED) track.stop()
+        if (track.reloadStaticData() == AudioTrack.SUCCESS) {
+            track.play()
+            true
+        } else {
+            false
+        }
+    }.getOrDefault(false)
+
+    override fun release() {
+        runCatching { track.stop() }
+        track.release()
     }
 }
 
@@ -237,7 +282,7 @@ internal class SpeechCaptureWindow {
     private companion object {
         const val SPEECH_AMPLITUDE = 450
         const val END_SILENCE_MS = 900L
-        const val INITIAL_SPEECH_TIMEOUT_MS = 3_000L
+        const val INITIAL_SPEECH_TIMEOUT_MS = 5_000L
         const val MAX_TURN_MS = 12_000L
     }
 }

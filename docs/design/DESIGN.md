@@ -212,9 +212,12 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   aplica degradados sobre la cartografía.
 * La cartografía vectorial permite modo automático, claro u oscuro. El modo
   automático sigue las luces del coche mediante `KSW_DATA_SMALL_LIGHT_ON` y
-  usa el modo nocturno de Android como respaldo; en claro se puede elegir
-  OpenFreeMap Positron, Liberty o Bright. En modo nocturno adapta el estilo Dark
-  con una paleta de mayor contraste para carreteras, edificios, agua y rótulos.
+  usa el modo nocturno de Android como respaldo. Las luces ya activas al arrancar
+  aplican el modo oscuro de inmediato; las activaciones posteriores deben durar
+  60 segundos y su apagado devuelve el modo claro inmediatamente. En claro se
+  puede elegir OpenFreeMap Positron, Liberty o Bright. En modo nocturno adapta
+  el estilo Dark con una paleta de mayor contraste para carreteras, edificios,
+  agua y rótulos.
   El marcador GPS anima su desplazamiento
   y el mapa admite zoom mediante pellizco con dos dedos.
 * El marcador de posición es una flecha de navegación compacta dentro de un

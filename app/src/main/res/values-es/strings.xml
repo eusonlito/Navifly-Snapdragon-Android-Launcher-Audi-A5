@@ -10,7 +10,6 @@
     <string name="assistant_listening">Escuchando…</string>
     <string name="assistant_processing">Esperando Respuesta…</string>
     <string name="assistant_responding">Respondiendo…</string>
-    <string name="assistant_action_understood">Entendido: %1$s</string>
     <string name="assistant_action_searching">Buscando: %1$s</string>
     <string name="assistant_action_navigating">Navegando a: %1$s</string>
     <string name="assistant_action_answer_ready">Respuesta Lista</string>

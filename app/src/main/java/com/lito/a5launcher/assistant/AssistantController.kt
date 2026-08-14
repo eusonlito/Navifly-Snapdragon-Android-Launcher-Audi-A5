@@ -129,8 +129,9 @@ internal class AssistantController(
 
     fun repeatResponse() {
         _uiState.value.response?.let {
-            _uiState.value = _uiState.value.copy(status = AssistantState.Speaking)
-            audio.play(it.audioPcm16, it.sampleRate)
+            if (audio.repeat() || audio.play(it.audioPcm16, it.sampleRate)) {
+                _uiState.value = _uiState.value.copy(status = AssistantState.Speaking)
+            }
         }
     }
 
@@ -360,7 +361,7 @@ internal class AssistantController(
                 if (!isActive(turnId)) return@launchMain
                 inputTranscript.append(text)
                 _uiState.value = _uiState.value.copy(
-                    heardText = inputTranscript.toString().trim().takeIf(String::isNotBlank),
+                    heardText = normalizedAssistantText(inputTranscript),
                 )
             }
         }
@@ -463,7 +464,7 @@ internal class AssistantController(
         _uiState.value = AssistantUiState(
             status = AssistantState.Processing,
             action = AssistantAction.Navigating(label),
-            heardText = inputTranscript.toString().trim().takeIf(String::isNotBlank),
+            heardText = normalizedAssistantText(inputTranscript),
         )
         actionLaunchJob?.cancel()
         actionLaunchJob = scope.launch {
@@ -484,7 +485,7 @@ internal class AssistantController(
         activeProvider = null
         val spoken = transcript.ifBlank { text(R.string.assistant_response_finished) }
         val response = ConversationResult(spoken, outputAudio.bytes())
-        val heardText = inputTranscript.toString().trim().takeIf(String::isNotBlank)
+        val heardText = normalizedAssistantText(inputTranscript)
         heardText?.let {
             appendHistory(ConversationTurn(ConversationRole.USER, it))
         }

@@ -5,6 +5,43 @@ import org.junit.Test
 
 class MapColorModeTest {
     @Test
+    fun firstKnownLightsSignalAppliesImmediatelyAtStartup() {
+        val state = DelayedVehicleLightsState().update(lightsOn = true, nowMs = 1_000L)
+
+        assertEquals(true, state.effectiveLightsOn)
+        assertEquals(null, state.remainingDelayMs(1_000L))
+    }
+
+    @Test
+    fun laterLightsOnSignalRequiresOneContinuousMinute() {
+        val lightsOff = DelayedVehicleLightsState().update(lightsOn = false, nowMs = 1_000L)
+        val pending = lightsOff.update(lightsOn = true, nowMs = 2_000L)
+
+        assertEquals(false, pending.effectiveLightsOn)
+        assertEquals(60_000L, pending.remainingDelayMs(2_000L))
+        assertEquals(
+            false,
+            pending.update(lightsOn = true, nowMs = 61_999L).effectiveLightsOn,
+        )
+        assertEquals(
+            true,
+            pending.update(lightsOn = true, nowMs = 62_000L).effectiveLightsOn,
+        )
+    }
+
+    @Test
+    fun lightsOffCancelsPendingDarkModeAndAppliesImmediately() {
+        val pending = DelayedVehicleLightsState()
+            .update(lightsOn = false, nowMs = 1_000L)
+            .update(lightsOn = true, nowMs = 2_000L)
+
+        val lightsOff = pending.update(lightsOn = false, nowMs = 30_000L)
+
+        assertEquals(false, lightsOff.effectiveLightsOn)
+        assertEquals(null, lightsOff.remainingDelayMs(30_000L))
+    }
+
+    @Test
     fun mapZoomSupportsTheFullMapLibreZoomOutRange() {
         assertEquals(0.0, clampMapZoom(-1.0), 0.0)
         assertEquals(7.5, clampMapZoom(7.5), 0.0)

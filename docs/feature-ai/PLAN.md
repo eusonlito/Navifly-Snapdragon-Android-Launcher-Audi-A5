@@ -23,11 +23,12 @@ el coste de iniciar Realtime/Live y procesar audio sólo para validar acceso.
 ## Límites de alcance
 
 - Una pulsación inicia un único turno de micrófono; no hay escucha permanente.
-  Si no comienza a hablarse en tres segundos, el turno se cierra silenciosamente.
+  Si no comienza a hablarse en cinco segundos, el turno se cierra silenciosamente.
 - La alerta pasa de `Escuchando` a `Esperando respuesta` y después muestra la
   acción, respuesta o error final, sin estados intermedios de procesamiento.
 - Las respuestas conversacionales abren un panel con `Responder`, `Repetir` y
-  `Cerrar`. `Responder` abre un nuevo turno cerrado.
+  `Cerrar`. `Responder` abre un nuevo turno cerrado y `Repetir` vuelve a
+  reproducir la respuesta de audio ya recibida.
 - La conversación sólo vive en memoria y se elimina al cerrar el panel, cambiar
   de proveedor o reiniciar el proceso.
 - La única acción v1 es abrir navegación. Los destinos concretos se entregan a

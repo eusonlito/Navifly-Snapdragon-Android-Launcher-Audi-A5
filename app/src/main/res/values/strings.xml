@@ -11,7 +11,6 @@
     <string name="assistant_listening">Listening…</string>
     <string name="assistant_processing">Waiting for Response…</string>
     <string name="assistant_responding">Responding…</string>
-    <string name="assistant_action_understood">Understood: %1$s</string>
     <string name="assistant_action_searching">Searching: %1$s</string>
     <string name="assistant_action_navigating">Navigating to: %1$s</string>
     <string name="assistant_action_answer_ready">Answer Ready</string>
