@@ -10,7 +10,7 @@ data class CoreTelemetry(
     val averageSpeed: Int,
     val rpm: Int,
     val fuelLitres: Int,
-    val nativeRangeKm: Int,
+    val unverifiedDistanceKm: Int,
     val odometerKm: Int?,
     val outsideTemperatureCelsius: Double,
 )
@@ -29,7 +29,7 @@ object TelemetryDecoder {
             averageSpeed = unsigned16(bytes, 9),
             rpm = unsigned16(bytes, 13),
             fuelLitres = unsigned16(bytes, 15),
-            nativeRangeKm = unsigned16(bytes, 5),
+            unverifiedDistanceKm = unsigned16(bytes, 5),
             odometerKm = if (bytes.size >= 23) unsigned24(bytes, 20) else null,
             outsideTemperatureCelsius = signed16(bytes, 17) * 0.1,
         )
@@ -43,7 +43,8 @@ object TelemetryDecoder {
             passengerOpen = flags and 0x10 != 0,
             rearLeftOpen = flags and 0x80 != 0,
             rearRightOpen = flags and 0x40 != 0,
-            trunkOpen = flags and 0x08 != 0,
+            hoodOpen = flags and 0x08 != 0,
+            trunkOpen = flags and 0x04 != 0,
         )
     }
 
@@ -396,6 +397,80 @@ data class DistanceSinceRefuelSnapshot(
 )
 
 /**
+ * Confirms refuelling from the coarse integer fuel level shared by the trip and
+ * distance trackers. The baseline only follows decreases; increases must reach
+ * three litres while stationary and remain present for two consecutive samples.
+ */
+class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
+    private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
+    private var pendingFuelLitres: Int? = null
+    private var pendingSamples = 0
+    private var pendingBaselineFuelLitres: Int? = null
+    private var pendingBaselineSamples = 0
+
+    fun observe(speedKmh: Int, fuelLitres: Int): Int? {
+        if (fuelLitres <= 0) return null
+        val baseline = baselineFuelLitres
+        if (baseline == null) {
+            baselineFuelLitres = fuelLitres
+            return null
+        }
+        if (fuelLitres < baseline) {
+            clearPending()
+            if (pendingBaselineFuelLitres == fuelLitres) {
+                pendingBaselineSamples++
+            } else {
+                pendingBaselineFuelLitres = fuelLitres
+                pendingBaselineSamples = 1
+            }
+            if (pendingBaselineSamples >= BASELINE_CONFIRMATION_SAMPLES) {
+                baselineFuelLitres = fuelLitres
+                clearPendingBaseline()
+            }
+            return null
+        }
+        clearPendingBaseline()
+        if (speedKmh > MAX_REFUEL_SPEED_KMH || fuelLitres - baseline < MIN_REFUEL_LITRES) {
+            clearPending()
+            return null
+        }
+
+        val previousCandidate = pendingFuelLitres
+        pendingSamples = if (previousCandidate == null || fuelLitres < previousCandidate) {
+            1
+        } else {
+            pendingSamples + 1
+        }
+        pendingFuelLitres = fuelLitres
+        if (pendingSamples < REFUEL_CONFIRMATION_SAMPLES) return null
+
+        baselineFuelLitres = fuelLitres
+        clearPending()
+        clearPendingBaseline()
+        return fuelLitres
+    }
+
+    fun baselineFuelLitres(): Int? = baselineFuelLitres
+
+    private fun clearPending() {
+        pendingFuelLitres = null
+        pendingSamples = 0
+    }
+
+    private fun clearPendingBaseline() {
+        pendingBaselineFuelLitres = null
+        pendingBaselineSamples = 0
+    }
+
+    private companion object {
+        const val MIN_REFUEL_LITRES = 3
+        const val MAX_REFUEL_SPEED_KMH = 1
+        const val REFUEL_CONFIRMATION_SAMPLES = 2
+        const val BASELINE_CONFIRMATION_SAMPLES = 2
+    }
+}
+
+/**
  * Accumulates travelled distance independently from the UI and resets only after
  * two stationary readings confirm a fuel increase of at least three litres.
  * Requiring confirmation avoids resets caused by normal fuel-level sensor noise.
@@ -407,9 +482,7 @@ class DistanceSinceRefuelTracker(
     private var lastElapsedRealtimeMs: Long? = null
     private var previousSpeedKmh = 0
     private var distanceKm = initialDistanceKm.validMetric()
-    private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
-    private var pendingFuelLitres: Int? = null
-    private var pendingSamples = 0
+    private val refuelDetector = ConfirmedRefuelDetector(initialFuelLitres)
 
     @Synchronized
     fun advance(
@@ -428,54 +501,13 @@ class DistanceSinceRefuelTracker(
         lastElapsedRealtimeMs = elapsedRealtimeMs
         previousSpeedKmh = safeSpeed
 
-        val refuelDetected = evaluateFuel && detectRefuel(safeSpeed, fuelLitres)
+        val refuelDetected = evaluateFuel && refuelDetector.observe(safeSpeed, fuelLitres) != null
         if (refuelDetected) distanceKm = 0.0
         return DistanceSinceRefuelSnapshot(
             distanceKm = distanceKm,
-            lastFuelLitres = baselineFuelLitres,
+            lastFuelLitres = refuelDetector.baselineFuelLitres(),
             refuelDetected = refuelDetected,
         )
-    }
-
-    private fun detectRefuel(speedKmh: Int, fuelLitres: Int): Boolean {
-        if (fuelLitres <= 0) return false
-        val baseline = baselineFuelLitres
-        if (baseline == null) {
-            baselineFuelLitres = fuelLitres
-            return false
-        }
-        if (fuelLitres < baseline) {
-            baselineFuelLitres = fuelLitres
-            clearPendingRefuel()
-            return false
-        }
-        if (speedKmh > MAX_REFUEL_SPEED_KMH || fuelLitres - baseline < MIN_REFUEL_LITRES) {
-            clearPendingRefuel()
-            return false
-        }
-
-        if (pendingFuelLitres == fuelLitres) {
-            pendingSamples++
-        } else {
-            pendingFuelLitres = fuelLitres
-            pendingSamples = 1
-        }
-        if (pendingSamples < REFUEL_CONFIRMATION_SAMPLES) return false
-
-        baselineFuelLitres = fuelLitres
-        clearPendingRefuel()
-        return true
-    }
-
-    private fun clearPendingRefuel() {
-        pendingFuelLitres = null
-        pendingSamples = 0
-    }
-
-    private companion object {
-        const val MIN_REFUEL_LITRES = 3
-        const val MAX_REFUEL_SPEED_KMH = 1
-        const val REFUEL_CONFIRMATION_SAMPLES = 2
     }
 }
 
@@ -517,7 +549,7 @@ class TripSessionTracker(
     private var virtualFuelLitres = initialState.virtualFuelLitres.validMetric()
     private var calibrationFactor = initialState.calibrationFactor
         .takeIf { it.isFinite() }?.coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR) ?: 1.0
-    private var lastFuelLitres = initialState.lastFuelLitres?.takeIf { it > 0 }
+    private val refuelDetector = ConfirmedRefuelDetector(initialState.lastFuelLitres)
     private var calibrationAnchorFuelLitres = initialState.calibrationAnchorFuelLitres?.takeIf { it > 0 }
     private var uncalibratedFuelSinceAnchorLitres = initialState.uncalibratedFuelSinceAnchorLitres.validMetric()
     private val recentConsumption = RecentConsumptionTracker(initialState.recentConsumptionState)
@@ -542,7 +574,7 @@ class TripSessionTracker(
             startedAtElapsedMs = elapsedRealtimeMs
             persistenceVersion++
         }
-        observeFuelLevel(fuelLitres)
+        observeFuelLevel(this.speedKmh, fuelLitres)
         return snapshot(elapsedRealtimeMs)
     }
 
@@ -579,9 +611,8 @@ class TripSessionTracker(
         if (distanceDeltaKm > 0.0 || rawFuelDelta > 0.0) persistenceVersion++
     }
 
-    private fun observeFuelLevel(fuelLitres: Int) {
+    private fun observeFuelLevel(speedKmh: Int, fuelLitres: Int) {
         if (fuelLitres <= 0) return
-        val previousFuel = lastFuelLitres
         var changed = false
         if (virtualFuelLitres <= 0.0) {
             virtualFuelLitres = fuelLitres.toDouble()
@@ -592,9 +623,11 @@ class TripSessionTracker(
             changed = true
         }
 
-        if (previousFuel != null && fuelLitres - previousFuel >= REFUEL_INCREASE_LITRES) {
-            virtualFuelLitres = fuelLitres.toDouble()
-            calibrationAnchorFuelLitres = fuelLitres
+        val baselineBeforeObservation = refuelDetector.baselineFuelLitres()
+        val confirmedRefuelLitres = refuelDetector.observe(speedKmh, fuelLitres)
+        if (confirmedRefuelLitres != null) {
+            virtualFuelLitres = confirmedRefuelLitres.toDouble()
+            calibrationAnchorFuelLitres = confirmedRefuelLitres
             uncalibratedFuelSinceAnchorLitres = 0.0
             changed = true
         } else {
@@ -613,10 +646,7 @@ class TripSessionTracker(
                 changed = true
             }
         }
-        if (lastFuelLitres != fuelLitres) {
-            lastFuelLitres = fuelLitres
-            changed = true
-        }
+        changed = changed || refuelDetector.baselineFuelLitres() != baselineBeforeObservation
         if (changed) persistenceVersion++
     }
 
@@ -658,7 +688,7 @@ class TripSessionTracker(
         fuelUsedLitres = fuelUsedLitres,
         virtualFuelLitres = virtualFuelLitres,
         calibrationFactor = calibrationFactor,
-        lastFuelLitres = lastFuelLitres,
+        lastFuelLitres = refuelDetector.baselineFuelLitres(),
         calibrationAnchorFuelLitres = calibrationAnchorFuelLitres,
         uncalibratedFuelSinceAnchorLitres = uncalibratedFuelSinceAnchorLitres,
         recentConsumptionState = recentConsumption.state(),
@@ -670,7 +700,6 @@ class TripSessionTracker(
         const val MAX_INTEGRATION_INTERVAL_MS = 30_000L
         const val TELEMETRY_FRESHNESS_MS = 2_000L
         const val MAX_IDLE_SPEED_KMH = 1
-        const val REFUEL_INCREASE_LITRES = 3
         const val CALIBRATION_DROP_LITRES = 3
         const val MIN_CALIBRATION_FACTOR = .7
         const val MAX_CALIBRATION_FACTOR = 1.3

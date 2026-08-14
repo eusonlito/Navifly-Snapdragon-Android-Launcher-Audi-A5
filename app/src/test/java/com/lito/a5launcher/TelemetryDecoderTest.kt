@@ -26,7 +26,7 @@ class TelemetryDecoderTest {
         assertEquals(73, result.averageSpeed)
         assertEquals(3_200, result.rpm)
         assertEquals(45, result.fuelLitres)
-        assertEquals(420, result.nativeRangeKm)
+        assertEquals(420, result.unverifiedDistanceKm)
         assertEquals(220_000, result.odometerKm)
         assertEquals(22.5, result.outsideTemperatureCelsius, .001)
     }
@@ -49,7 +49,7 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun doorsAreDecodedByProductionCode() {
+    fun doorsAndBonnetAreDecodedByProductionCode() {
         val bytes = ByteArray(6)
         bytes[5] = 0x28
 
@@ -59,6 +59,18 @@ class TelemetryDecoderTest {
         assertFalse(doors.passengerOpen)
         assertFalse(doors.rearLeftOpen)
         assertFalse(doors.rearRightOpen)
+        assertTrue(doors.hoodOpen)
+        assertFalse(doors.trunkOpen)
+    }
+
+    @Test
+    fun trunkUsesItsOwnDocumentedBit() {
+        val bytes = ByteArray(6)
+        bytes[5] = 0x04
+
+        val doors = requireNotNull(TelemetryDecoder.decodeDoors(bytes))
+
+        assertFalse(doors.hoodOpen)
         assertTrue(doors.trunkOpen)
     }
 
@@ -466,6 +478,80 @@ class TelemetryDecoderTest {
 
         assertEquals(25.0, result.distanceKm, .000_001)
         assertFalse(result.refuelDetected)
+    }
+
+    @Test
+    fun distanceSinceRefuelRejectsAnIsolatedThreeLitreJump() {
+        val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 35)
+
+        val spike = tracker.advance(0, 38, 1_000)
+        val recovered = tracker.advance(0, 35, 2_000)
+
+        assertFalse(spike.refuelDetected)
+        assertFalse(recovered.refuelDetected)
+        assertEquals(25.0, recovered.distanceKm, .000_001)
+    }
+
+    @Test
+    fun refuelDetectorDoesNotTurnAnIsolatedLowReadingIntoAFalseRefuel() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 40)
+
+        assertNull(detector.observe(0, 37))
+        assertNull(detector.observe(0, 40))
+        assertNull(detector.observe(0, 40))
+        assertEquals(40, detector.baselineFuelLitres())
+    }
+
+    @Test
+    fun distanceSinceRefuelDetectsAConfirmedGradualFill() {
+        val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 35)
+
+        tracker.advance(0, 36, 1_000)
+        tracker.advance(0, 37, 2_000)
+        val candidate = tracker.advance(0, 38, 3_000)
+        val confirmed = tracker.advance(0, 39, 4_000)
+
+        assertFalse(candidate.refuelDetected)
+        assertTrue(confirmed.refuelDetected)
+        assertEquals(0.0, confirmed.distanceKm, .000_001)
+        assertEquals(39, confirmed.lastFuelLitres)
+    }
+
+    @Test
+    fun tripSessionRejectsAnUnconfirmedFuelSpike() {
+        val session = TripSessionTracker(
+            TripSessionState(
+                virtualFuelLitres = 35.0,
+                lastFuelLitres = 35,
+                calibrationAnchorFuelLitres = 35,
+            )
+        )
+
+        val spike = session.onTelemetry(0, 0, 38, 1_000)
+        val recovered = session.onTelemetry(0, 0, 35, 2_000)
+
+        assertEquals(35.0, spike.virtualFuelLitres, .000_001)
+        assertEquals(35.0, recovered.virtualFuelLitres, .000_001)
+    }
+
+    @Test
+    fun tripSessionAcceptsAConfirmedGradualFill() {
+        val session = TripSessionTracker(
+            TripSessionState(
+                virtualFuelLitres = 35.0,
+                lastFuelLitres = 35,
+                calibrationAnchorFuelLitres = 35,
+            )
+        )
+
+        session.onTelemetry(0, 0, 36, 1_000)
+        session.onTelemetry(0, 0, 37, 2_000)
+        val candidate = session.onTelemetry(0, 0, 38, 3_000)
+        val confirmed = session.onTelemetry(0, 0, 39, 4_000)
+
+        assertEquals(35.0, candidate.virtualFuelLitres, .000_001)
+        assertEquals(39.0, confirmed.virtualFuelLitres, .000_001)
+        assertEquals(39, session.state().lastFuelLitres)
     }
 
     @Test

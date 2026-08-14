@@ -155,6 +155,8 @@ class TelemetryService : Service() {
     // Remote IPC Service
     private var mEvtService: IEventService? = null
     private var isBound = false
+    private var eventConnectionJob: Job? = null
+    private val reconnectPolicy = EventServiceReconnectPolicy()
     private var replayJob: Job? = null
     private var tripMetricsJob: Job? = null
     private lateinit var tripSession: TripSessionTracker
@@ -169,9 +171,9 @@ class TelemetryService : Service() {
         getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE)
     }
     private var currentBootCount = -1
-    private var nativeRangeKm = 0
     private var lastPersistedTripVersion = 0L
     private var lastPersistedRangeState: RangeConsumptionState? = null
+    @Volatile private var shuttingDown = false
     @Volatile private var replayActive = false
     private val providerObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -182,28 +184,24 @@ class TelemetryService : Service() {
     private val mSerCon = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             Log.i(TAG, "Connected to EventService IPC!")
-            stopTelemetryReplay()
             mEvtService = IEventService.Stub.asInterface(service)
             try {
-                mEvtService?.setDashBoardCallback(mDashBoardCallback)
+                requireNotNull(mEvtService) { "EventService returned a null binder interface" }
+                    .setDashBoardCallback(mDashBoardCallback)
+                reconnectPolicy.onConnected()
+                eventConnectionJob?.cancel()
+                eventConnectionJob = null
+                stopTelemetryReplay()
                 Log.i(TAG, "DashBoardCallback successfully registered.")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to set dashboard callback: ${e.message}", e)
+                handleEventServiceFailure(EventServiceFailure.CALLBACK_REGISTRATION_FAILED)
             }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.i(TAG, "EventService disconnected.")
-            mEvtService = null
-            // A bound service normally reconnects automatically. Keep an explicit
-            // retry for vendor firmwares that do not honour that contract.
-            scope.launch {
-                delay(1_000)
-                if (mEvtService == null) {
-                    unbindEventService()
-                    bindEventService()
-                }
-            }
+            handleEventServiceFailure(EventServiceFailure.DISCONNECTED)
         }
 
         override fun onBindingDied(name: ComponentName?) {
@@ -255,12 +253,6 @@ class TelemetryService : Service() {
                                     now,
                                 )
                             )
-                            // A zero value means unavailable in this capture; retain
-                            // the last valid reading instead of displaying 0 km.
-                            if (telemetry.nativeRangeKm > 0) {
-                                nativeRangeKm = telemetry.nativeRangeKm
-                                _rangeFlow.value = nativeRangeKm
-                            }
                             telemetry.odometerKm?.takeIf { it > 0 }?.let {
                                 _mileageFlow.value = it
                             }
@@ -310,10 +302,7 @@ class TelemetryService : Service() {
         }.onFailure {
             Log.w(TAG, "SysVar observer unavailable: ${it.message}")
         }
-        bindEventService()
-        if (BuildConfig.TELEMETRY_REPLAY_ENABLED && !isBound) {
-            startTelemetryReplay()
-        }
+        startEventServiceConnection(immediate = true)
         // The provider does not exist in the emulator. The capture did not store
         // its belt value, so replay starts with the belt buckled.
         if (BuildConfig.TELEMETRY_REPLAY_ENABLED && !isBound) {
@@ -325,6 +314,9 @@ class TelemetryService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "Destroying TelemetryService...")
+        shuttingDown = true
+        eventConnectionJob?.cancel()
+        eventConnectionJob = null
         persistTripSession()
         persistDistanceSinceRefuel()
         tripMetricsJob?.cancel()
@@ -441,7 +433,7 @@ class TelemetryService : Service() {
         _tripElapsedRealtimeMsFlow.value = metrics.elapsedMs
         _tripDistanceKmFlow.value = metrics.distanceKm
         _averageConsumptionFlow.value = metrics.averageConsumption
-        if (nativeRangeKm <= 0) _rangeFlow.value = metrics.estimatedRangeKm
+        _rangeFlow.value = displayedEstimatedRange(metrics.estimatedRangeKm)
     }
 
     private fun restoreDistanceSinceRefuel() {
@@ -543,22 +535,44 @@ class TelemetryService : Service() {
         }
     }
 
-    private fun bindEventService() {
-        try {
+    private fun startEventServiceConnection(
+        immediate: Boolean,
+        failure: EventServiceFailure? = null,
+    ) {
+        if (shuttingDown || mEvtService != null || eventConnectionJob?.isActive == true) return
+        eventConnectionJob = scope.launch {
+            if (!immediate) {
+                delay(reconnectPolicy.delayAfter(requireNotNull(failure)))
+            }
+            while (isActive && !shuttingDown && mEvtService == null) {
+                disconnectEventService()
+                if (attemptEventServiceBind()) return@launch
+                if (BuildConfig.TELEMETRY_REPLAY_ENABLED) startTelemetryReplay()
+                delay(reconnectPolicy.delayAfter(EventServiceFailure.BIND_REJECTED))
+            }
+        }
+    }
+
+    private fun attemptEventServiceBind(): Boolean = try {
             val bindIntent = Intent("com.szchoiceway.eventcenter.EventService").apply {
                 setPackage("com.szchoiceway.eventcenter")
             }
             isBound = bindService(bindIntent, mSerCon, Context.BIND_AUTO_CREATE)
             Log.i(TAG, "Binding attempt to EventService: $isBound")
-            if (BuildConfig.TELEMETRY_REPLAY_ENABLED && !isBound) {
-                startTelemetryReplay()
-            }
+            isBound
         } catch (e: Exception) {
             Log.e(TAG, "Error binding to EventService: ${e.message}", e)
-            if (BuildConfig.TELEMETRY_REPLAY_ENABLED) {
-                startTelemetryReplay()
-            }
+            isBound = false
+            false
         }
+
+    private fun handleEventServiceFailure(failure: EventServiceFailure) {
+        if (shuttingDown) return
+        eventConnectionJob?.cancel()
+        eventConnectionJob = null
+        disconnectEventService()
+        if (BuildConfig.TELEMETRY_REPLAY_ENABLED) startTelemetryReplay()
+        startEventServiceConnection(immediate = false, failure = failure)
     }
 
     private fun startTelemetryReplay() {
@@ -642,25 +656,31 @@ class TelemetryService : Service() {
     }
 
     private fun unbindEventService() {
-        if (isBound) {
-            try {
-                unbindService(mSerCon)
-                isBound = false
-                mEvtService = null
-                Log.i(TAG, "Unbound from EventService.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error unbinding from EventService: ${e.message}")
-            }
+        eventConnectionJob?.cancel()
+        eventConnectionJob = null
+        disconnectEventService()
+    }
+
+    private fun disconnectEventService() {
+        val wasBound = isBound
+        isBound = false
+        mEvtService = null
+        if (!wasBound) return
+        try {
+            unbindService(mSerCon)
+            Log.i(TAG, "Unbound from EventService.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unbinding from EventService: ${e.message}")
         }
     }
 
     private fun updateVitalsFromProvider() {
-        val parkingBrake = getRecordBoolean(KESAIWEI_RECORD_PARK, false)
-        val seatbelt = getRecordBoolean(KESAIWEI_RECORD_BELT, false)
+        val parkingBrake = getRecordBooleanOrNull(KESAIWEI_RECORD_PARK)
+        val seatbelt = getRecordBooleanOrNull(KESAIWEI_RECORD_BELT)
         val lightsOn = getRecordBooleanOrNull(KSW_DATA_SMALL_LIGHT_ON)
-        _parkingBrakeFlow.value = parkingBrake
-        _seatbeltFlow.value = seatbelt
-        _lightsOnFlow.value = lightsOn
+        _parkingBrakeFlow.value = retainLastKnownBoolean(_parkingBrakeFlow.value, parkingBrake)
+        _seatbeltFlow.value = retainLastKnownBoolean(_seatbeltFlow.value, seatbelt)
+        if (lightsOn != null) _lightsOnFlow.value = lightsOn
         Log.d(
             TAG,
             "Vitals updated: Handbrake=$parkingBrake, Seatbelt=$seatbelt, Lights=$lightsOn",
@@ -684,28 +704,6 @@ class TelemetryService : Service() {
         } finally {
             cursor?.close()
         }
-    }
-
-    private fun getRecordBoolean(key: String, defaultVal: Boolean): Boolean {
-        val uri = PROVIDER_URI.toUri()
-        var cursor: Cursor? = null
-        try {
-            cursor = contentResolver.query(uri, null, "keyname=?", arrayOf(key), null)
-            if (cursor != null && cursor.count > 0 && cursor.moveToNext()) {
-                val keyvalueIndex = cursor.getColumnIndex("keyvalue")
-                if (keyvalueIndex != -1) {
-                    val valueStr = cursor.getString(keyvalueIndex)
-                    if (!valueStr.isNullOrEmpty()) {
-                        return valueStr.toIntOrNull() == 1
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error querying ContentProvider for key $key: ${e.message}")
-        } finally {
-            cursor?.close()
-        }
-        return defaultVal
     }
 
 }

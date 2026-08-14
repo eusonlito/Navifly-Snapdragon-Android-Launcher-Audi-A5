@@ -5,5 +5,6 @@ data class DoorStatus(
     val passengerOpen: Boolean = false,
     val rearLeftOpen: Boolean = false,
     val rearRightOpen: Boolean = false,
-    val trunkOpen: Boolean = false
+    val hoodOpen: Boolean = false,
+    val trunkOpen: Boolean = false,
 )

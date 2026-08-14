@@ -1350,7 +1350,7 @@ private fun DoorStatusWitness(doors: DoorStatus) {
     val alertColor = Color(0xFFFF3B3B)
     val inactiveColor = Color(0xFF263036)
     val anyOpen = doors.driverOpen || doors.passengerOpen ||
-        doors.rearLeftOpen || doors.rearRightOpen || doors.trunkOpen
+        doors.rearLeftOpen || doors.rearRightOpen || doors.hoodOpen || doors.trunkOpen
 
     val pulse = rememberWitnessPulse(anyOpen)
     Box(
