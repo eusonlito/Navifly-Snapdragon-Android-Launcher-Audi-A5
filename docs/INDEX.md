@@ -72,6 +72,7 @@ historial de prototipos y no describen el renderer actual.
 
 | Documento | Contenido | Estado |
 |---|---|---|
+| [Auditoría técnica - Agosto de 2026](audit/AUDIT-2026-08.md) | Revisión integral actual, riesgos y prioridades de mejora | Vigente |
 | [Auditoría](history/AUDIT.md) | Fotografía técnica del 28-07-2026 | Histórico |
 | [Remediación](history/REMEDIATION.md) | Correcciones derivadas de la auditoría | Histórico verificado |
 | [Plan inicial](history/PLAN-HISTORICAL.md) | Evolución temprana del proyecto | Histórico |
