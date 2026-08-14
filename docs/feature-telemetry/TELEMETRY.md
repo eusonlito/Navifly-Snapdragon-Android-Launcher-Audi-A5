@@ -276,7 +276,7 @@ La variante `debug` admite un JSONL de replay empaquetado como asset. Cuando el
 binding a
 `com.szchoiceway.eventcenter.EventService` no está disponible, como sucede en el
 emulador, `TelemetryService` reproduce automáticamente los callbacks AIDL del
-archivo respetando sus timestamps originales.
+archivo respetando su cronología original.
 
 * `scripts/emulator.sh` acepta cualquier recorrido local mediante
   `--replay RUTA_JSONL`. El repositorio no incluye ni presupone un log de
@@ -288,9 +288,14 @@ archivo respetando sus timestamps originales.
   callback y decodificador que usa la unidad física.
 * Si el servicio real se conecta, el replay se cancela inmediatamente.
 * La variante `release` no empaqueta el archivo ni puede activar el replay.
+* CAN y GPS seleccionan una única base temporal para todo el ciclo. Prefieren
+  `elapsed_realtime_nanos` cuando está presente en todos los eventos
+  reproducibles, por lo que una corrección de fecha del dispositivo no altera
+  pausas ni sincronización. Los logs antiguos sin ese campo usan `timestamp`
+  como fallback para el ciclo completo; nunca se mezclan ambos relojes.
 * `scripts/emulator.sh` reproduce además las entradas `GPS_LOCATION` del mismo
-  JSONL mediante la API de control gRPC del emulador, con sus marcas de tiempo
-  originales y conservando posición, velocidad y rumbo. El mapa no usa
+  JSONL mediante la API de control gRPC del emulador, conservando posición,
+  velocidad y rumbo. El mapa no usa
   coordenadas de demostración ni una posición fija durante este flujo. Esta
   herramienta requiere instalar previamente `requirements-emulator.txt`.
 * También reproduce por timestamp los estados iniciales y cambios de

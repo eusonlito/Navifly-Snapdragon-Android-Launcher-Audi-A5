@@ -85,6 +85,11 @@ internal data class PoiSnapshot(
     }.toString()
 }
 
+internal fun PoiSnapshot.iconsReferencedBySources(): List<PoiIcon> {
+    if (referencedIconCodes.isEmpty()) return emptyList()
+    return icons.filter { it.code in referencedIconCodes }
+}
+
 internal object PoiGeoJsonParser {
     const val MAX_SOURCE_BYTES = 5 * 1024 * 1024
     const val MAX_POINTS_PER_SOURCE = 10_000
@@ -200,6 +205,8 @@ internal class PoiRepository internal constructor(
     private val iconsDirectory = File(root, "icons")
     private val categoriesFile = File(root, CATEGORIES_FILE_NAME)
     private val transactionMutex = Mutex()
+    private val bitmapCacheMutex = Mutex()
+    private val bitmapCache = linkedMapOf<String, CachedPoiBitmap>()
 
     suspend fun snapshot(): PoiSnapshot = withContext(Dispatchers.IO) { readSnapshot() }
 
@@ -271,7 +278,37 @@ internal class PoiRepository internal constructor(
         }
     }
 
-    fun loadIconBitmap(icon: PoiIcon): Bitmap? = BitmapFactory.decodeFile(icon.file.absolutePath)
+    /** Decodes only icons used by the current sources, always away from the UI thread. */
+    suspend fun loadReferencedIconBitmaps(snapshot: PoiSnapshot): Map<String, Bitmap> =
+        withContext(Dispatchers.IO) {
+            bitmapCacheMutex.withLock {
+                val referenced = snapshot.iconsReferencedBySources()
+                    .take(MAX_ICONS)
+                    .takeWhilePixelBudget(MAX_ICON_PIXELS)
+                val requestedCodes = referenced.mapTo(hashSetOf()) { it.code }
+                val staleCodes = bitmapCache.keys - requestedCodes
+                staleCodes.forEach { code -> bitmapCache.remove(code)?.bitmap?.recycle() }
+
+                referenced.forEach { icon ->
+                    val fingerprint = PoiIconFingerprint(
+                        icon.file.absolutePath,
+                        icon.file.lastModified(),
+                        icon.file.length(),
+                    )
+                    val cached = bitmapCache[icon.code]
+                    if (cached?.fingerprint != fingerprint) {
+                        bitmapCache.remove(icon.code)?.bitmap?.recycle()
+                        val decoded = BitmapFactory.decodeFile(icon.file.absolutePath)
+                        if (decoded != null) {
+                            bitmapCache[icon.code] = CachedPoiBitmap(fingerprint, decoded)
+                        }
+                    }
+                }
+                referenced.mapNotNull { icon ->
+                    bitmapCache[icon.code]?.bitmap?.let { icon.code to it }
+                }.toMap(linkedMapOf())
+            }
+        }
 
     private fun readSnapshot(): PoiSnapshot = PoiSnapshot(
         sources = readSources(),
@@ -359,6 +396,27 @@ internal class PoiRepository internal constructor(
             val code = fileName.substringBeforeLast('.').lowercase(Locale.ROOT)
             require(POI_IDENTIFIER_PATTERN.matches(code)) { "Icon category is invalid" }
             return code
+        }
+    }
+
+    private data class PoiIconFingerprint(
+        val absolutePath: String,
+        val lastModified: Long,
+        val byteCount: Long,
+    )
+
+    private data class CachedPoiBitmap(
+        val fingerprint: PoiIconFingerprint,
+        val bitmap: Bitmap,
+    )
+}
+
+private fun List<PoiIcon>.takeWhilePixelBudget(maximumPixels: Long): List<PoiIcon> {
+    var pixels = 0L
+    return takeWhile { icon ->
+        val next = icon.width.toLong() * icon.height
+        (pixels + next <= maximumPixels).also { accepted ->
+            if (accepted) pixels += next
         }
     }
 }

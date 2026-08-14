@@ -56,14 +56,77 @@ class ReplayEmulatorGpsTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            start, end, locations = REPLAY.parse_log(log)
+            timeline, locations = REPLAY.parse_log(log)
 
-        self.assertEqual(start, 1_000)
-        self.assertEqual(end, 4_000)
+        self.assertEqual(timeline.clock_key, "timestamp")
+        self.assertEqual(timeline.start_tick, 1_000)
+        self.assertEqual(timeline.end_tick, 4_000)
         self.assertEqual(
-            REPLAY.location_delay_seconds(locations[0], start),
+            timeline.delay_seconds(locations[0]),
             3.0,
         )
+
+    def test_gps_timing_prefers_monotonic_clock_during_wall_clock_correction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "replay.jsonl"
+            events = [
+                {
+                    "timestamp": 10_000,
+                    "elapsed_realtime_nanos": 1_000_000_000,
+                    "source": "AIDL_CALLBACK",
+                },
+                {
+                    "timestamp": 40_000,
+                    "elapsed_realtime_nanos": 2_000_000_000,
+                    "source": "GPS_LOCATION",
+                    "latitude": 42.0,
+                    "longitude": -7.0,
+                },
+                {
+                    "timestamp": 20_000,
+                    "elapsed_realtime_nanos": 3_000_000_000,
+                    "source": "GPS_LOCATION",
+                    "latitude": 42.1,
+                    "longitude": -7.1,
+                },
+            ]
+            log.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+            timeline, locations = REPLAY.parse_log(log)
+
+        self.assertEqual(timeline.clock_key, "elapsed_realtime_nanos")
+        self.assertEqual(timeline.duration_seconds, 2.0)
+        self.assertEqual(timeline.delay_seconds(locations[0]), 1.0)
+        self.assertEqual(timeline.delay_seconds(locations[1]), 2.0)
+
+    def test_mixed_timing_fields_fall_back_to_one_legacy_timeline(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "replay.jsonl"
+            events = [
+                {
+                    "timestamp": 1_000,
+                    "elapsed_realtime_nanos": 1_000_000_000,
+                    "source": "AIDL_CALLBACK",
+                },
+                {
+                    "timestamp": 2_500,
+                    "source": "GPS_LOCATION",
+                    "latitude": 42.0,
+                    "longitude": -7.0,
+                },
+            ]
+            log.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+            timeline, locations = REPLAY.parse_log(log)
+
+        self.assertEqual(timeline.clock_key, "timestamp")
+        self.assertEqual(timeline.delay_seconds(locations[0]), 1.5)
 
     def test_gps_payload_preserves_recorded_speed_and_bearing(self) -> None:
         location = {

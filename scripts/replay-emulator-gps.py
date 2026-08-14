@@ -113,8 +113,28 @@ def build_gps_state_payload(location: dict[str, object]) -> bytes:
     return bytes(payload)
 
 
-def location_delay_seconds(location: dict[str, object], replay_start_timestamp: int) -> float:
-    return max(0, int(location["timestamp"]) - replay_start_timestamp) / 1000.0
+class ReplayTimeline(NamedTuple):
+    """Clock contract shared with Kotlin ReplayTimeline.
+
+    A complete replay uses elapsed realtime only when every replayable record
+    has it. Otherwise the complete cycle falls back to legacy wall timestamps;
+    clocks are never mixed within one CAN/GPS replay.
+    """
+
+    clock_key: str
+    ticks_per_second: int
+    start_tick: int
+    end_tick: int
+
+    @property
+    def duration_seconds(self) -> float:
+        return max(0, self.end_tick - self.start_tick) / self.ticks_per_second
+
+    def delay_seconds(self, event: dict[str, object]) -> float:
+        tick = event.get(self.clock_key)
+        if not isinstance(tick, int):
+            raise ValueError(f"El evento no contiene {self.clock_key}")
+        return max(0, tick - self.start_tick) / self.ticks_per_second
 
 
 class EmulatorGpsClient:
@@ -145,9 +165,8 @@ class EmulatorGpsClient:
         self._channel.close()
 
 
-def parse_log(path: Path) -> tuple[int, int, list[dict[str, object]]]:
-    replay_start: int | None = None
-    replay_end: int | None = None
+def parse_log(path: Path) -> tuple[ReplayTimeline, list[dict[str, object]]]:
+    replayable_events: list[dict[str, object]] = []
     locations: list[dict[str, object]] = []
 
     with path.open(encoding="utf-8") as source:
@@ -157,48 +176,57 @@ def parse_log(path: Path) -> tuple[int, int, list[dict[str, object]]]:
             except (json.JSONDecodeError, TypeError):
                 continue
 
-            timestamp = event.get("timestamp")
-            if not isinstance(timestamp, int):
-                continue
-
             source_type = event.get("source")
             provider_key = event.get("key")
-            if source_type == "AIDL_CALLBACK" or (
+            replayable = source_type == "AIDL_CALLBACK" or (
                 source_type in {"SYSVAR_INITIAL", "SYSVAR_CHANGE"}
                 and provider_key in RELEVANT_PROVIDER_KEYS
-            ):
-                replay_start = timestamp if replay_start is None else min(replay_start, timestamp)
-                replay_end = timestamp if replay_end is None else max(replay_end, timestamp)
+            ) or source_type == "GPS_LOCATION"
+            if not replayable:
+                continue
+            replayable_events.append(event)
 
             if source_type == "GPS_LOCATION":
                 latitude = event.get("latitude")
                 longitude = event.get("longitude")
                 if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
                     locations.append(event)
-                    replay_start = timestamp if replay_start is None else min(replay_start, timestamp)
-                    replay_end = timestamp if replay_end is None else max(replay_end, timestamp)
 
-    if replay_start is None:
+    if not replayable_events:
         raise ValueError("El log no contiene eventos reproducibles")
     if not locations:
         raise ValueError("El log no contiene posiciones GPS")
-    return replay_start, replay_end or replay_start, locations
+    if all(isinstance(event.get("elapsed_realtime_nanos"), int) for event in replayable_events):
+        clock_key = "elapsed_realtime_nanos"
+        ticks_per_second = 1_000_000_000
+    else:
+        clock_key = "timestamp"
+        ticks_per_second = 1_000
+    ticks = [event.get(clock_key) for event in replayable_events]
+    if not all(isinstance(tick, int) for tick in ticks):
+        raise ValueError(f"El log no contiene una cronología completa en {clock_key}")
+    integer_ticks = [int(tick) for tick in ticks]
+    return ReplayTimeline(
+        clock_key,
+        ticks_per_second,
+        min(integer_ticks),
+        max(integer_ticks),
+    ), locations
 
 
 def replay(
     client: EmulatorGpsClient,
-    start_timestamp: int,
-    end_timestamp: int,
+    timeline: ReplayTimeline,
     locations: list[dict[str, object]],
 ) -> None:
     started = time.monotonic()
     for location in locations:
-        target = location_delay_seconds(location, start_timestamp)
+        target = timeline.delay_seconds(location)
         delay = target - (time.monotonic() - started)
         if delay > 0:
             time.sleep(delay)
         client.send(location)
-    remaining = (end_timestamp - start_timestamp) / 1000.0 - (time.monotonic() - started)
+    remaining = timeline.duration_seconds - (time.monotonic() - started)
     if remaining > 0:
         time.sleep(remaining)
 
@@ -212,11 +240,11 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
-    replay_start, replay_end, locations = parse_log(args.log)
+    timeline, locations = parse_log(args.log)
     if args.check:
         print(
             f"GPS validado: {len(locations)} posiciones · "
-            f"duración {(replay_end - replay_start) / 1000.0:.3f}s"
+            f"duración {timeline.duration_seconds:.3f}s · reloj {timeline.clock_key}"
         )
         return
     endpoint = resolve_grpc_endpoint(args.serial)
@@ -226,7 +254,7 @@ def main() -> None:
         # mismo punto vuelve a emitirse después en su instante del recorrido.
         client.send(locations[0])
         while True:
-            replay(client, replay_start, replay_end, locations)
+            replay(client, timeline, locations)
             if not args.loop:
                 return
             time.sleep(max(0.0, args.loop_pause))

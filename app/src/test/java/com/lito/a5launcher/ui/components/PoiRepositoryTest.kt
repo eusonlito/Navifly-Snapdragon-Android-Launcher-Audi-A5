@@ -127,6 +127,27 @@ class PoiRepositoryTest {
         assertTrue(runCatching { PoiRepository.categoryForIconFile("radar.webp") }.isFailure)
     }
 
+    @Test
+    fun `only referenced POI icons are selected for decoding`() {
+        val root = createTempDirectory("poi-icon-selection-").toFile()
+        try {
+            val camera = PoiIcon("camera", File(root, "camera.png"), 64, 64)
+            val unused = PoiIcon("unused", File(root, "unused.png"), 64, 64)
+            val snapshot = PoiSnapshot(
+                sources = listOf(PoiGeoJsonParser.parse("one.geojson", VALID_GEOJSON.byteInputStream())),
+                icons = listOf(unused, camera),
+                categoryCatalog = PoiCategoryParser.parse(
+                    "categories.json",
+                    CATEGORIES_JSON.byteInputStream(),
+                ),
+            )
+
+            assertEquals(listOf(camera), snapshot.iconsReferencedBySources())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     companion object {
         private fun featureCollection(features: String) =
             """{"type":"FeatureCollection","features":[$features]}"""

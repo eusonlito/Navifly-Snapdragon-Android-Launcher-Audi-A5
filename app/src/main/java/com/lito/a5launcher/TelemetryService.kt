@@ -42,6 +42,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+private fun JSONObject.longOrNull(key: String): Long? = (opt(key) as? Number)?.toLong()
+
 private const val PRODUCTION_TRIP_SCHEMA = 2
 private const val CURRENT_TRIP_SCHEMA = 3
 
@@ -583,51 +585,45 @@ class TelemetryService : Service() {
             Log.i(TAG, "Starting real-trip telemetry replay from $REPLAY_ASSET")
 
             while (isActive && mEvtService == null) {
-                var previousTimestamp: Long? = null
                 var replayedEvents = 0
 
                 try {
-                    assets.open(REPLAY_ASSET).bufferedReader().useLines { lines ->
-                        for (line in lines) {
-                            if (!isActive || mEvtService != null) break
-
-                            val json = runCatching { JSONObject(line) }.getOrNull() ?: continue
-                            val source = json.optString("source")
-                            val providerKey = json.optString("key")
-                            val isAidl = source == "AIDL_CALLBACK"
-                            val isRelevantProviderState =
-                                (source == "SYSVAR_INITIAL" || source == "SYSVAR_CHANGE") &&
-                                    (providerKey == KESAIWEI_RECORD_BELT ||
-                                        providerKey == KESAIWEI_RECORD_PARK ||
-                                        providerKey == KSW_DATA_SMALL_LIGHT_ON)
-                            if (!isAidl && !isRelevantProviderState) continue
-
-                            val timestamp = json.optLong("timestamp")
-                            previousTimestamp?.let { previous ->
-                                delay((timestamp - previous).coerceIn(0L, 30_000L))
-                            }
-                            previousTimestamp = timestamp
-
-                            if (isAidl) {
-                                val bytes = hexToByteArray(json.optString("bytes_hex"))
-                                mDashBoardCallback.notifyEvt(
-                                    json.optInt("msg_what"),
-                                    json.optInt("arg1"),
-                                    json.optInt("arg2"),
-                                    bytes,
-                                    json.optString("str")
-                                )
-                            } else {
-                                val enabled = json.optString("value") == "1"
-                                when (providerKey) {
-                                    KESAIWEI_RECORD_BELT -> _seatbeltFlow.value = enabled
-                                    KESAIWEI_RECORD_PARK -> _parkingBrakeFlow.value = enabled
-                                    KSW_DATA_SMALL_LIGHT_ON -> _lightsOnFlow.value = enabled
-                                }
-                            }
-                            replayedEvents++
-                        }
+                    val records = assets.open(REPLAY_ASSET).bufferedReader().useLines { lines ->
+                        lines.mapNotNull(::parseReplayRecord).toList()
                     }
+                    val timeline = ReplayTimeline.from(records.map(ReplayRecord::timestamp))
+                        ?: error("Replay does not contain a complete timing timeline")
+                    val cycleStartedAt = SystemClock.elapsedRealtime()
+                    for (record in records) {
+                        if (!record.shouldEmit) continue
+                        val targetOffset = timeline.offsetMillis(record.timestamp) ?: continue
+                        val remainingDelay = targetOffset -
+                            (SystemClock.elapsedRealtime() - cycleStartedAt)
+                        if (remainingDelay > 0L) delay(remainingDelay)
+                        if (!isActive || mEvtService != null) break
+
+                        if (record.isAidl) {
+                            val bytes = hexToByteArray(record.json.optString("bytes_hex"))
+                            mDashBoardCallback.notifyEvt(
+                                record.json.optInt("msg_what"),
+                                record.json.optInt("arg1"),
+                                record.json.optInt("arg2"),
+                                bytes,
+                                record.json.optString("str")
+                            )
+                        } else {
+                            val enabled = record.json.optString("value") == "1"
+                            when (record.providerKey) {
+                                KESAIWEI_RECORD_BELT -> _seatbeltFlow.value = enabled
+                                KESAIWEI_RECORD_PARK -> _parkingBrakeFlow.value = enabled
+                                KSW_DATA_SMALL_LIGHT_ON -> _lightsOnFlow.value = enabled
+                            }
+                        }
+                        replayedEvents++
+                    }
+                    val remainingCycle = timeline.durationMillis -
+                        (SystemClock.elapsedRealtime() - cycleStartedAt)
+                    if (remainingCycle > 0L) delay(remainingCycle)
                     Log.i(TAG, "Telemetry replay completed: $replayedEvents callbacks")
                 } catch (e: Exception) {
                     Log.e(TAG, "Telemetry replay failed: ${e.message}", e)
@@ -640,6 +636,38 @@ class TelemetryService : Service() {
             }
             replayActive = false
         }
+    }
+
+    private data class ReplayRecord(
+        val json: JSONObject,
+        val timestamp: ReplayTimestamp,
+        val isAidl: Boolean,
+        val providerKey: String,
+        val shouldEmit: Boolean,
+    )
+
+    private fun parseReplayRecord(line: String): ReplayRecord? {
+        val json = runCatching { JSONObject(line) }.getOrNull() ?: return null
+        val source = json.optString("source")
+        val providerKey = json.optString("key")
+        val isAidl = source == "AIDL_CALLBACK"
+        val isRelevantProviderState =
+            (source == "SYSVAR_INITIAL" || source == "SYSVAR_CHANGE") &&
+                (providerKey == KESAIWEI_RECORD_BELT ||
+                    providerKey == KESAIWEI_RECORD_PARK ||
+                    providerKey == KSW_DATA_SMALL_LIGHT_ON)
+        val contributesToTimeline = isAidl || isRelevantProviderState || source == "GPS_LOCATION"
+        if (!contributesToTimeline) return null
+        return ReplayRecord(
+            json = json,
+            timestamp = ReplayTimestamp(
+                timestampMillis = json.longOrNull("timestamp"),
+                elapsedRealtimeNanos = json.longOrNull("elapsed_realtime_nanos"),
+            ),
+            isAidl = isAidl,
+            providerKey = providerKey,
+            shouldEmit = isAidl || isRelevantProviderState,
+        )
     }
 
     private fun stopTelemetryReplay() {

@@ -782,7 +782,7 @@ private fun CockpitMapView(
                                                     viewContext,
                                                     style,
                                                     poiSnapshot,
-                                                    poiRepository,
+                                                    emptyMap(),
                                                     session,
                                                     coroutineScope,
                                                     onDiagnostic,
@@ -900,6 +900,7 @@ private fun CockpitMapView(
                 session.poiPulseJob = null
                 return@LaunchedEffect
             }
+            val iconBitmaps = poiRepository.loadReferencedIconBitmaps(poiSnapshot)
             val map = withTimeoutOrNull(8_000L) { session.mapReady.await() }
                 ?: return@LaunchedEffect
             map.getStyle { style ->
@@ -910,7 +911,7 @@ private fun CockpitMapView(
                         context,
                         style,
                         poiSnapshot,
-                        poiRepository,
+                        iconBitmaps,
                         session,
                         coroutineScope,
                         onDiagnostic,
@@ -982,7 +983,7 @@ private fun installPoiLayers(
     context: Context,
     style: Style,
     snapshot: PoiSnapshot,
-    repository: PoiRepository,
+    iconBitmaps: Map<String, Bitmap>,
     session: MapViewSession,
     coroutineScope: kotlinx.coroutines.CoroutineScope,
     diagnostic: (String) -> Unit,
@@ -990,8 +991,8 @@ private fun installPoiLayers(
     if (style.getSource(POI_SOURCE_ID) == null) {
         style.addSource(GeoJsonSource(POI_SOURCE_ID, snapshot.geoJson))
     }
-    snapshot.icons.filter { it.code in snapshot.referencedIconCodes }.forEach { icon ->
-        repository.loadIconBitmap(icon)?.let { style.addImage(icon.code, it) }
+    iconBitmaps.forEach { (code, bitmap) ->
+        style.addImage(code, bitmap)
     }
     if (style.getLayer(POI_PULSE_FIRST_LAYER_ID) == null) {
         style.addImage(POI_PULSE_ICON_ID, createPoiPulseBitmap(), true)
