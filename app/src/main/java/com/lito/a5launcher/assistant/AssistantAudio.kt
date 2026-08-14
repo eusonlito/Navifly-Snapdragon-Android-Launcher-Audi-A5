@@ -281,7 +281,7 @@ internal class SpeechCaptureWindow {
 
     private companion object {
         const val SPEECH_AMPLITUDE = 450
-        const val END_SILENCE_MS = 900L
+        const val END_SILENCE_MS = 2_000L
         const val INITIAL_SPEECH_TIMEOUT_MS = 5_000L
         const val MAX_TURN_MS = 12_000L
     }

@@ -18,7 +18,8 @@ class SpeechCaptureWindowTest {
 
         assertEquals(SpeechCaptureDecision.CONTINUE, window.onAudioLevel(600, 2_900L))
         assertEquals(SpeechCaptureDecision.CONTINUE, window.onAudioLevel(0, 3_000L))
-        assertEquals(SpeechCaptureDecision.SPEECH_COMPLETE, window.onAudioLevel(0, 3_900L))
+        assertEquals(SpeechCaptureDecision.CONTINUE, window.onAudioLevel(0, 4_999L))
+        assertEquals(SpeechCaptureDecision.SPEECH_COMPLETE, window.onAudioLevel(0, 5_000L))
     }
 
     @Test
