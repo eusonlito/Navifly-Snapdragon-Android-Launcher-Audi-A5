@@ -17,6 +17,7 @@ class LocalizationResourcesTest {
     @Test
     fun bothLanguagesExposeSystemAndDashboardLabels() {
         val required = setOf(
+            "launcher_settings_tab_logs",
             "launcher_settings_tab_system",
             "language_spanish",
             "language_english",
@@ -26,6 +27,18 @@ class LocalizationResourcesTest {
             "dashboard_refuel_distance",
             "dashboard_range",
             "dashboard_odometer",
+            "functional_logs_capture",
+            "functional_logs_export_all",
+            "functional_logs_delete",
+            "functional_logs_delete_all",
+            "functional_logs_empty",
+            "functional_logs_retry",
+            "functional_logs_category_refuel_partial",
+            "functional_logs_category_trip_session",
+            "functional_logs_category_consumption_range",
+            "functional_logs_category_gear_estimation",
+            "functional_logs_summary_refuel_confirmed",
+            "functional_logs_summary_gear_inconsistency",
         )
         assertTrue(stringNames(File("src/main/res/values/strings.xml")).containsAll(required))
         assertTrue(stringNames(File("src/main/res/values-es/strings.xml")).containsAll(required))

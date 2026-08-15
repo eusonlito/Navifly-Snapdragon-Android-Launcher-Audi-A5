@@ -77,6 +77,7 @@ import com.lito.a5launcher.AppLanguage
 import com.lito.a5launcher.AppLanguageManager
 import com.lito.a5launcher.BuildConfig
 import com.lito.a5launcher.ConsumptionMetrics
+import com.lito.a5launcher.functional.FunctionalEventLogAccess
 import com.lito.a5launcher.DeviceRebootAction
 import com.lito.a5launcher.LauncherUpdateInstaller
 import com.lito.a5launcher.LauncherViewModel
@@ -247,6 +248,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val seatbelt by viewModel.seatbelt.collectAsStateWithLifecycle()
     val brake by viewModel.parkingBrake.collectAsStateWithLifecycle()
     val lightsOn by viewModel.lightsOn.collectAsStateWithLifecycle()
+    val functionalEventLogAccess by viewModel.functionalEventLogAccess.collectAsStateWithLifecycle()
     val dashboardLocale = LocalConfiguration.current.locales[0]
     var clockNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(dashboardLocale) {
@@ -885,6 +887,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     },
                     onClearAssistantErrorLogs = assistantController::clearErrorLogs,
                     onAssistantSaved = assistantController::refreshSettings,
+                    functionalEventLogAccess = functionalEventLogAccess,
                     updateState = updateState,
                     onSelectUpdateApk = {
                         updateApkPicker.launch(arrayOf(LauncherUpdateInstaller.APK_MIME_TYPE))
@@ -1851,6 +1854,7 @@ private fun LauncherSettingsOverlay(
     onExportAssistantErrorLogs: ((Boolean?) -> Unit) -> Unit,
     onClearAssistantErrorLogs: ((Int) -> Unit) -> Unit,
     onAssistantSaved: () -> Unit,
+    functionalEventLogAccess: FunctionalEventLogAccess?,
     updateState: LauncherUpdateState,
     onSelectUpdateApk: () -> Unit,
     onRequestDeviceReboot: () -> Result<Unit>,
@@ -2241,6 +2245,10 @@ private fun LauncherSettingsOverlay(
             onSaved = onAssistantSaved,
             modifier = Modifier.fillMaxSize(),
         )
+        LauncherSettingsTab.LOGS -> FunctionalLogsPanel(
+            access = functionalEventLogAccess,
+            modifier = Modifier.fillMaxSize(),
+        )
         LauncherSettingsTab.SYSTEM -> Row(
             Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -2380,9 +2388,10 @@ private fun PoiItemRow(label: String, onDelete: () -> Unit) {
     }
 }
 
-private enum class LauncherSettingsTab(val labelRes: Int) {
+internal enum class LauncherSettingsTab(val labelRes: Int) {
     MAP(R.string.launcher_settings_tab_map),
     ASSISTANT(R.string.launcher_settings_tab_assistant),
+    LOGS(R.string.launcher_settings_tab_logs),
     SYSTEM(R.string.launcher_settings_tab_system),
 }
 

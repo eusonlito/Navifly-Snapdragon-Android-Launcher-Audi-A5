@@ -45,6 +45,13 @@ class FunctionalEventJournalTest {
                 assertEquals(listOf(1L), third.events.map(FunctionalEvent::sequence))
                 assertEquals(5, (first.events + second.events + third.events).distinctBy { it.sequence }.size)
                 assertTrue(journal.stats().corruptLines >= 1)
+                assertEquals(
+                    mapOf(
+                        FunctionalEventCategory.TRIP_SESSION to 3L,
+                        FunctionalEventCategory.GEAR_ESTIMATION to 2L,
+                    ),
+                    journal.stats().categoryCounts,
+                )
             }
         }
     }

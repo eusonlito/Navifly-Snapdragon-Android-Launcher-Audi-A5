@@ -22,6 +22,7 @@ data class FunctionalEventJournalStats(
     val validEvents: Long,
     val sizeBytes: Long,
     val corruptLines: Long,
+    val categoryCounts: Map<FunctionalEventCategory, Long> = emptyMap(),
 )
 
 data class FunctionalEventOperationalState(
@@ -112,16 +113,26 @@ class FunctionalEventJournal(
     fun stats(): FunctionalEventJournalStats {
         var valid = 0L
         var corrupt = 0L
+        val categories = FunctionalEventCategory.entries.associateWithTo(mutableMapOf()) { 0L }
         val segments = discoverSegments()
         segments.forEach { segment ->
             segment.file.useLines { lines ->
-                lines.forEach { if (codec.decode(it).event == null) corrupt++ else valid++ }
+                lines.forEach { line ->
+                    val event = codec.decode(line).event
+                    if (event == null) {
+                        corrupt++
+                    } else {
+                        valid++
+                        categories[event.category] = categories.getValue(event.category) + 1L
+                    }
+                }
             }
         }
         return FunctionalEventJournalStats(
             validEvents = valid,
             sizeBytes = root.listFiles()?.filter(File::isFile)?.sumOf(File::length) ?: 0L,
             corruptLines = corrupt,
+            categoryCounts = categories.filterValues { it > 0L },
         )
     }
 

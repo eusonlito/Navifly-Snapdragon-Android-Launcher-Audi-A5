@@ -53,6 +53,7 @@ historial de prototipos y no describen el renderer actual.
 | Documento | Contenido | Estado |
 |---|---|---|
 | [Telemetría](feature-telemetry/README.md) | Eventos CAN, fuentes y cálculos | Vigente |
+| [Registros funcionales](feature-functional-event-logs/PLAN.md) | Diario de decisiones, consulta y gestión | Implementado |
 | [Telemetría nativa](feature-native-telemetry/README.md) | Firmware, EventCenter, protocolo MCU y viabilidad | En investigación |
 | [Inicio del dispositivo](feature-boot/README.md) | Boot animation y boot logo | Referencia |
 

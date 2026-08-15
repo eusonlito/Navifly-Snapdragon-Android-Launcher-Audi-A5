@@ -722,10 +722,13 @@ class TelemetryDecoderTest {
         val changed = coordinator.updateDetailed(valid)
         assertTrue(changed.transition is GearDecision.Change)
         assertEquals("3", changed.gear)
+        assertEquals(38.5, (changed.transition as GearDecision.Change).expectedRatio!!, .000_001)
 
         val invalid = DrivingSample(speed = 50, rpm = 4_000, rawGearType = 4)
         repeat(3) { assertNull(coordinator.updateDetailed(invalid).transition) }
-        assertTrue(coordinator.updateDetailed(invalid).transition is GearDecision.Inconsistency)
+        val inconsistency = coordinator.updateDetailed(invalid).transition
+        assertTrue(inconsistency is GearDecision.Inconsistency)
+        assertEquals(38.5, (inconsistency as GearDecision.Inconsistency).expectedRatio!!, .000_001)
         assertNull(coordinator.updateDetailed(invalid).transition)
     }
 

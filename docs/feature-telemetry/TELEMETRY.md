@@ -355,6 +355,35 @@ forman parte del producto.
 
 ## 7. Capturador de eventos del vehículo
 
+### Diario funcional del launcher
+
+La pestaña **Registros** de los ajustes no es un capturador CAN. Conserva sólo
+decisiones discretas de alto valor diagnóstico: detección de repostaje y
+reinicio del parcial, restauración de sesión, cambios materiales del modelo de
+consumo/autonomía e inferencias confirmadas de marcha. Cada entrada guarda su
+contexto tipado y una secuencia monotónica; la interfaz lo traduce al idioma
+seleccionado al leerlo.
+
+La captura está desactivada inicialmente, mantiene las cuatro categorías
+preseleccionadas y continúa en `TelemetryService` aunque el launcher no esté en
+primer plano. El historial permanece en almacenamiento privado hasta un
+borrado manual. La lectura es paginada; la descarga solicita un destino SAF y
+genera un ZIP de todos los segmentos sin eliminar los originales. El borrado
+puede afectar a una categoría o al diario completo y siempre requiere
+confirmación.
+
+Este diario es deliberadamente independiente de:
+
+- los logs técnicos del mapa;
+- los errores del Asistente IA;
+- la captura exhaustiva del proyecto `a5-logger`.
+
+Por tanto, no registra muestras repetidas, POI, conectividad ordinaria ni
+actualizaciones de la aplicación. Un error o una línea dañada queda reflejado en
+las estadísticas del panel y no detiene el procesamiento de telemetría.
+
+### Logger exhaustivo independiente
+
 El capturador es un proyecto Android independiente ubicado en `../a5-logger`.
 Se compila desde ese directorio con `./compile.sh` y copia el resultado en
 `a5-launcher/../a5-logger/out/CanLogger.apk`.

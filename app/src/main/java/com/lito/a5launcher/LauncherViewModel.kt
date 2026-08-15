@@ -17,6 +17,7 @@ import com.lito.a5launcher.model.AppInfo
 import com.lito.a5launcher.model.DoorStatus
 import com.lito.a5launcher.assistant.NavigationAction
 import com.lito.a5launcher.assistant.NavigationRequest
+import com.lito.a5launcher.functional.FunctionalEventLogAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -87,6 +88,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _lightsOn = MutableStateFlow<Boolean?>(null)
     val lightsOn: StateFlow<Boolean?> = _lightsOn.asStateFlow()
 
+    private val _functionalEventLogAccess = MutableStateFlow<FunctionalEventLogAccess?>(null)
+    internal val functionalEventLogAccess: StateFlow<FunctionalEventLogAccess?> =
+        _functionalEventLogAccess.asStateFlow()
+
     // App Drawer list
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -109,6 +114,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
             // Start collecting from service flows in parallel
             telemetryService?.let { svc ->
+                _functionalEventLogAccess.value = FunctionalEventLogAccess(
+                    svc.functionalEventJournal,
+                    svc.functionalEventSettings,
+                )
                 collectionJobs.add(viewModelScope.launch { svc.speedFlow.collect { _speed.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.rpmFlow.collect { _rpm.value = it } })
                 collectionJobs.add(viewModelScope.launch {
@@ -145,6 +154,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             Log.i(TAG, "Unbound/Disconnected from TelemetryService.")
             isBound = false
             telemetryService = null
+            _functionalEventLogAccess.value = null
             collectionJobs.forEach { it.cancel() }
             collectionJobs.clear()
         }
