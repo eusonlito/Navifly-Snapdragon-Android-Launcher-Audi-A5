@@ -44,6 +44,7 @@ internal data class FunctionalLogsUiState(
     val pageLoading: Boolean = false,
     val endReached: Boolean = false,
     val loadError: String? = null,
+    val actionError: String? = null,
     val operation: FunctionalLogsOperation = FunctionalLogsOperation.IDLE,
 )
 
@@ -81,13 +82,9 @@ internal class JournalFunctionalLogsRepository(
         FunctionalEventArchive.export(journal.sealSnapshot(), output)
 
     override fun delete(scope: FunctionalLogsDeleteScope): Long {
-        val countBefore = journal.stats()
         val snapshot = journal.sealSnapshot()
         return when (scope) {
-            FunctionalLogsDeleteScope.All -> {
-                FunctionalEventArchive.deleteAll(snapshot)
-                countBefore.validEvents
-            }
+            FunctionalLogsDeleteScope.All -> FunctionalEventArchive.deleteAll(snapshot)
             is FunctionalLogsDeleteScope.Category -> FunctionalEventArchive.deleteCategory(
                 snapshot,
                 scope.category,
@@ -151,7 +148,6 @@ internal class FunctionalLogsController(
             withContext(ioDispatcher) {
                 PageResult(
                     page = repository.page(cursor, PAGE_SIZE),
-                    stats = repository.stats(),
                     operational = repository.operationalState(),
                 )
             }
@@ -161,7 +157,6 @@ internal class FunctionalLogsController(
             _state.value = _state.value.copy(
                 events = merged,
                 nextBeforeSequence = result.page.nextBeforeSequence,
-                stats = result.stats,
                 operational = result.operational,
                 pageLoading = false,
                 endReached = result.page.nextBeforeSequence == null,
@@ -185,8 +180,9 @@ internal class FunctionalLogsController(
                 repository.setGlobalEnabled(enabled)
                 repository.settings()
             }
-        }.onSuccess { settings -> _state.value = _state.value.copy(settings = settings) }
-            .onFailure(::recordError)
+        }.onSuccess { settings ->
+            _state.value = _state.value.copy(settings = settings, actionError = null)
+        }.onFailure(::recordActionError)
     }
 
     suspend fun setCategoryEnabled(category: FunctionalEventCategory, enabled: Boolean) {
@@ -195,8 +191,9 @@ internal class FunctionalLogsController(
                 repository.setCategoryEnabled(category, enabled)
                 repository.settings()
             }
-        }.onSuccess { settings -> _state.value = _state.value.copy(settings = settings) }
-            .onFailure(::recordError)
+        }.onSuccess { settings ->
+            _state.value = _state.value.copy(settings = settings, actionError = null)
+        }.onFailure(::recordActionError)
     }
 
     fun toggleExpanded(sequence: Long) {
@@ -219,13 +216,16 @@ internal class FunctionalLogsController(
             return FunctionalLogsExportResult.BUSY
         }
         return try {
-            _state.value = _state.value.copy(operation = FunctionalLogsOperation.EXPORTING)
+            _state.value = _state.value.copy(
+                operation = FunctionalLogsOperation.EXPORTING,
+                actionError = null,
+            )
             runCatching {
                 withContext(ioDispatcher) { output.use(repository::export) }
             }.fold(
                 onSuccess = { FunctionalLogsExportResult.SUCCESS },
                 onFailure = { error ->
-                    recordError(error)
+                    recordActionError(error)
                     FunctionalLogsExportResult.FAILED
                 },
             )
@@ -238,19 +238,25 @@ internal class FunctionalLogsController(
     suspend fun delete(scope: FunctionalLogsDeleteScope): Long? {
         if (!operationMutex.tryLock()) return null
         return try {
-            _state.value = _state.value.copy(operation = FunctionalLogsOperation.DELETING)
+            _state.value = _state.value.copy(
+                operation = FunctionalLogsOperation.DELETING,
+                actionError = null,
+            )
             runCatching { withContext(ioDispatcher) { repository.delete(scope) } }
-                .onFailure(::recordError)
+                .onFailure(::recordActionError)
                 .getOrNull()
-                ?.also { refresh() }
+                ?.also {
+                    _state.value = _state.value.copy(actionError = null)
+                    refresh()
+                }
         } finally {
             _state.value = _state.value.copy(operation = FunctionalLogsOperation.IDLE)
             operationMutex.unlock()
         }
     }
 
-    private fun recordError(error: Throwable) {
-        _state.value = _state.value.copy(loadError = error.message ?: error.javaClass.simpleName)
+    private fun recordActionError(error: Throwable) {
+        _state.value = _state.value.copy(actionError = error.message ?: error.javaClass.simpleName)
     }
 
     private data class RefreshResult(
@@ -262,7 +268,6 @@ internal class FunctionalLogsController(
 
     private data class PageResult(
         val page: FunctionalEventPage,
-        val stats: FunctionalEventJournalStats,
         val operational: FunctionalEventOperationalState,
     )
 

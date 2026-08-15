@@ -41,13 +41,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -61,12 +57,12 @@ private const val CURRENT_TRIP_SCHEMA = 3
 internal fun isCompatibleTripSchema(schema: Int): Boolean =
     schema in PRODUCTION_TRIP_SCHEMA..CURRENT_TRIP_SCHEMA
 
-internal enum class TripRestoreReason {
-    SAME_BOOT,
-    NEW_BOOT,
-    INCOMPATIBLE_SCHEMA,
-    INVALID_ELAPSED_STATE,
-    BOOT_COUNT_UNAVAILABLE,
+internal enum class TripRestoreReason(val code: String) {
+    SAME_BOOT("SAME_BOOT"),
+    NEW_BOOT("NEW_BOOT"),
+    INCOMPATIBLE_SCHEMA("INCOMPATIBLE_SCHEMA"),
+    INVALID_ELAPSED_STATE("INVALID_ELAPSED_STATE"),
+    BOOT_COUNT_UNAVAILABLE("BOOT_COUNT_UNAVAILABLE"),
 }
 
 internal data class TripRestoreDecision(
@@ -198,15 +194,6 @@ class TelemetryService : Service() {
     private val _consumptionMetricsFlow = MutableStateFlow(ConsumptionMetrics())
     val consumptionMetricsFlow: StateFlow<ConsumptionMetrics> = _consumptionMetricsFlow.asStateFlow()
 
-    // One atomic sample per message 90. SharedFlow deliberately emits repeated
-    // equal frames because the gear estimator's hysteresis counts CAN samples.
-    private val _drivingSampleFlow = MutableSharedFlow<DrivingSample>(
-        replay = 1,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val drivingSampleFlow: SharedFlow<DrivingSample> = _drivingSampleFlow.asSharedFlow()
-
     // Remote IPC Service
     private var mEvtService: IEventService? = null
     private var isBound = false
@@ -296,7 +283,6 @@ class TelemetryService : Service() {
                                 rpm = telemetry.rpm,
                                 rawGearType = rawGearType,
                             )
-                            _drivingSampleFlow.tryEmit(drivingSample)
                             val gearUpdate = gearTelemetryCoordinator.updateDetailed(drivingSample)
                             _calculatedGearFlow.value = gearUpdate.gear
                             publishGearDecision(gearUpdate.transition)
@@ -324,7 +310,7 @@ class TelemetryService : Service() {
                             )
                             publishDistanceSinceRefuel(partialUpdate)
                             publishFuelDecision(fuelDecision, partialBefore, partialUpdate.distanceKm, telemetry)
-                            publishTripTransitions(tripSession.drainTransitions(), telemetry)
+                            publishTripTransitions(tripUpdate.transitions, telemetry)
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel
@@ -512,7 +498,7 @@ class TelemetryService : Service() {
             category = FunctionalEventCategory.TRIP_SESSION,
             type = if (sameBoot) FunctionalEventTypes.TRIP_RESTORED else FunctionalEventTypes.TRIP_RESET,
             context = mapOf(
-                "reason" to FunctionalEventValue.Text(restoreDecision.reason.name),
+                "reason" to FunctionalEventValue.Text(restoreDecision.reason.code),
                 "restored" to FunctionalEventValue.Flag(sameBoot),
                 "storedDistanceKm" to FunctionalEventValue.Decimal(storedDistanceKm),
                 "appliedDistanceKm" to FunctionalEventValue.Decimal(
@@ -591,7 +577,7 @@ class TelemetryService : Service() {
                 FunctionalEventCategory.REFUEL_AND_PARTIAL,
                 FunctionalEventTypes.REFUEL_REJECTED,
                 mapOf(
-                    "reason" to FunctionalEventValue.Text(decision.reason.name),
+                    "reason" to FunctionalEventValue.Text(decision.reason.code),
                     "baselineFuelLitres" to decision.baselineFuelLitres.eventValue(),
                     "candidateFuelLitres" to decision.candidateFuelLitres.eventValue(),
                     "observedFuelLitres" to decision.observedFuelLitres.eventValue(),

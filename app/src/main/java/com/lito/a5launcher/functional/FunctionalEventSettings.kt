@@ -1,6 +1,7 @@
 package com.lito.a5launcher.functional
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 data class FunctionalEventSettingsSnapshot(
     val enabled: Boolean,
@@ -21,7 +22,7 @@ class SharedPreferencesFunctionalEventStore(
         preferences.getBoolean(key, defaultValue)
 
     override fun putBoolean(key: String, value: Boolean) {
-        preferences.edit().putBoolean(key, value).apply()
+        preferences.edit { putBoolean(key, value) }
     }
 }
 

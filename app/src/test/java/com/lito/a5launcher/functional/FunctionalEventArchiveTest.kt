@@ -61,10 +61,28 @@ class FunctionalEventArchiveTest {
             journal.flush()
             val snapshot = journal.sealSnapshot()
             journal.append(draft(2))
-            FunctionalEventArchive.deleteAll(snapshot)
+            assertEquals(1L, FunctionalEventArchive.deleteAll(snapshot))
             journal.flush()
 
             assertEquals(listOf("test.2"), journal.page(limit = 10).events.map { it.type.code })
+        }
+    }
+
+    @Test
+    fun `category deletion removes a segment when no lines remain`() {
+        withJournal { journal, _ ->
+            journal.append(draft(1, FunctionalEventCategory.GEAR_ESTIMATION))
+            journal.flush()
+            val snapshot = journal.sealSnapshot()
+
+            val result = FunctionalEventArchive.deleteCategory(
+                snapshot,
+                FunctionalEventCategory.GEAR_ESTIMATION,
+                FunctionalEventCodec(),
+            )
+
+            assertEquals(1L, result.deletedEvents)
+            assertFalse(snapshot.segments.single().file.exists())
         }
     }
 

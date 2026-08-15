@@ -20,12 +20,6 @@ class DashboardPresentationTest {
     }
 
     @Test
-    fun functionalLogSizeUsesTheSelectedLocale() {
-        assertEquals("1,5 KB", formatFunctionalLogSize(1_536, Locale.forLanguageTag("es-ES")))
-        assertEquals("1.5 KB", formatFunctionalLogSize(1_536, Locale.US))
-    }
-
-    @Test
     fun startupPresentationFollowsTheApprovedFourPhaseTimeline() {
         val black = oemStartupPresentation(0f)
         assertEquals(0f, black.dialOutlineAlpha, 0.001f)

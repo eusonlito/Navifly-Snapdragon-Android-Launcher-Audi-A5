@@ -37,6 +37,7 @@ class FunctionalLogsControllerTest {
         assertEquals(listOf(4L, 3L, 2L, 1L), controller.state.value.events.map { it.sequence })
         assertEquals(setOf(3L), controller.state.value.expandedSequences)
         assertTrue(controller.state.value.endReached)
+        assertEquals(1, repository.statsCalls)
         controller.loadNextPage()
         assertEquals(2, repository.pageCalls)
     }
@@ -75,6 +76,19 @@ class FunctionalLogsControllerTest {
 
         controller.setGlobalEnabled(true)
         assertTrue(controller.state.value.settings.enabled)
+    }
+
+    @Test
+    fun `settings failure does not turn into a paging error`() = runBlocking {
+        val repository = FakeRepository()
+        val controller = FunctionalLogsController(repository, Dispatchers.Unconfined)
+        controller.refresh()
+        repository.settingsError = IllegalStateException("settings failed")
+
+        controller.setGlobalEnabled(true)
+
+        assertEquals("settings failed", controller.state.value.actionError)
+        assertNull(controller.state.value.loadError)
     }
 
     @Test
@@ -134,16 +148,20 @@ class FunctionalLogsControllerTest {
         )
         var stats = FunctionalEventJournalStats(0, 0, 0, emptyMap())
         var pageCalls = 0
+        var statsCalls = 0
         var exportCalls = 0
         var pageError: Throwable? = null
+        var settingsError: Throwable? = null
 
         override fun settings(): FunctionalEventSettingsSnapshot = settings
 
         override fun setGlobalEnabled(enabled: Boolean) {
+            settingsError?.let { throw it }
             settings = settings.copy(enabled = enabled)
         }
 
         override fun setCategoryEnabled(category: FunctionalEventCategory, enabled: Boolean) {
+            settingsError?.let { throw it }
             settings = settings.copy(
                 categories = if (enabled) settings.categories + category else settings.categories - category,
             )
@@ -155,7 +173,10 @@ class FunctionalLogsControllerTest {
             return pages.removeFirst()
         }
 
-        override fun stats(): FunctionalEventJournalStats = stats
+        override fun stats(): FunctionalEventJournalStats {
+            statsCalls++
+            return stats
+        }
 
         override fun operationalState() = FunctionalEventOperationalState(0, 0, null)
 

@@ -286,7 +286,7 @@ private fun FunctionalLogsControls(
             stringResource(
                 R.string.functional_logs_stats,
                 state.stats.validEvents,
-                formatFunctionalLogSize(
+                formatStorageSize(
                     state.stats.sizeBytes,
                     LocalConfiguration.current.locales[0],
                 ),
@@ -310,6 +310,15 @@ private fun FunctionalLogsControls(
             maxLines = 2,
         )
         state.operational.lastError?.takeIf(String::isNotBlank)?.let { error ->
+            Text(
+                stringResource(R.string.functional_logs_last_error, error),
+                color = SettingsPalette.Danger,
+                fontSize = 8.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        state.actionError?.takeIf(String::isNotBlank)?.let { error ->
             Text(
                 stringResource(R.string.functional_logs_last_error, error),
                 color = SettingsPalette.Danger,
@@ -631,15 +640,3 @@ private fun formatFunctionalEventValue(value: FunctionalEventValue, locale: Loca
             if (value.value) R.string.functional_logs_value_true else R.string.functional_logs_value_false,
         )
     }
-
-internal fun formatFunctionalLogSize(bytes: Long, locale: Locale): String = when {
-    bytes < 1_024L -> "$bytes B"
-    bytes < 1_048_576L -> NumberFormat.getNumberInstance(locale).apply {
-        minimumFractionDigits = 1
-        maximumFractionDigits = 1
-    }.format(bytes / 1_024.0) + " KB"
-    else -> NumberFormat.getNumberInstance(locale).apply {
-        minimumFractionDigits = 1
-        maximumFractionDigits = 1
-    }.format(bytes / 1_048_576.0) + " MB"
-}

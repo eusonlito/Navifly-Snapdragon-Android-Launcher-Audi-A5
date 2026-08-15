@@ -76,25 +76,33 @@ object FunctionalEventArchive {
                 }
             }
             FileOutputStream(temporary, true).use { it.fd.sync() }
-            replaceAtomically(temporary, segment.file)
             val metadata = FunctionalEventJournal.metadataFile(segment.file)
-            if (first == null || last == null) {
+            if (temporary.length() == 0L) {
+                temporary.delete()
+                java.nio.file.Files.deleteIfExists(segment.file.toPath())
                 metadata.delete()
             } else {
-                FunctionalEventJournal.atomicWrite(
-                    metadata,
-                    JSONObject().put("first", first).put("last", last).toString(),
-                )
+                replaceAtomically(temporary, segment.file)
+                if (first == null || last == null) {
+                    metadata.delete()
+                } else {
+                    FunctionalEventJournal.atomicWrite(
+                        metadata,
+                        JSONObject().put("first", first).put("last", last).toString(),
+                    )
+                }
             }
         }
         FunctionalEventDeleteResult(deleted, preserved, corrupt)
     }
 
     fun deleteAll(snapshot: FunctionalEventSnapshot): Long = synchronized(bulkLock) {
-        snapshot.segments.count { segment ->
-            FunctionalEventJournal.metadataFile(segment.file).delete()
-            !segment.file.exists() || segment.file.delete()
-        }.toLong()
+        val deletedEvents = inspect(snapshot, FunctionalEventCodec()).validEvents
+        snapshot.segments.forEach { segment ->
+            java.nio.file.Files.deleteIfExists(FunctionalEventJournal.metadataFile(segment.file).toPath())
+            java.nio.file.Files.deleteIfExists(segment.file.toPath())
+        }
+        deletedEvents
     }
 
     private fun inspect(

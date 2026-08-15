@@ -367,7 +367,7 @@ class RangeConsumptionEstimator(
         ?: learnedConsumption
 
     fun add(distanceKm: Double, fuelLitres: Double): List<Pair<Double, Double>> {
-        val changes = mutableListOf<Pair<Double, Double>>()
+        var changes: MutableList<Pair<Double, Double>>? = null
         var remainingDistanceKm = distanceKm.validMetric()
         var remainingFuelLitres = fuelLitres.validMetric()
         if (remainingDistanceKm <= 0.0) {
@@ -385,10 +385,15 @@ class RangeConsumptionEstimator(
             remainingFuelLitres = (remainingFuelLitres - segmentFuel).coerceAtLeast(0.0)
 
             if (pendingSegmentDistanceKm >= LEARNING_SEGMENT_KM) {
-                learnCompletedSegment()?.let(changes::add)
+                learnCompletedSegment()?.let { change ->
+                    val target = changes ?: mutableListOf<Pair<Double, Double>>().also {
+                        changes = it
+                    }
+                    target += change
+                }
             }
         }
-        return changes
+        return changes.orEmpty()
     }
 
     fun estimate(recentConsumption: Double, recentDistanceKm: Double): Double {
@@ -477,7 +482,12 @@ sealed interface ConfirmedFuelLevelChange {
     ) : ConfirmedFuelLevelChange
 }
 
-enum class RefuelRejectionReason { VEHICLE_MOVED, BELOW_THRESHOLD, LEVEL_DROPPED, INVALID_READING }
+enum class RefuelRejectionReason(val code: String) {
+    VEHICLE_MOVED("VEHICLE_MOVED"),
+    BELOW_THRESHOLD("BELOW_THRESHOLD"),
+    LEVEL_DROPPED("LEVEL_DROPPED"),
+    INVALID_READING("INVALID_READING"),
+}
 
 /**
  * Confirms refuelling from the coarse integer fuel level shared by the trip and
@@ -785,7 +795,9 @@ class TripSessionTracker(
         }
         observeFuelLevel(fuelLitres, fuelDecision)
         updateConsumptionLimit()
-        return TripTelemetryUpdate(snapshot(elapsedRealtimeMs), pendingTransitions.toList())
+        val transitions = pendingTransitions.toList()
+        pendingTransitions.clear()
+        return TripTelemetryUpdate(snapshot(elapsedRealtimeMs), transitions)
     }
 
     @Synchronized
@@ -914,11 +926,6 @@ class TripSessionTracker(
             pendingTransitions += TripModelTransition.ConsumptionLimitChanged(nowLimited, rawConsumption)
             consumptionLimited = nowLimited
         }
-    }
-
-    @Synchronized
-    fun drainTransitions(): List<TripModelTransition> = pendingTransitions.toList().also {
-        pendingTransitions.clear()
     }
 
     private fun snapshot(elapsedRealtimeMs: Long): TripMetricsSnapshot {

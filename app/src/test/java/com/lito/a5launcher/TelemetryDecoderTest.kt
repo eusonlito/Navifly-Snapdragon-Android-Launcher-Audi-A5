@@ -734,23 +734,30 @@ class TelemetryDecoderTest {
 
     @Test
     fun consumptionTransitionsAreMaterialAndDrainedOnce() {
+        val detector = ConfirmedRefuelDetector(40)
         val session = TripSessionTracker(
             TripSessionState(
                 virtualFuelLitres = 40.0,
                 lastFuelLitres = 40,
                 calibrationAnchorFuelLitres = 40,
                 uncalibratedFuelSinceAnchorLitres = 1.0,
-            )
+            ),
+            refuelDetector = null,
         )
-        session.onTelemetry(30, 1_500, 39, 1_000)
-        session.onTelemetry(30, 1_500, 39, 2_000)
-        session.onTelemetry(30, 1_500, 37, 3_000)
-        session.onTelemetry(30, 1_500, 37, 4_000)
-
-        val transitions = session.drainTransitions()
+        val transitions = listOf(39, 39, 37, 37).flatMapIndexed { index, fuelLitres ->
+            session.onTelemetryWithFuelDecision(
+                speedKmh = 30,
+                rpm = 1_500,
+                fuelLitres = fuelLitres,
+                elapsedRealtimeMs = (index + 1) * 1_000L,
+                fuelDecision = detector.observeDetailed(30, fuelLitres),
+            ).transitions
+        }
         assertTrue(transitions.any { it is TripModelTransition.CalibrationChanged })
         assertTrue(transitions.any { it is TripModelTransition.VirtualFuelCorrected })
-        assertTrue(session.drainTransitions().isEmpty())
+        assertTrue(
+            session.onTelemetryWithFuelDecision(30, 1_500, 37, 5_000, null).transitions.isEmpty(),
+        )
     }
 
     private fun put16(target: ByteArray, offset: Int, value: Int) {
