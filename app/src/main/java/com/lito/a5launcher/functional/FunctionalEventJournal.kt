@@ -138,7 +138,28 @@ class FunctionalEventJournal(
         worker.join(CLOSE_TIMEOUT_MS)
     }
 
-    private fun writerLoop() {
+    private fun writerLoop() = runCatching { activeWriterLoop() }
+        .onFailure { error ->
+            recordWriteFailure(error)
+            failedWriterLoop(error)
+        }
+        .let { Unit }
+
+    private fun failedWriterLoop(cause: Throwable) {
+        while (true) {
+            when (val command = queue.take()) {
+                is Command.Append -> recordWriteFailure(cause)
+                is Command.Flush -> command.result.complete(Unit)
+                is Command.Seal -> command.result.complete(FunctionalEventSnapshot(emptyList()))
+                is Command.Stop -> {
+                    command.result.complete(Unit)
+                    return
+                }
+            }
+        }
+    }
+
+    private fun activeWriterLoop() {
         var active = createSegment()
         var count = 0
         var firstSequence: Long? = null

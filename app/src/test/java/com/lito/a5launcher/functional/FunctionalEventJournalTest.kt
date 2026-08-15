@@ -104,6 +104,22 @@ class FunctionalEventJournalTest {
         }
     }
 
+    @Test
+    fun `writer initialization failure still completes control operations`() {
+        val invalidRoot = createTempDirectory("functional-journal-invalid-").toFile()
+        invalidRoot.deleteRecursively()
+        invalidRoot.writeText("not a directory")
+        val journal = FunctionalEventJournal(invalidRoot)
+        try {
+            assertTrue(journal.append(draft(index = 1)))
+            journal.flush()
+            assertTrue(journal.operationalState().failedWrites >= 1)
+        } finally {
+            journal.close()
+            invalidRoot.delete()
+        }
+    }
+
     private fun draft(epochMs: Long = 1_000, index: Int) = FunctionalEventDraft(
         bootSession = 2,
         capturedAtEpochMs = epochMs,

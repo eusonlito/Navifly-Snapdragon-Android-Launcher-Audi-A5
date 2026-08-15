@@ -94,7 +94,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     @Suppress("StaticFieldLeak")
     private var telemetryService: TelemetryService? = null
     private var isBound = false
-    private val gearTelemetryCoordinator = GearTelemetryCoordinator()
     private var collectionJobs = mutableListOf<Job>()
 
     private val serviceConnection = object : ServiceConnection {
@@ -110,11 +109,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
             // Start collecting from service flows in parallel
             telemetryService?.let { svc ->
-                collectionJobs.add(viewModelScope.launch { svc.drivingSampleFlow.collect {
-                    _speed.value = it.speed
-                    _rpm.value = it.rpm
-                    _gear.value = gearTelemetryCoordinator.update(it)
-                } })
+                collectionJobs.add(viewModelScope.launch { svc.speedFlow.collect { _speed.value = it } })
+                collectionJobs.add(viewModelScope.launch { svc.rpmFlow.collect { _rpm.value = it } })
+                collectionJobs.add(viewModelScope.launch {
+                    svc.calculatedGearFlow.collect { _gear.value = it }
+                })
                 collectionJobs.add(viewModelScope.launch { svc.doorStatusFlow.collect { _doorStatus.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.fuelFlow.collect { _fuel.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.mileageFlow.collect { _mileage.value = it } })

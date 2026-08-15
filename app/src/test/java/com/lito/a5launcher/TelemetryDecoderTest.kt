@@ -670,6 +670,86 @@ class TelemetryDecoderTest {
         assertEquals(0.0, stoppedAndConfirmed.distanceKm, .000_001)
     }
 
+    @Test
+    fun oneDurableRefuelDecisionUpdatesTripAndPartialAcrossANewBoot() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 35)
+        val trip = TripSessionTracker(
+            initialState = TripSessionState(virtualFuelLitres = 35.0, lastFuelLitres = 35),
+            refuelDetector = null,
+        )
+        val partial = DistanceSinceRefuelTracker(
+            initialDistanceKm = 25.0,
+            initialFuelLitres = 35,
+            refuelDetector = null,
+        )
+
+        val candidate = detector.observeDetailed(speedKmh = 0, fuelLitres = 38)
+        trip.onTelemetryWithFuelDecision(0, 800, 38, 1_000, candidate)
+        partial.advanceWithFuelDecision(0, 38, 1_000, candidate)
+        val confirmed = detector.observeDetailed(speedKmh = 0, fuelLitres = 38)
+        val tripResult = trip.onTelemetryWithFuelDecision(0, 800, 38, 2_000, confirmed)
+        val partialResult = partial.advanceWithFuelDecision(0, 38, 2_000, confirmed)
+
+        assertTrue(confirmed is ConfirmedFuelLevelChange.Refuel)
+        assertEquals(38.0, tripResult.metrics.virtualFuelLitres, .000_001)
+        assertEquals(0.0, partialResult.distanceKm, .000_001)
+        assertEquals(38, detector.baselineFuelLitres())
+    }
+
+    @Test
+    fun realRefuelCandidateRejectionHasReasonButOrdinaryNoiseDoesNot() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 35)
+
+        assertNull(detector.observeDetailed(0, 36))
+        assertNull(detector.observeDetailed(0, 38))
+        val rejected = detector.observeDetailed(20, 38)
+
+        assertTrue(rejected is ConfirmedFuelLevelChange.Rejected)
+        assertEquals(
+            RefuelRejectionReason.VEHICLE_MOVED,
+            (rejected as ConfirmedFuelLevelChange.Rejected).reason,
+        )
+        assertEquals(35, rejected.baselineFuelLitres)
+        assertEquals(38, rejected.candidateFuelLitres)
+    }
+
+    @Test
+    fun gearCoordinatorEmitsConfirmedChangesAndOneSustainedInconsistency() {
+        val coordinator = GearTelemetryCoordinator()
+        val valid = DrivingSample(speed = 50, rpm = 1_925, rawGearType = 4)
+
+        assertNull(coordinator.updateDetailed(valid).transition)
+        val changed = coordinator.updateDetailed(valid)
+        assertTrue(changed.transition is GearDecision.Change)
+        assertEquals("3", changed.gear)
+
+        val invalid = DrivingSample(speed = 50, rpm = 4_000, rawGearType = 4)
+        repeat(3) { assertNull(coordinator.updateDetailed(invalid).transition) }
+        assertTrue(coordinator.updateDetailed(invalid).transition is GearDecision.Inconsistency)
+        assertNull(coordinator.updateDetailed(invalid).transition)
+    }
+
+    @Test
+    fun consumptionTransitionsAreMaterialAndDrainedOnce() {
+        val session = TripSessionTracker(
+            TripSessionState(
+                virtualFuelLitres = 40.0,
+                lastFuelLitres = 40,
+                calibrationAnchorFuelLitres = 40,
+                uncalibratedFuelSinceAnchorLitres = 1.0,
+            )
+        )
+        session.onTelemetry(30, 1_500, 39, 1_000)
+        session.onTelemetry(30, 1_500, 39, 2_000)
+        session.onTelemetry(30, 1_500, 37, 3_000)
+        session.onTelemetry(30, 1_500, 37, 4_000)
+
+        val transitions = session.drainTransitions()
+        assertTrue(transitions.any { it is TripModelTransition.CalibrationChanged })
+        assertTrue(transitions.any { it is TripModelTransition.VirtualFuelCorrected })
+        assertTrue(session.drainTransitions().isEmpty())
+    }
+
     private fun put16(target: ByteArray, offset: Int, value: Int) {
         target[offset] = (value ushr 8).toByte()
         target[offset + 1] = value.toByte()

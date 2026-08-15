@@ -59,6 +59,26 @@ class FunctionalEventCodecTest {
         assertEquals("future.unrecognized", codec.decode(json).event?.type?.code)
     }
 
+    @Test
+    fun `publisher obeys global and category settings and isolates sink failures`() {
+        val store = MemoryPreferenceStore()
+        val settings = FunctionalEventSettings(store)
+        val captured = mutableListOf<FunctionalEventDraft>()
+        val publisher = FunctionalEventPublisher(settings) { captured += it; true }
+        val draft = draft(FunctionalEventCategory.TRIP_SESSION)
+
+        assertFalse(publisher.publish(draft))
+        settings.setEnabled(true)
+        settings.setCategoryEnabled(FunctionalEventCategory.TRIP_SESSION, false)
+        assertFalse(publisher.publish(draft))
+        settings.setCategoryEnabled(FunctionalEventCategory.TRIP_SESSION, true)
+        assertTrue(publisher.publish(draft))
+        assertEquals(listOf(draft), captured)
+
+        val failing = FunctionalEventPublisher(settings) { error("disk failure") }
+        assertFalse(failing.publish(draft))
+    }
+
     private fun event(sequence: Long, epochMs: Long) = FunctionalEvent(
         sequence = sequence,
         bootSession = 7,
@@ -73,6 +93,16 @@ class FunctionalEventCodecTest {
             "accepted" to FunctionalEventValue.Flag(true),
             "gear" to FunctionalEventValue.Text("3"),
         ),
+    )
+
+    private fun draft(category: FunctionalEventCategory) = FunctionalEventDraft(
+        bootSession = 1,
+        capturedAtEpochMs = 1,
+        capturedAtElapsedMs = 1,
+        source = FunctionalEventSource.EVENT_CENTER,
+        category = category,
+        type = FunctionalEventTypes.TRIP_RESTORED,
+        context = emptyMap(),
     )
 
     private class MemoryPreferenceStore : FunctionalEventPreferenceStore {
