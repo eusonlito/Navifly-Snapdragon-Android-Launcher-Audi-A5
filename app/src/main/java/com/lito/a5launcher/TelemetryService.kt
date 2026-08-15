@@ -73,6 +73,7 @@ class TelemetryService : Service() {
         private const val TRIP_STARTED_AT = "started_at_elapsed_ms"
         private const val TRIP_DISTANCE_BITS = "distance_bits"
         private const val TRIP_FUEL_USED_BITS = "fuel_used_bits"
+        private const val TRIP_CONFIRMED_CAN_FUEL_USED_BITS = "confirmed_can_fuel_used_bits"
         private const val TRIP_VIRTUAL_FUEL_BITS = "virtual_fuel_bits"
         private const val TRIP_CALIBRATION_FACTOR_BITS = "calibration_factor_bits"
         private const val TRIP_LAST_FUEL_LITRES = "last_fuel_litres"
@@ -142,8 +143,8 @@ class TelemetryService : Service() {
     private val _distanceSinceRefuelKmFlow = MutableStateFlow(0.0)
     val distanceSinceRefuelKmFlow: StateFlow<Double> = _distanceSinceRefuelKmFlow.asStateFlow()
 
-    private val _averageConsumptionFlow = MutableStateFlow(0.0)
-    val averageConsumptionFlow: StateFlow<Double> = _averageConsumptionFlow.asStateFlow()
+    private val _consumptionMetricsFlow = MutableStateFlow(ConsumptionMetrics())
+    val consumptionMetricsFlow: StateFlow<ConsumptionMetrics> = _consumptionMetricsFlow.asStateFlow()
 
     // One atomic sample per message 90. SharedFlow deliberately emits repeated
     // equal frames because the gear estimator's hysteresis counts CAN samples.
@@ -382,6 +383,7 @@ class TelemetryService : Service() {
                 startedAtElapsedMs = startedAt,
                 distanceKm = restoredDouble(TRIP_DISTANCE_BITS),
                 fuelUsedLitres = restoredDouble(TRIP_FUEL_USED_BITS),
+                confirmedCanFuelUsedLitres = restoredDouble(TRIP_CONFIRMED_CAN_FUEL_USED_BITS),
                 virtualFuelLitres = restoredDouble(TRIP_VIRTUAL_FUEL_BITS),
                 calibrationFactor = restoredDouble(TRIP_CALIBRATION_FACTOR_BITS, 1.0),
                 lastFuelLitres = if (sameBoot) {
@@ -434,7 +436,10 @@ class TelemetryService : Service() {
     private fun publishTripMetrics(metrics: TripMetricsSnapshot) {
         _tripElapsedRealtimeMsFlow.value = metrics.elapsedMs
         _tripDistanceKmFlow.value = metrics.distanceKm
-        _averageConsumptionFlow.value = metrics.averageConsumption
+        _consumptionMetricsFlow.value = ConsumptionMetrics(
+            calculated = metrics.averageConsumption,
+            observedCan = metrics.observedCanConsumption,
+        )
         _rangeFlow.value = authoritativeRangeKm(metrics)
     }
 
@@ -483,6 +488,10 @@ class TelemetryService : Service() {
                 putLong(TRIP_STARTED_AT, state.startedAtElapsedMs ?: -1L)
                 putLong(TRIP_DISTANCE_BITS, state.distanceKm.toRawBits())
                 putLong(TRIP_FUEL_USED_BITS, state.fuelUsedLitres.toRawBits())
+                putLong(
+                    TRIP_CONFIRMED_CAN_FUEL_USED_BITS,
+                    state.confirmedCanFuelUsedLitres.toRawBits(),
+                )
                 putLong(TRIP_VIRTUAL_FUEL_BITS, state.virtualFuelLitres.toRawBits())
                 putLong(TRIP_CALIBRATION_FACTOR_BITS, state.calibrationFactor.toRawBits())
                 state.lastFuelLitres?.let { putInt(TRIP_LAST_FUEL_LITRES, it) }

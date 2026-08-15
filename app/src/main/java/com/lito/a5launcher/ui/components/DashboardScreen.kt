@@ -76,6 +76,7 @@ import com.lito.a5launcher.R
 import com.lito.a5launcher.AppLanguage
 import com.lito.a5launcher.AppLanguageManager
 import com.lito.a5launcher.BuildConfig
+import com.lito.a5launcher.ConsumptionMetrics
 import com.lito.a5launcher.DeviceRebootAction
 import com.lito.a5launcher.LauncherUpdateInstaller
 import com.lito.a5launcher.LauncherViewModel
@@ -239,7 +240,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val range by viewModel.range.collectAsStateWithLifecycle()
     val outside by viewModel.outsideTemp.collectAsStateWithLifecycle()
     val gear by viewModel.gear.collectAsStateWithLifecycle()
-    val consumption by viewModel.averageConsumption.collectAsStateWithLifecycle()
+    val consumptionMetrics by viewModel.consumptionMetrics.collectAsStateWithLifecycle()
     val tripElapsedRealtimeMs by viewModel.tripElapsedRealtimeMs.collectAsStateWithLifecycle()
     val tripDistanceKm by viewModel.tripDistanceKm.collectAsStateWithLifecycle()
     val distanceSinceRefuelKm by viewModel.distanceSinceRefuelKm.collectAsStateWithLifecycle()
@@ -707,7 +708,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     fuel = fuel,
                     mileage = mileage,
                     range = range,
-                    consumption = consumption,
+                    consumptionMetrics = consumptionMetrics,
                     tripElapsedRealtimeMs = tripElapsedRealtimeMs,
                     tripDistanceKm = tripDistanceKm,
                     distanceSinceRefuelKm = distanceSinceRefuelKm,
@@ -1490,7 +1491,7 @@ private fun CompactVitals(
     fuel: Int,
     mileage: Int,
     range: Int,
-    consumption: Double,
+    consumptionMetrics: ConsumptionMetrics,
     tripElapsedRealtimeMs: Long,
     tripDistanceKm: Double,
     distanceSinceRefuelKm: Double,
@@ -1506,6 +1507,7 @@ private fun CompactVitals(
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    var showConsumptionDetails by remember { mutableStateOf(false) }
     val footerWidths = remember { mutableStateMapOf<FooterBlockItem, Int>() }
     val footerDividerWidthPx = with(LocalDensity.current) { 1.dp.roundToPx() }
     Box(
@@ -1514,31 +1516,35 @@ private fun CompactVitals(
             .height(barHeight)
             .background(Color.Black),
     ) {
-    Row(
-        Modifier.fillMaxSize().padding(vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        blockOrder.forEachIndexed { index, item ->
-            key(item) {
-                FooterReorderableSlot(
-                    item = item,
-                    order = blockOrder,
-                    widths = footerWidths,
-                    dividerWidthPx = footerDividerWidthPx,
-                    onMove = onBlockOrderChanged,
-                    modifier = if (item == FooterBlockItem.WITNESSES) Modifier.weight(1f) else Modifier,
-                ) {
-                    when (item) {
+        Row(
+            Modifier.fillMaxSize().padding(vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            blockOrder.forEachIndexed { index, item ->
+                key(item) {
+                    FooterReorderableSlot(
+                        item = item,
+                        order = blockOrder,
+                        widths = footerWidths,
+                        dividerWidthPx = footerDividerWidthPx,
+                        onMove = onBlockOrderChanged,
+                        modifier = if (item == FooterBlockItem.WITNESSES) Modifier.weight(1f) else Modifier,
+                    ) {
+                        when (item) {
                         FooterBlockItem.TIME -> FooterBlock {
                             MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripElapsedRealtimeMs), false, labelSize, valueSize)
                         }
                         FooterBlockItem.TRIP -> FooterBlock {
                             MiniValue(stringResource(R.string.dashboard_trip), formatTripDistance(tripDistanceKm, locale), false, labelSize, valueSize)
                         }
-                        FooterBlockItem.CONSUMPTION -> FooterBlock {
+                        FooterBlockItem.CONSUMPTION -> FooterBlock(
+                            modifier = Modifier.clickable { showConsumptionDetails = true },
+                        ) {
                             MiniValue(
                                 stringResource(R.string.dashboard_consumption),
-                                if (consumption.isFinite()) String.format(locale, "%.1f", consumption) else "—",
+                                if (consumptionMetrics.calculated.isFinite()) {
+                                    String.format(locale, "%.1f", consumptionMetrics.calculated)
+                                } else "—",
                                 false,
                                 labelSize,
                                 valueSize,
@@ -1572,12 +1578,21 @@ private fun CompactVitals(
                                 valueSize,
                             )
                         }
+                        }
                     }
                 }
+                if (index != blockOrder.lastIndex) FooterDivider()
             }
-            if (index != blockOrder.lastIndex) FooterDivider()
         }
-    }
+
+        if (showConsumptionDetails) {
+            ConsumptionDetailsDialog(
+                calculatedConsumption = consumptionMetrics.calculated,
+                observedCanConsumption = consumptionMetrics.observedCan,
+                locale = locale,
+                onDismiss = { showConsumptionDetails = false },
+            )
+        }
     }
 }
 
@@ -1686,10 +1701,11 @@ private fun FooterCell(modifier: Modifier = Modifier, content: @Composable () ->
 
 @Composable
 private fun FooterBlock(
+    modifier: Modifier = Modifier,
     horizontalPadding: androidx.compose.ui.unit.Dp = 26.dp,
     content: @Composable () -> Unit,
 ) {
-    FooterCell(Modifier.padding(horizontal = horizontalPadding), content)
+    FooterCell(modifier.padding(horizontal = horizontalPadding), content)
 }
 
 @Composable

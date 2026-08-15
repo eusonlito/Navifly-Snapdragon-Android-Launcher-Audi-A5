@@ -503,6 +503,93 @@ class TelemetryDecoderTest {
     }
 
     @Test
+    fun refuelDetectorDoesNotLearnRepeatedStationaryStartupDip() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 40)
+
+        assertNull(detector.observe(0, 37))
+        assertNull(detector.observe(0, 37))
+        assertEquals(40, detector.baselineFuelLitres())
+        assertNull(detector.observe(0, 40))
+        assertNull(detector.observe(0, 40))
+        assertEquals(40, detector.baselineFuelLitres())
+    }
+
+    @Test
+    fun refuelDetectorLearnsConfirmedFuelDropsWhileMoving() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 40)
+
+        assertNull(detector.observe(30, 39))
+        assertEquals(ConfirmedFuelLevelChange.Drop(1), detector.observe(30, 39))
+
+        assertEquals(39, detector.baselineFuelLitres())
+    }
+
+    @Test
+    fun refuelDetectorRejectsStartupDipThatPersistsWhenDrivingBegins() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 40)
+
+        assertNull(detector.observe(0, 37))
+        assertNull(detector.observe(30, 37))
+        assertNull(detector.observe(30, 37))
+        assertEquals(40, detector.baselineFuelLitres())
+        assertNull(detector.observe(0, 40))
+        assertNull(detector.observe(0, 40))
+        assertEquals(40, detector.baselineFuelLitres())
+    }
+
+    @Test
+    fun distanceSinceRefuelDoesNotResetAfterPersistentStartupDipRecovers() {
+        val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 40)
+
+        tracker.advance(0, 37, 1_000)
+        tracker.advance(30, 37, 2_000)
+        tracker.advance(30, 37, 3_000)
+        tracker.advance(0, 40, 4_000)
+        val recovered = tracker.advance(0, 40, 5_000)
+
+        assertFalse(recovered.refuelDetected)
+        assertTrue(recovered.distanceKm > 25.0)
+        assertEquals(40, recovered.lastFuelLitres)
+    }
+
+    @Test
+    fun simpleConsumptionUsesConfirmedCanFuelDrops() {
+        val session = TripSessionTracker(
+            TripSessionState(lastFuelLitres = 40)
+        )
+
+        session.onTelemetry(100, 1_800, 40, 0)
+        repeat(359) { index ->
+            session.onTelemetry(100, 1_800, 40, (index + 1) * 1_000L)
+        }
+        session.onTelemetry(100, 1_800, 39, 360_000L)
+        val result = session.onTelemetry(100, 1_800, 39, 360_000L)
+
+        assertEquals(1.0, result.confirmedCanFuelUsedLitres, .000_001)
+        assertEquals(10.0, result.observedCanConsumption, .000_001)
+    }
+
+    @Test
+    fun simpleConsumptionSurvivesRecreationAndRefuelling() {
+        val session = TripSessionTracker(TripSessionState(lastFuelLitres = 40))
+        session.onTelemetry(100, 1_800, 40, 0)
+        repeat(359) { index ->
+            session.onTelemetry(100, 1_800, 40, (index + 1) * 1_000L)
+        }
+        session.onTelemetry(100, 1_800, 39, 360_000L)
+        session.onTelemetry(100, 1_800, 39, 360_000L)
+
+        val restored = TripSessionTracker(session.state())
+        restored.onTelemetry(0, 800, 42, 360_000L)
+        restored.onTelemetry(0, 800, 42, 360_000L)
+        restored.onTelemetry(30, 1_500, 41, 360_000L)
+        val result = restored.onTelemetry(30, 1_500, 41, 360_000L)
+
+        assertEquals(2.0, result.confirmedCanFuelUsedLitres, .000_001)
+        assertEquals(20.0, result.observedCanConsumption, .000_001)
+    }
+
+    @Test
     fun distanceSinceRefuelDetectsAConfirmedGradualFill() {
         val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 35)
 

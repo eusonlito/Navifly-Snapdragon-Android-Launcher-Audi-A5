@@ -65,8 +65,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _gear = MutableStateFlow("—")
     val gear: StateFlow<String> = _gear.asStateFlow()
 
-    private val _averageConsumption = MutableStateFlow(0.0)
-    val averageConsumption: StateFlow<Double> = _averageConsumption.asStateFlow()
+    private val _consumptionMetrics = MutableStateFlow(ConsumptionMetrics())
+    val consumptionMetrics: StateFlow<ConsumptionMetrics> = _consumptionMetrics.asStateFlow()
 
     private val _tripElapsedRealtimeMs = MutableStateFlow(0L)
     val tripElapsedRealtimeMs: StateFlow<Long> = _tripElapsedRealtimeMs.asStateFlow()
@@ -129,7 +129,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     svc.distanceSinceRefuelKmFlow.collect { _distanceSinceRefuelKm.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch {
-                    svc.averageConsumptionFlow.collect { _averageConsumption.value = it }
+                    svc.consumptionMetricsFlow.collect { _consumptionMetrics.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch { svc.outsideTempFlow.collect { _outsideTemp.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.seatbeltFlow.collect { _seatbelt.value = it } })

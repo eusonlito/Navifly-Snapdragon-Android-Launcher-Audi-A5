@@ -178,6 +178,14 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    de ser representativa. El acumulador interno continúa registrando ese
    combustible para que el consumo posterior y la autonomía no lo ignoren.
 
+   Un toque sobre `Consumo` abre una comparación de diagnóstico. `Consumo
+   Calculado` es la estimación anterior; `Consumo Simple` divide entre la
+   distancia los descensos de litros enteros confirmados por CAN durante el
+   viaje. El segundo valor no se limita a 15 L/100 km y avanza por escalones,
+   porque el vehículo no entrega decimales. Se conserva al recrear el servicio
+   durante el mismo arranque y no interviene en el valor principal ni en la
+   autonomía.
+
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
    descenso confirmado de tres litros corrige suavemente el factor del modelo;
@@ -202,7 +210,14 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    vuelve automáticamente a cero cuando dos muestras consecutivas, con el coche
    detenido, confirman un aumento de al menos tres litros. Este umbral y la
    confirmación evitan interpretar como repostaje las oscilaciones normales del
-   aforador. La referencia de combustible y la distancia se guardan en
+   aforador. Además, mientras el vehículo permanece detenido la referencia no
+   aprende descensos: así, dos lecturas bajas transitorias durante el arranque
+   no rebajan la referencia y su posterior recuperación no puede simular un
+   repostaje. Los descensos sólo actualizan la referencia una vez que el coche
+   circula. Un salto único de 3 litros o más se considera ambiguo incluso si
+   continúa al iniciar la marcha, porque su recuperación podría cumplir por sí
+   sola el umbral de repostaje. Los saltos normales de 1–2 litros sí se confirman
+   en movimiento. La referencia de combustible y la distancia se guardan en
    `distance_since_refuel`, separadas de la sesión del arranque.
 5. **Modo Clima:** No se transmiten bits de dirección de aire ni estado de
    compresor AC en el dashboard. El launcher no muestra ningún bloque de clima.

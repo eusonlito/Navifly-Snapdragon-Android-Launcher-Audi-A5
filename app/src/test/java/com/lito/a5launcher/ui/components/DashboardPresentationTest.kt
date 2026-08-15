@@ -163,6 +163,15 @@ class DashboardPresentationTest {
     }
 
     @Test
+    fun consumptionDetailsUseConfiguredDecimalSeparator() {
+        assertEquals(
+            "6,4",
+            formatConsumptionNumber(6.44, Locale.forLanguageTag("es-ES")),
+        )
+        assertEquals("6.4", formatConsumptionNumber(6.44, Locale.US))
+    }
+
+    @Test
     fun tripDurationUsesElapsedTimeSinceDeviceBoot() {
         assertEquals("00:00", formatTripDuration(0L))
         assertEquals("00:59", formatTripDuration(59 * 60_000L + 59_000L))

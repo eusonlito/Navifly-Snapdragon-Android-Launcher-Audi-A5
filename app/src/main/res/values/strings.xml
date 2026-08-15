@@ -74,6 +74,12 @@
     <string name="dashboard_time">Time</string>
     <string name="dashboard_trip">Trip</string>
     <string name="dashboard_consumption">Consumption</string>
+    <string name="consumption_details_title">Consumption Details</string>
+    <string name="consumption_calculated">Calculated Consumption</string>
+    <string name="consumption_simple">Simple Consumption</string>
+    <string name="consumption_simple_explanation">Simple consumption uses confirmed whole-litre fuel drops reported by the vehicle, divided by the trip distance. It changes in steps because the fuel level has no decimals.</string>
+    <string name="consumption_value_format">%1$s L/100 km</string>
+    <string name="consumption_close">Close</string>
     <string name="dashboard_refuel_distance">Since Refuel</string>
     <string name="dashboard_range">Range</string>
     <string name="dashboard_odometer">Odometer</string>

@@ -73,6 +73,12 @@
     <string name="dashboard_time">Tiempo</string>
     <string name="dashboard_trip">Viaje</string>
     <string name="dashboard_consumption">Consumo</string>
+    <string name="consumption_details_title">Detalle del Consumo</string>
+    <string name="consumption_calculated">Consumo Calculado</string>
+    <string name="consumption_simple">Consumo Simple</string>
+    <string name="consumption_simple_explanation">El consumo simple usa las bajadas de litros enteros confirmadas por el vehículo, divididas entre la distancia del viaje. Cambia por pasos porque el nivel de combustible no incluye decimales.</string>
+    <string name="consumption_value_format">%1$s L/100 km</string>
+    <string name="consumption_close">Cerrar</string>
     <string name="dashboard_refuel_distance">Parcial</string>
     <string name="dashboard_range">Autonomía</string>
     <string name="dashboard_odometer">Odómetro</string>
