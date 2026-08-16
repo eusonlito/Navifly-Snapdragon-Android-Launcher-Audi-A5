@@ -12,6 +12,8 @@ class FunctionalEventPresentationTest {
         assertEquals(
             mapOf(
                 FunctionalEventCategory.REFUEL_AND_PARTIAL to
+                    R.string.functional_logs_category_refuel_legacy,
+                FunctionalEventCategory.PARTIAL_RESET to
                     R.string.functional_logs_category_refuel_partial,
                 FunctionalEventCategory.TRIP_SESSION to
                     R.string.functional_logs_category_trip_session,
@@ -30,11 +32,7 @@ class FunctionalEventPresentationTest {
     fun `known event types have localized summaries and unknown type falls back`() {
         assertEquals(
             R.string.functional_logs_summary_refuel_confirmed,
-            FunctionalEventPresentation.summaryRes(FunctionalEventTypes.REFUEL_CONFIRMED),
-        )
-        assertEquals(
-            R.string.functional_logs_summary_gear_inconsistency,
-            FunctionalEventPresentation.summaryRes(FunctionalEventTypes.GEAR_INCONSISTENCY),
+            FunctionalEventPresentation.summaryRes(FunctionalEventTypes.PARTIAL_RESET),
         )
         assertEquals(
             R.string.functional_logs_summary_unknown,
@@ -45,8 +43,12 @@ class FunctionalEventPresentationTest {
     @Test
     fun `known context keys are localized and future keys remain readable`() {
         assertEquals(
-            R.string.functional_logs_context_speed,
-            FunctionalEventPresentation.contextLabelRes("speedKmh"),
+            R.string.functional_logs_context_fuel_before,
+            FunctionalEventPresentation.contextLabelRes("fuelBeforeLitres"),
+        )
+        assertEquals(
+            R.string.functional_logs_context_fuel_after,
+            FunctionalEventPresentation.contextLabelRes("fuelAfterLitres"),
         )
         assertNull(FunctionalEventPresentation.contextLabelRes("futureValue"))
         assertEquals("Future Value", FunctionalEventPresentation.fallbackContextLabel("futureValue"))

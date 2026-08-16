@@ -29,9 +29,9 @@ import com.lito.a5launcher.functional.FunctionalEventSettings
 import com.lito.a5launcher.functional.FunctionalEventSource
 import com.lito.a5launcher.functional.FunctionalEventTelemetryRecorder
 import com.lito.a5launcher.functional.FunctionalEventType
-import com.lito.a5launcher.functional.FunctionalEventTypes
 import com.lito.a5launcher.functional.FunctionalEventValue
 import com.lito.a5launcher.functional.SharedPreferencesFunctionalEventStore
+import com.lito.a5launcher.functional.applyFuelDecisionAndRecordPartialReset
 import com.lito.a5launcher.model.DoorStatus
 import com.szchoiceway.eventcenter.ICallbackfn
 import com.szchoiceway.eventcenter.IEventService
@@ -325,19 +325,17 @@ class TelemetryService : Service() {
                                 rpm = telemetry.rpm,
                                 rawGearType = rawGearType,
                             )
-                            val gearUpdate = gearTelemetryCoordinator.updateDetailed(drivingSample)
-                            _calculatedGearFlow.value = gearUpdate.gear
-                            functionalEventTelemetryRecorder.recordGearDecision(
-                                gearUpdate.transition,
-                                eventSource,
-                            )
+                            _calculatedGearFlow.value = gearTelemetryCoordinator.update(drivingSample)
                             val now = SystemClock.elapsedRealtime()
-                            val partialBefore = _partialStatisticsFlow.value.distanceKm
                             val fuelDecision = confirmedRefuelDetector.observeDetailed(
                                 telemetry.speed,
                                 telemetry.fuelLitres,
                             )
-                            val tripUpdate = tripSession.onTelemetryWithFuelDecision(
+                            val confirmedRefuel = (fuelDecision as? ConfirmedFuelLevelChange.Refuel)
+                                ?.let { decision ->
+                                    decision to _partialStatisticsFlow.value.distanceKm
+                                }
+                            val tripMetrics = tripSession.onTelemetryWithFuelDecision(
                                 telemetry.speed,
                                 telemetry.rpm,
                                 telemetry.fuelLitres,
@@ -345,32 +343,35 @@ class TelemetryService : Service() {
                                 fuelDecision,
                             )
                             publishTripMetrics(
-                                tripUpdate.metrics,
+                                tripMetrics,
                             )
-                            val partialUpdate = distanceSinceRefuelTracker.advanceWithFuelDecision(
-                                telemetry.speed,
-                                telemetry.fuelLitres,
-                                now,
-                                fuelDecision,
-                                CumulativeFuelUsage(
-                                    tripUpdate.metrics.fuelUsedLitres,
-                                    tripUpdate.metrics.confirmedCanFuelUsedLitres,
-                                ),
-                                currentTripGeneration,
+                            val partialUpdate = applyFuelDecisionAndRecordPartialReset(
+                                confirmedRefuel = confirmedRefuel,
+                                applyFuelDecision = {
+                                    distanceSinceRefuelTracker.advanceWithFuelDecision(
+                                        telemetry.speed,
+                                        telemetry.fuelLitres,
+                                        now,
+                                        fuelDecision,
+                                        CumulativeFuelUsage(
+                                            tripMetrics.fuelUsedLitres,
+                                            tripMetrics.confirmedCanFuelUsedLitres,
+                                        ),
+                                        currentTripGeneration,
+                                    )
+                                },
+                                partialAfterKm = DistanceSinceRefuelSnapshot::distanceKm,
+                                recordPartialReset = { decision, partialBefore, partialAfter ->
+                                    functionalEventTelemetryRecorder.recordPartialReset(
+                                        decision,
+                                        partialBefore,
+                                        partialAfter,
+                                        telemetry,
+                                        eventSource,
+                                    )
+                                },
                             )
                             publishDistanceSinceRefuel(partialUpdate)
-                            functionalEventTelemetryRecorder.recordFuelDecision(
-                                fuelDecision,
-                                partialBefore,
-                                partialUpdate.distanceKm,
-                                telemetry,
-                                eventSource,
-                            )
-                            functionalEventTelemetryRecorder.recordTripTransitions(
-                                tripUpdate.transitions,
-                                telemetry,
-                                eventSource,
-                            )
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel
@@ -522,8 +523,6 @@ class TelemetryService : Service() {
         val storedGeneration = tripPreferences.getLong(TRIP_GENERATION, 0L)
         currentTripGeneration = storedGeneration.takeIf { sameBoot && it > 0L }
             ?: nextTripGeneration(storedGeneration, System.currentTimeMillis(), now)
-        val storedDistanceKm = tripPreferences.getNonNegativeDoubleBits(TRIP_DISTANCE_BITS, 0.0)
-        val storedFuelUsedLitres = tripPreferences.getNonNegativeDoubleBits(TRIP_FUEL_USED_BITS, 0.0)
         fun restoredDouble(key: String, fallback: Double = 0.0): Double =
             if (sameBoot) tripPreferences.getNonNegativeDoubleBits(key, fallback) else fallback
         val rangeConsumptionState = restoreRangeConsumptionState()
@@ -570,27 +569,7 @@ class TelemetryService : Service() {
             ),
             refuelDetector = null,
         )
-        publishTripMetrics(tripSession.onTelemetryWithFuelDecision(0, 0, 0, now, null).metrics)
-        publishFunctionalEvent(
-            category = FunctionalEventCategory.TRIP_SESSION,
-            type = if (sameBoot) FunctionalEventTypes.TRIP_RESTORED else FunctionalEventTypes.TRIP_RESET,
-            context = mapOf(
-                "reason" to FunctionalEventValue.Text(restoreDecision.reason.code),
-                "restored" to FunctionalEventValue.Flag(sameBoot),
-                "storedDistanceKm" to FunctionalEventValue.Decimal(storedDistanceKm),
-                "appliedDistanceKm" to FunctionalEventValue.Decimal(
-                    restoredDouble(TRIP_DISTANCE_BITS),
-                ),
-                "storedFuelUsedLitres" to FunctionalEventValue.Decimal(storedFuelUsedLitres),
-                "appliedFuelUsedLitres" to FunctionalEventValue.Decimal(
-                    restoredDouble(TRIP_FUEL_USED_BITS),
-                ),
-                "fuelBaselineLitres" to FunctionalEventValue.Integer(
-                    (restoreDecision.fuelBaselineLitres ?: 0).toLong(),
-                ),
-            ),
-            elapsedRealtimeMs = now,
-        )
+        publishTripMetrics(tripSession.onTelemetryWithFuelDecision(0, 0, 0, now, null))
     }
 
     private fun startTripMetrics() {

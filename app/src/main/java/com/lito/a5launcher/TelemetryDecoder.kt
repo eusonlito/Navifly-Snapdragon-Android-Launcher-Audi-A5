@@ -495,39 +495,6 @@ data class TripMetricsSnapshot(
         )
 }
 
-sealed interface TripModelTransition {
-    data class RefuelApplied(
-        val previousVirtualFuelLitres: Double,
-        val fuelLitres: Int,
-    ) : TripModelTransition
-
-    data class CalibrationChanged(
-        val previousFactor: Double,
-        val factor: Double,
-        val observedDropLitres: Int,
-    ) : TripModelTransition
-
-    data class VirtualFuelCorrected(
-        val previousFuelLitres: Double,
-        val fuelLitres: Double,
-    ) : TripModelTransition
-
-    data class RangeReferenceChanged(
-        val previousConsumption: Double,
-        val consumption: Double,
-    ) : TripModelTransition
-
-    data class ConsumptionLimitChanged(
-        val limited: Boolean,
-        val rawConsumption: Double,
-    ) : TripModelTransition
-}
-
-data class TripTelemetryUpdate(
-    val metrics: TripMetricsSnapshot,
-    val transitions: List<TripModelTransition>,
-)
-
 data class TripSessionState(
     val startedAtElapsedMs: Long? = null,
     val distanceKm: Double = 0.0,
@@ -570,8 +537,6 @@ class TripSessionTracker(
         initialState.rangeBaselineConsumption,
     )
     private var persistenceVersion = 0L
-    private val pendingTransitions = mutableListOf<TripModelTransition>()
-    private var consumptionLimited = false
     private var movingElapsedMs = initialState.movingElapsedMs.coerceAtLeast(0L)
     private var maximumSpeedKmh = initialState.maximumSpeedKmh.coerceAtLeast(0)
 
@@ -589,7 +554,7 @@ class TripSessionTracker(
             fuelLitres,
             elapsedRealtimeMs,
             fuelDecision,
-        ).metrics
+        )
     }
 
     @Synchronized
@@ -599,7 +564,7 @@ class TripSessionTracker(
         fuelLitres: Int,
         elapsedRealtimeMs: Long,
         fuelDecision: ConfirmedFuelLevelChange?,
-    ): TripTelemetryUpdate {
+    ): TripMetricsSnapshot {
         advanceTo(elapsedRealtimeMs)
         this.speedKmh = speedKmh.coerceAtLeast(0)
         this.rpm = rpm.coerceAtLeast(0)
@@ -610,16 +575,12 @@ class TripSessionTracker(
             persistenceVersion++
         }
         observeFuelLevel(fuelLitres, fuelDecision)
-        updateConsumptionLimit()
-        val transitions = pendingTransitions.toList()
-        pendingTransitions.clear()
-        return TripTelemetryUpdate(snapshot(elapsedRealtimeMs), transitions)
+        return snapshot(elapsedRealtimeMs)
     }
 
     @Synchronized
     fun onTick(elapsedRealtimeMs: Long): TripMetricsSnapshot {
         advanceTo(elapsedRealtimeMs)
-        updateConsumptionLimit()
         return snapshot(elapsedRealtimeMs)
     }
 
@@ -647,9 +608,7 @@ class TripSessionTracker(
         }
         val movingFuelDelta = if (speedKmh > MAX_IDLE_SPEED_KMH) fuelDelta else 0.0
         recentConsumption.add(distanceDeltaKm, movingFuelDelta)
-        rangeEstimator.add(distanceDeltaKm, movingFuelDelta).forEach { (previous, current) ->
-            pendingTransitions += TripModelTransition.RangeReferenceChanged(previous, current)
-        }
+        rangeEstimator.add(distanceDeltaKm, movingFuelDelta)
         if (distanceDeltaKm > 0.0 || rawFuelDelta > 0.0) persistenceVersion++
     }
 
@@ -679,15 +638,10 @@ class TripSessionTracker(
                 changed = true
             }
             is ConfirmedFuelLevelChange.Refuel -> {
-                val previousVirtualFuel = virtualFuelLitres
                 virtualFuelLitres = fuelLevelChange.fuelLitres.toDouble()
                 lastFuelLitres = fuelLevelChange.fuelLitres
                 calibrationAnchorFuelLitres = fuelLevelChange.fuelLitres
                 uncalibratedFuelSinceAnchorLitres = 0.0
-                pendingTransitions += TripModelTransition.RefuelApplied(
-                    previousVirtualFuel,
-                    fuelLevelChange.fuelLitres,
-                )
                 changed = true
             }
             is ConfirmedFuelLevelChange.Rejected -> Unit
@@ -707,42 +661,18 @@ class TripSessionTracker(
             ) {
                 val observedFactor = (observedDrop / uncalibratedFuelSinceAnchorLitres)
                     .coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
-                val previousFactor = calibrationFactor
                 calibrationFactor = (
                     calibrationFactor * (1.0 - CALIBRATION_ADJUSTMENT_WEIGHT) +
                         observedFactor * CALIBRATION_ADJUSTMENT_WEIGHT
                     ).coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
-                val previousVirtualFuel = virtualFuelLitres
                 virtualFuelLitres +=
                     (confirmedFuelLitres - virtualFuelLitres) * VIRTUAL_FUEL_CORRECTION_WEIGHT
-                if (kotlin.math.abs(calibrationFactor - previousFactor) >= MATERIAL_FACTOR_CHANGE) {
-                    pendingTransitions += TripModelTransition.CalibrationChanged(
-                        previousFactor,
-                        calibrationFactor,
-                        observedDrop,
-                    )
-                }
-                if (kotlin.math.abs(virtualFuelLitres - previousVirtualFuel) >= MATERIAL_FUEL_CHANGE_LITRES) {
-                    pendingTransitions += TripModelTransition.VirtualFuelCorrected(
-                        previousVirtualFuel,
-                        virtualFuelLitres,
-                    )
-                }
                 calibrationAnchorFuelLitres = confirmedFuelLitres
                 uncalibratedFuelSinceAnchorLitres = 0.0
                 changed = true
             }
         }
         if (changed) persistenceVersion++
-    }
-
-    private fun updateConsumptionLimit() {
-        val rawConsumption = if (distanceKm > 0.0) fuelUsedLitres / distanceKm * 100.0 else 0.0
-        val nowLimited = rawConsumption.isFinite() && rawConsumption > MAX_DISPLAY_CONSUMPTION
-        if (nowLimited != consumptionLimited) {
-            pendingTransitions += TripModelTransition.ConsumptionLimitChanged(nowLimited, rawConsumption)
-            consumptionLimited = nowLimited
-        }
     }
 
     private fun snapshot(elapsedRealtimeMs: Long): TripMetricsSnapshot {
@@ -802,8 +732,6 @@ class TripSessionTracker(
         const val MAX_CALIBRATION_FACTOR = 1.3
         const val CALIBRATION_ADJUSTMENT_WEIGHT = .2
         const val VIRTUAL_FUEL_CORRECTION_WEIGHT = .2
-        const val MATERIAL_FACTOR_CHANGE = .001
-        const val MATERIAL_FUEL_CHANGE_LITRES = .01
     }
 }
 

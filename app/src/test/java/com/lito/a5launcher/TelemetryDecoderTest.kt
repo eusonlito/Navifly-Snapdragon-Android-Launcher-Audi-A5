@@ -698,7 +698,7 @@ class TelemetryDecoderTest {
         val partialResult = partial.advanceWithFuelDecision(0, 38, 2_000, confirmed)
 
         assertTrue(confirmed is ConfirmedFuelLevelChange.Refuel)
-        assertEquals(38.0, tripResult.metrics.virtualFuelLitres, .000_001)
+        assertEquals(38.0, tripResult.virtualFuelLitres, .000_001)
         assertEquals(0.0, partialResult.distanceKm, .000_001)
         assertEquals(38, detector.baselineFuelLitres())
     }
@@ -737,34 +737,6 @@ class TelemetryDecoderTest {
         assertTrue(inconsistency is GearDecision.Inconsistency)
         assertEquals(38.5, (inconsistency as GearDecision.Inconsistency).expectedRatio!!, .000_001)
         assertNull(coordinator.updateDetailed(invalid).transition)
-    }
-
-    @Test
-    fun consumptionTransitionsAreMaterialAndDrainedOnce() {
-        val detector = ConfirmedRefuelDetector(40)
-        val session = TripSessionTracker(
-            TripSessionState(
-                virtualFuelLitres = 40.0,
-                lastFuelLitres = 40,
-                calibrationAnchorFuelLitres = 40,
-                uncalibratedFuelSinceAnchorLitres = 1.0,
-            ),
-            refuelDetector = null,
-        )
-        val transitions = listOf(39, 39, 37, 37).flatMapIndexed { index, fuelLitres ->
-            session.onTelemetryWithFuelDecision(
-                speedKmh = 30,
-                rpm = 1_500,
-                fuelLitres = fuelLitres,
-                elapsedRealtimeMs = (index + 1) * 1_000L,
-                fuelDecision = detector.observeDetailed(30, fuelLitres),
-            ).transitions
-        }
-        assertTrue(transitions.any { it is TripModelTransition.CalibrationChanged })
-        assertTrue(transitions.any { it is TripModelTransition.VirtualFuelCorrected })
-        assertTrue(
-            session.onTelemetryWithFuelDecision(30, 1_500, 37, 5_000, null).transitions.isEmpty(),
-        )
     }
 
     @Test

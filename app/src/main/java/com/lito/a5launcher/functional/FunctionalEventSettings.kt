@@ -31,7 +31,7 @@ class FunctionalEventSettings(
 ) {
     fun snapshot(): FunctionalEventSettingsSnapshot = FunctionalEventSettingsSnapshot(
         enabled = store.getBoolean(GLOBAL_KEY, false),
-        categories = FunctionalEventCategory.entries.filterTo(mutableSetOf()) {
+        categories = FunctionalEventCategory.captureOptions.filterTo(mutableSetOf()) {
             store.getBoolean(categoryKey(it), true)
         },
     )

@@ -204,7 +204,7 @@ class FunctionalLogsControllerTest {
     ) : FunctionalLogsRepository {
         var settings = FunctionalEventSettingsSnapshot(
             enabled = false,
-            categories = FunctionalEventCategory.entries.toSet(),
+            categories = FunctionalEventCategory.captureOptions.toSet(),
         )
         var stats = FunctionalEventJournalStats(0, 0, 0, emptyMap())
         var pageCalls = 0

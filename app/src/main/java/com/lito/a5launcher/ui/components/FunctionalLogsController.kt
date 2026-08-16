@@ -32,7 +32,7 @@ internal enum class FunctionalLogsExportResult { SUCCESS, CANCELLED, FAILED, BUS
 internal data class FunctionalLogsUiState(
     val settings: FunctionalEventSettingsSnapshot = FunctionalEventSettingsSnapshot(
         enabled = false,
-        categories = FunctionalEventCategory.entries.toSet(),
+        categories = FunctionalEventCategory.captureOptions.toSet(),
     ),
     val events: List<FunctionalEvent> = emptyList(),
     val nextBeforeSequence: Long? = null,

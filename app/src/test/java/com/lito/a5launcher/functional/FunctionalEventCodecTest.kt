@@ -8,20 +8,19 @@ import org.junit.Test
 
 class FunctionalEventCodecTest {
     @Test
-    fun `new settings are disabled with every category selected`() {
+    fun `new settings are disabled with every capture option selected`() {
         val store = MemoryPreferenceStore()
         val settings = FunctionalEventSettings(store)
 
         assertFalse(settings.snapshot().enabled)
-        assertEquals(FunctionalEventCategory.entries.toSet(), settings.snapshot().categories)
+        assertEquals(FunctionalEventCategory.captureOptions.toSet(), settings.snapshot().categories)
 
         settings.setEnabled(true)
-        settings.setCategoryEnabled(FunctionalEventCategory.GEAR_ESTIMATION, false)
+        settings.setCategoryEnabled(FunctionalEventCategory.PARTIAL_RESET, false)
 
         val restored = FunctionalEventSettings(store).snapshot()
         assertTrue(restored.enabled)
-        assertFalse(FunctionalEventCategory.GEAR_ESTIMATION in restored.categories)
-        assertTrue(FunctionalEventCategory.TRIP_SESSION in restored.categories)
+        assertFalse(FunctionalEventCategory.PARTIAL_RESET in restored.categories)
     }
 
     @Test
@@ -60,18 +59,42 @@ class FunctionalEventCodecTest {
     }
 
     @Test
+    fun `legacy refuelling records keep their historical category and type`() {
+        val decoded = FunctionalEventCodec().decode(
+            """{"schema":1,"sequence":8,"bootSession":2,"capturedAtEpochMs":1000,"capturedAtElapsedMs":900,"source":"eventcenter","category":"refuel-partial","type":"refuel.rejected","context":{"baselineFuelLitres":20,"observedFuelLitres":21}}""",
+        ).event
+
+        assertEquals(FunctionalEventCategory.REFUEL_AND_PARTIAL, decoded?.category)
+        assertEquals(FunctionalEventTypes.REFUEL_REJECTED, decoded?.type)
+    }
+
+    @Test
+    fun `partial reset uses a distinct persisted category`() {
+        val codec = FunctionalEventCodec()
+        val encoded = codec.encode(
+            event(sequence = 9, epochMs = 1_000).copy(
+                category = FunctionalEventCategory.PARTIAL_RESET,
+                type = FunctionalEventTypes.PARTIAL_RESET,
+            ),
+        )
+
+        assertEquals(FunctionalEventCategory.PARTIAL_RESET, codec.decode(encoded).event?.category)
+        assertTrue(encoded.contains("\"category\":\"partial-reset\""))
+    }
+
+    @Test
     fun `publisher obeys global and category settings and isolates sink failures`() {
         val store = MemoryPreferenceStore()
         val settings = FunctionalEventSettings(store)
         val captured = mutableListOf<FunctionalEventDraft>()
         val publisher = FunctionalEventPublisher(settings) { captured += it; true }
-        val draft = draft(FunctionalEventCategory.TRIP_SESSION)
+        val draft = draft(FunctionalEventCategory.PARTIAL_RESET)
 
         assertFalse(publisher.publish(draft))
         settings.setEnabled(true)
-        settings.setCategoryEnabled(FunctionalEventCategory.TRIP_SESSION, false)
+        settings.setCategoryEnabled(FunctionalEventCategory.PARTIAL_RESET, false)
         assertFalse(publisher.publish(draft))
-        settings.setCategoryEnabled(FunctionalEventCategory.TRIP_SESSION, true)
+        settings.setCategoryEnabled(FunctionalEventCategory.PARTIAL_RESET, true)
         assertTrue(publisher.publish(draft))
         assertEquals(listOf(draft), captured)
 

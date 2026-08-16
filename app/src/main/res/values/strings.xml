@@ -173,7 +173,7 @@
     <string name="functional_logs_capture">Capture</string>
     <string name="functional_logs_enabled">Enabled</string>
     <string name="functional_logs_disabled">Disabled</string>
-    <string name="functional_logs_categories">Categories</string>
+    <string name="functional_logs_categories">Events to Record</string>
     <string name="functional_logs_export_all">Download All</string>
     <string name="functional_logs_delete">Delete</string>
     <string name="functional_logs_delete_all_button">Delete All</string>
@@ -201,7 +201,8 @@
     <string name="functional_logs_delete_failed">The records could not be deleted</string>
     <string name="functional_logs_settings_failed">The capture settings could not be saved</string>
     <string name="functional_logs_export_file">a5-functional-logs.zip</string>
-    <string name="functional_logs_category_refuel_partial">Refuelling and Partial</string>
+    <string name="functional_logs_category_refuel_partial">Partial Reset</string>
+    <string name="functional_logs_category_refuel_legacy">Refuelling (Historical)</string>
     <string name="functional_logs_category_trip_session">Trip Session</string>
     <string name="functional_logs_category_consumption_range">Consumption and Range</string>
     <string name="functional_logs_category_gear_estimation">Gear Estimation</string>
@@ -222,6 +223,8 @@
     <string name="functional_logs_context_speed">Speed</string>
     <string name="functional_logs_context_rpm">RPM</string>
     <string name="functional_logs_context_fuel">Fuel</string>
+    <string name="functional_logs_context_fuel_before">Fuel Before</string>
+    <string name="functional_logs_context_fuel_after">Fuel After</string>
     <string name="functional_logs_context_previous_fuel">Previous Fuel</string>
     <string name="functional_logs_context_baseline_fuel">Baseline Fuel</string>
     <string name="functional_logs_context_candidate_fuel">Candidate Fuel</string>

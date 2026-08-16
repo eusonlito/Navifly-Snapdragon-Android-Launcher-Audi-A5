@@ -2,11 +2,14 @@ package com.lito.a5launcher.functional
 
 enum class FunctionalEventCategory(val code: String) {
     REFUEL_AND_PARTIAL("refuel-partial"),
+    PARTIAL_RESET("partial-reset"),
     TRIP_SESSION("trip-session"),
     CONSUMPTION_AND_RANGE("consumption-range"),
     GEAR_ESTIMATION("gear-estimation");
 
     companion object {
+        val captureOptions = listOf(PARTIAL_RESET)
+
         fun fromCode(code: String): FunctionalEventCategory? = entries.firstOrNull { it.code == code }
     }
 }
@@ -35,6 +38,7 @@ value class FunctionalEventType(val code: String) {
 }
 
 object FunctionalEventTypes {
+    val PARTIAL_RESET = FunctionalEventType("partial.reset")
     val REFUEL_CONFIRMED = FunctionalEventType("refuel.confirmed")
     val REFUEL_REJECTED = FunctionalEventType("refuel.rejected")
     val TRIP_RESTORED = FunctionalEventType("trip.restored")
@@ -46,6 +50,11 @@ object FunctionalEventTypes {
     val CONSUMPTION_LIMIT_EXITED = FunctionalEventType("consumption.limit-exited")
     val GEAR_CHANGED = FunctionalEventType("gear.changed")
     val GEAR_INCONSISTENCY = FunctionalEventType("gear.inconsistency")
+}
+
+object FunctionalEventContextKeys {
+    const val FUEL_BEFORE_LITRES = "fuelBeforeLitres"
+    const val FUEL_AFTER_LITRES = "fuelAfterLitres"
 }
 
 sealed interface FunctionalEventValue {

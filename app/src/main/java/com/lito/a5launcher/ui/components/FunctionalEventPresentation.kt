@@ -3,6 +3,7 @@ package com.lito.a5launcher.ui.components
 import androidx.annotation.StringRes
 import com.lito.a5launcher.R
 import com.lito.a5launcher.functional.FunctionalEventCategory
+import com.lito.a5launcher.functional.FunctionalEventContextKeys
 import com.lito.a5launcher.functional.FunctionalEventType
 import com.lito.a5launcher.functional.FunctionalEventTypes
 
@@ -10,6 +11,8 @@ internal object FunctionalEventPresentation {
     @StringRes
     fun categoryLabelRes(category: FunctionalEventCategory): Int = when (category) {
         FunctionalEventCategory.REFUEL_AND_PARTIAL ->
+            R.string.functional_logs_category_refuel_legacy
+        FunctionalEventCategory.PARTIAL_RESET ->
             R.string.functional_logs_category_refuel_partial
         FunctionalEventCategory.TRIP_SESSION ->
             R.string.functional_logs_category_trip_session
@@ -21,7 +24,9 @@ internal object FunctionalEventPresentation {
 
     @StringRes
     fun summaryRes(type: FunctionalEventType): Int = when (type) {
-        FunctionalEventTypes.REFUEL_CONFIRMED -> R.string.functional_logs_summary_refuel_confirmed
+        FunctionalEventTypes.PARTIAL_RESET,
+        FunctionalEventTypes.REFUEL_CONFIRMED,
+        -> R.string.functional_logs_summary_refuel_confirmed
         FunctionalEventTypes.REFUEL_REJECTED -> R.string.functional_logs_summary_refuel_rejected
         FunctionalEventTypes.TRIP_RESTORED -> R.string.functional_logs_summary_trip_restored
         FunctionalEventTypes.TRIP_RESET -> R.string.functional_logs_summary_trip_reset
@@ -46,6 +51,8 @@ internal object FunctionalEventPresentation {
         "restored" -> R.string.functional_logs_context_restored
         "speedKmh" -> R.string.functional_logs_context_speed
         "rpm" -> R.string.functional_logs_context_rpm
+        FunctionalEventContextKeys.FUEL_BEFORE_LITRES -> R.string.functional_logs_context_fuel_before
+        FunctionalEventContextKeys.FUEL_AFTER_LITRES -> R.string.functional_logs_context_fuel_after
         "fuelLitres", "observedFuelLitres" -> R.string.functional_logs_context_fuel
         "previousFuelLitres" -> R.string.functional_logs_context_previous_fuel
         "fuelBaselineLitres", "baselineFuelLitres" ->

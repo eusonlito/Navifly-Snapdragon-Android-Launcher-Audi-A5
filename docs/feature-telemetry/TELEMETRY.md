@@ -360,24 +360,31 @@ forman parte del producto.
 
 ### Diario funcional del launcher
 
-La pestaña **Registros** de los ajustes no es un capturador CAN. Conserva sólo
-decisiones discretas de alto valor diagnóstico: detección de repostaje y
-reinicio del parcial, restauración de sesión, cambios materiales del modelo de
-consumo/autonomía e inferencias confirmadas de marcha. Cada entrada guarda su
-contexto tipado y una secuencia monotónica; la interfaz lo traduce al idioma
-seleccionado al leerlo.
+La pestaña **Registros** de los ajustes no es un capturador CAN. Actualmente
+conserva un único evento diagnóstico, **Reinicio Parciales**, emitido sólo
+cuando queda confirmado un repostaje. La entrada guarda el combustible antes y
+después del repostaje, el incremento detectado, las muestras de confirmación,
+velocidad, RPM y el valor del parcial antes y después del reinicio. Esta evidencia
+permite revisar falsos positivos o ajustar el detector sin almacenar telemetría
+continua ni eventos que no aporten información al problema.
 
-La captura está desactivada inicialmente, mantiene las cuatro categorías
-preseleccionadas y continúa en `TelemetryService` aunque el launcher no esté en
-primer plano. El historial permanece en almacenamiento privado hasta un
-borrado manual. La lectura es paginada y muestra como máximo los 800 registros
-más recientes en una apertura del panel, sin recortar lo almacenado; la descarga
-siempre incluye el diario completo. Los recuentos se agregan desde metadatos
-por segmento; si un apagado deja un segmento sin ellos, se reconstruyen al
-primer acceso. La descarga solicita un destino SAF y genera un ZIP de todos los
-segmentos sin eliminar los originales. El borrado puede afectar a una categoría
-o al diario completo, siempre requiere confirmación y utiliza una transacción
-recuperable para no dejar cambios parciales si el proceso se interrumpe.
+Los nuevos reinicios usan la categoría persistida `partial-reset`. La categoría
+anterior `refuel-partial` se conserva únicamente para interpretar correctamente
+los registros históricos que ya existan.
+
+La infraestructura y el panel siguen admitiendo categorías y tipos adicionales
+en el futuro, pero sólo `Reinicio Parciales` está disponible para captura. Esta
+se encuentra desactivada inicialmente y continúa en `TelemetryService` aunque
+el launcher no esté en primer plano. El historial permanece en almacenamiento
+privado hasta un borrado manual. La lectura es paginada y muestra como máximo
+los 800 registros más recientes en una apertura del panel, sin recortar lo
+almacenado; la descarga siempre incluye el diario completo. Los recuentos se
+agregan desde metadatos por segmento; si un apagado deja un segmento sin ellos,
+se reconstruyen al primer acceso. La descarga solicita un destino SAF y genera
+un ZIP de todos los segmentos sin eliminar los originales. El borrado puede
+afectar a una categoría o al diario completo, siempre requiere confirmación y
+utiliza una transacción recuperable para no dejar cambios parciales si el
+proceso se interrumpe.
 
 Este diario es deliberadamente independiente de:
 

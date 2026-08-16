@@ -172,7 +172,7 @@
     <string name="functional_logs_capture">Captura</string>
     <string name="functional_logs_enabled">Activada</string>
     <string name="functional_logs_disabled">Desactivada</string>
-    <string name="functional_logs_categories">Categorías</string>
+    <string name="functional_logs_categories">Eventos a Registrar</string>
     <string name="functional_logs_export_all">Descargar Todo</string>
     <string name="functional_logs_delete">Borrar</string>
     <string name="functional_logs_delete_all_button">Borrar Todo</string>
@@ -200,7 +200,8 @@
     <string name="functional_logs_delete_failed">No se han podido borrar los registros</string>
     <string name="functional_logs_settings_failed">No se han podido guardar los ajustes de captura</string>
     <string name="functional_logs_export_file">registros-funcionales-a5.zip</string>
-    <string name="functional_logs_category_refuel_partial">Repostaje y Parcial</string>
+    <string name="functional_logs_category_refuel_partial">Reinicio Parciales</string>
+    <string name="functional_logs_category_refuel_legacy">Repostaje (Histórico)</string>
     <string name="functional_logs_category_trip_session">Sesión de Viaje</string>
     <string name="functional_logs_category_consumption_range">Consumo y Autonomía</string>
     <string name="functional_logs_category_gear_estimation">Estimación de Marcha</string>
@@ -221,6 +222,8 @@
     <string name="functional_logs_context_speed">Velocidad</string>
     <string name="functional_logs_context_rpm">RPM</string>
     <string name="functional_logs_context_fuel">Combustible</string>
+    <string name="functional_logs_context_fuel_before">Combustible Antes</string>
+    <string name="functional_logs_context_fuel_after">Combustible Después</string>
     <string name="functional_logs_context_previous_fuel">Combustible Anterior</string>
     <string name="functional_logs_context_baseline_fuel">Combustible de Referencia</string>
     <string name="functional_logs_context_candidate_fuel">Combustible Candidato</string>

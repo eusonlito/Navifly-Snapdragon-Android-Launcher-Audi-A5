@@ -286,7 +286,7 @@ private fun FunctionalLogsControls(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
         ) {
-            FunctionalEventCategory.entries.forEach { category ->
+            FunctionalEventCategory.captureOptions.forEach { category ->
                 val count = state.stats.categoryCounts[category] ?: 0L
                 FunctionalLogsCategoryRow(
                     label = stringResource(FunctionalEventPresentation.categoryLabelRes(category)),
