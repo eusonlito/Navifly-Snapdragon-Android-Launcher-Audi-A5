@@ -43,6 +43,7 @@ internal data class FunctionalLogsUiState(
     val initialLoading: Boolean = true,
     val pageLoading: Boolean = false,
     val endReached: Boolean = false,
+    val displayLimitReached: Boolean = false,
     val loadError: String? = null,
     val actionError: String? = null,
     val operation: FunctionalLogsOperation = FunctionalLogsOperation.IDLE,
@@ -97,7 +98,9 @@ internal class JournalFunctionalLogsRepository(
 internal class FunctionalLogsController(
     private val repository: FunctionalLogsRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val maxRetainedEvents: Int = DEFAULT_MAX_RETAINED_EVENTS,
 ) {
+    init { require(maxRetainedEvents > 0) }
     private val pagingMutex = Mutex()
     private val operationMutex = Mutex()
     private val _state = MutableStateFlow(FunctionalLogsUiState())
@@ -116,18 +119,21 @@ internal class FunctionalLogsController(
                 )
             }
         }.onSuccess { result ->
+            val initialEvents = result.page.events.take(maxRetainedEvents)
+            val reachedWindowLimit = initialEvents.size >= maxRetainedEvents
             _state.value = _state.value.copy(
                 settings = result.settings,
-                events = result.page.events,
-                nextBeforeSequence = result.page.nextBeforeSequence,
+                events = initialEvents,
+                nextBeforeSequence = result.page.nextBeforeSequence.takeUnless { reachedWindowLimit },
                 expandedSequences = _state.value.expandedSequences.intersect(
-                    result.page.events.mapTo(mutableSetOf(), FunctionalEvent::sequence),
+                    initialEvents.mapTo(mutableSetOf(), FunctionalEvent::sequence),
                 ),
                 stats = result.stats,
                 operational = result.operational,
                 initialLoading = false,
                 pageLoading = false,
-                endReached = result.page.nextBeforeSequence == null,
+                endReached = reachedWindowLimit || result.page.nextBeforeSequence == null,
+                displayLimitReached = reachedWindowLimit && result.page.nextBeforeSequence != null,
                 loadError = null,
             )
         }.onFailure { error ->
@@ -153,13 +159,25 @@ internal class FunctionalLogsController(
             }
         }.onSuccess { result ->
             val existing = _state.value.events
-            val merged = (existing + result.page.events).distinctBy(FunctionalEvent::sequence)
+            val knownSequences = existing.mapTo(mutableSetOf(), FunctionalEvent::sequence)
+            val remainingCapacity = (maxRetainedEvents - existing.size).coerceAtLeast(0)
+            val novelEvents = result.page.events.asSequence()
+                .filter { knownSequences.add(it.sequence) }
+                .take(remainingCapacity)
+                .toList()
+            val merged = existing + novelEvents
+            val reachedWindowLimit = merged.size >= maxRetainedEvents
+            val retainedSequences = merged.mapTo(mutableSetOf(), FunctionalEvent::sequence)
             _state.value = _state.value.copy(
                 events = merged,
-                nextBeforeSequence = result.page.nextBeforeSequence,
+                expandedSequences = _state.value.expandedSequences.intersect(
+                    retainedSequences,
+                ),
+                nextBeforeSequence = result.page.nextBeforeSequence.takeUnless { reachedWindowLimit },
                 operational = result.operational,
                 pageLoading = false,
-                endReached = result.page.nextBeforeSequence == null,
+                endReached = reachedWindowLimit || result.page.nextBeforeSequence == null,
+                displayLimitReached = reachedWindowLimit && result.page.nextBeforeSequence != null,
                 loadError = null,
             )
         }.onFailure { error ->
@@ -201,12 +219,6 @@ internal class FunctionalLogsController(
         _state.value = _state.value.copy(
             expandedSequences = if (sequence in expanded) expanded - sequence else expanded + sequence,
         )
-    }
-
-    fun affectedCount(scope: FunctionalLogsDeleteScope): Long = when (scope) {
-        FunctionalLogsDeleteScope.All -> _state.value.stats.validEvents
-        is FunctionalLogsDeleteScope.Category ->
-            _state.value.stats.categoryCounts[scope.category] ?: 0L
     }
 
     suspend fun export(output: OutputStream?): FunctionalLogsExportResult {
@@ -273,5 +285,6 @@ internal class FunctionalLogsController(
 
     private companion object {
         const val PAGE_SIZE = 40
+        const val DEFAULT_MAX_RETAINED_EVENTS = 800
     }
 }

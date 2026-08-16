@@ -27,6 +27,7 @@ import com.lito.a5launcher.functional.FunctionalEventJournal
 import com.lito.a5launcher.functional.FunctionalEventPublisher
 import com.lito.a5launcher.functional.FunctionalEventSettings
 import com.lito.a5launcher.functional.FunctionalEventSource
+import com.lito.a5launcher.functional.FunctionalEventTelemetryRecorder
 import com.lito.a5launcher.functional.FunctionalEventType
 import com.lito.a5launcher.functional.FunctionalEventTypes
 import com.lito.a5launcher.functional.FunctionalEventValue
@@ -209,6 +210,7 @@ class TelemetryService : Service() {
         private set
     lateinit var functionalEventSettings: FunctionalEventSettings
         private set
+    private lateinit var functionalEventTelemetryRecorder: FunctionalEventTelemetryRecorder
     private lateinit var functionalEventPublisher: FunctionalEventPublisher
     private val tripPreferences by lazy {
         getSharedPreferences(TRIP_PREFS, Context.MODE_PRIVATE)
@@ -264,6 +266,11 @@ class TelemetryService : Service() {
 
     private val mDashBoardCallback = object : ICallbackfn.Stub() {
         override fun notifyEvt(msg_what: Int, arg1: Int, arg2: Int, bArr: ByteArray?, str: String?) {
+            val eventSource = if (replayActive) {
+                FunctionalEventSource.REPLAY
+            } else {
+                FunctionalEventSource.EVENT_CENTER
+            }
             // Process decoding strictly on Dispatchers.Default (Background) to maintain 60 FPS
             scope.launch {
                 when (msg_what) {
@@ -285,7 +292,10 @@ class TelemetryService : Service() {
                             )
                             val gearUpdate = gearTelemetryCoordinator.updateDetailed(drivingSample)
                             _calculatedGearFlow.value = gearUpdate.gear
-                            publishGearDecision(gearUpdate.transition)
+                            functionalEventTelemetryRecorder.recordGearDecision(
+                                gearUpdate.transition,
+                                eventSource,
+                            )
                             val now = SystemClock.elapsedRealtime()
                             val partialBefore = _distanceSinceRefuelKmFlow.value
                             val fuelDecision = confirmedRefuelDetector.observeDetailed(
@@ -309,8 +319,18 @@ class TelemetryService : Service() {
                                 fuelDecision,
                             )
                             publishDistanceSinceRefuel(partialUpdate)
-                            publishFuelDecision(fuelDecision, partialBefore, partialUpdate.distanceKm, telemetry)
-                            publishTripTransitions(tripUpdate.transitions, telemetry)
+                            functionalEventTelemetryRecorder.recordFuelDecision(
+                                fuelDecision,
+                                partialBefore,
+                                partialUpdate.distanceKm,
+                                telemetry,
+                                eventSource,
+                            )
+                            functionalEventTelemetryRecorder.recordTripTransitions(
+                                tripUpdate.transitions,
+                                telemetry,
+                                eventSource,
+                            )
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel
@@ -440,6 +460,10 @@ class TelemetryService : Service() {
             functionalEventSettings,
             functionalEventJournal::append,
         )
+        functionalEventTelemetryRecorder = FunctionalEventTelemetryRecorder {
+                category, type, context, source ->
+            publishFunctionalEvent(category, type, context, source = source)
+        }
     }
 
     private fun readRefuelState(): PersistedRefuelState = PersistedRefuelState(
@@ -551,132 +575,16 @@ class TelemetryService : Service() {
         _rangeFlow.value = authoritativeRangeKm(metrics)
     }
 
-    private fun publishFuelDecision(
-        decision: ConfirmedFuelLevelChange?,
-        partialBeforeKm: Double,
-        partialAfterKm: Double,
-        telemetry: CoreTelemetry,
-    ) {
-        when (decision) {
-            is ConfirmedFuelLevelChange.Refuel -> publishFunctionalEvent(
-                FunctionalEventCategory.REFUEL_AND_PARTIAL,
-                FunctionalEventTypes.REFUEL_CONFIRMED,
-                mapOf(
-                    "baselineFuelLitres" to decision.baselineFuelLitres.eventValue(),
-                    "observedFuelLitres" to decision.fuelLitres.eventValue(),
-                    "increaseLitres" to
-                        (decision.fuelLitres - decision.baselineFuelLitres).eventValue(),
-                    "confirmationSamples" to decision.confirmationSamples.eventValue(),
-                    "speedKmh" to telemetry.speed.eventValue(),
-                    "rpm" to telemetry.rpm.eventValue(),
-                    "partialBeforeKm" to partialBeforeKm.eventValue(),
-                    "partialAfterKm" to partialAfterKm.eventValue(),
-                ),
-            )
-            is ConfirmedFuelLevelChange.Rejected -> publishFunctionalEvent(
-                FunctionalEventCategory.REFUEL_AND_PARTIAL,
-                FunctionalEventTypes.REFUEL_REJECTED,
-                mapOf(
-                    "reason" to FunctionalEventValue.Text(decision.reason.code),
-                    "baselineFuelLitres" to decision.baselineFuelLitres.eventValue(),
-                    "candidateFuelLitres" to decision.candidateFuelLitres.eventValue(),
-                    "observedFuelLitres" to decision.observedFuelLitres.eventValue(),
-                    "confirmationSamples" to decision.confirmationSamples.eventValue(),
-                    "speedKmh" to telemetry.speed.eventValue(),
-                    "rpm" to telemetry.rpm.eventValue(),
-                    "partialKm" to partialAfterKm.eventValue(),
-                ),
-            )
-            else -> Unit
-        }
-    }
-
-    private fun publishTripTransitions(
-        transitions: List<TripModelTransition>,
-        telemetry: CoreTelemetry,
-    ) {
-        transitions.forEach { transition ->
-            val type: FunctionalEventType
-            val context: Map<String, FunctionalEventValue>
-            when (transition) {
-                is TripModelTransition.RefuelApplied -> return@forEach
-                is TripModelTransition.CalibrationChanged -> {
-                    type = FunctionalEventTypes.CONSUMPTION_CALIBRATED
-                    context = mapOf(
-                        "previousFactor" to transition.previousFactor.eventValue(),
-                        "factor" to transition.factor.eventValue(),
-                        "observedDropLitres" to transition.observedDropLitres.eventValue(),
-                    )
-                }
-                is TripModelTransition.VirtualFuelCorrected -> {
-                    type = FunctionalEventTypes.FUEL_CORRECTED
-                    context = mapOf(
-                        "previousFuelLitres" to transition.previousFuelLitres.eventValue(),
-                        "fuelLitres" to transition.fuelLitres.eventValue(),
-                    )
-                }
-                is TripModelTransition.RangeReferenceChanged -> {
-                    type = FunctionalEventTypes.RANGE_REFERENCE_CHANGED
-                    context = mapOf(
-                        "previousConsumption" to transition.previousConsumption.eventValue(),
-                        "consumption" to transition.consumption.eventValue(),
-                    )
-                }
-                is TripModelTransition.ConsumptionLimitChanged -> {
-                    type = if (transition.limited) {
-                        FunctionalEventTypes.CONSUMPTION_LIMIT_ENTERED
-                    } else {
-                        FunctionalEventTypes.CONSUMPTION_LIMIT_EXITED
-                    }
-                    context = mapOf(
-                        "limited" to FunctionalEventValue.Flag(transition.limited),
-                        "rawConsumption" to transition.rawConsumption.eventValue(),
-                    )
-                }
-            }
-            publishFunctionalEvent(
-                FunctionalEventCategory.CONSUMPTION_AND_RANGE,
-                type,
-                context + mapOf(
-                    "speedKmh" to telemetry.speed.eventValue(),
-                    "rpm" to telemetry.rpm.eventValue(),
-                ),
-            )
-        }
-    }
-
-    private fun publishGearDecision(decision: GearDecision?) {
-        when (decision) {
-            is GearDecision.Change -> publishFunctionalEvent(
-                FunctionalEventCategory.GEAR_ESTIMATION,
-                FunctionalEventTypes.GEAR_CHANGED,
-                mapOf(
-                    "previousGear" to FunctionalEventValue.Text(decision.previousGear),
-                    "gear" to FunctionalEventValue.Text(decision.gear),
-                    "speedKmh" to decision.speedKmh.eventValue(),
-                    "rpm" to decision.rpm.eventValue(),
-                ) + decision.observedRatio?.let { mapOf("observedRatio" to it.eventValue()) }.orEmpty() +
-                    decision.expectedRatio?.let { mapOf("expectedRatio" to it.eventValue()) }.orEmpty(),
-            )
-            is GearDecision.Inconsistency -> publishFunctionalEvent(
-                FunctionalEventCategory.GEAR_ESTIMATION,
-                FunctionalEventTypes.GEAR_INCONSISTENCY,
-                mapOf(
-                    "previousGear" to FunctionalEventValue.Text(decision.previousGear),
-                    "speedKmh" to decision.speedKmh.eventValue(),
-                    "rpm" to decision.rpm.eventValue(),
-                ) + decision.observedRatio?.let { mapOf("observedRatio" to it.eventValue()) }.orEmpty() +
-                    decision.expectedRatio?.let { mapOf("expectedRatio" to it.eventValue()) }.orEmpty(),
-            )
-            null -> Unit
-        }
-    }
-
     private fun publishFunctionalEvent(
         category: FunctionalEventCategory,
         type: FunctionalEventType,
         context: Map<String, FunctionalEventValue>,
         elapsedRealtimeMs: Long = SystemClock.elapsedRealtime(),
+        source: FunctionalEventSource = if (replayActive) {
+            FunctionalEventSource.REPLAY
+        } else {
+            FunctionalEventSource.EVENT_CENTER
+        },
     ) {
         if (!::functionalEventPublisher.isInitialized) return
         runCatching {
@@ -685,11 +593,7 @@ class TelemetryService : Service() {
                     bootSession = currentBootCount,
                     capturedAtEpochMs = System.currentTimeMillis(),
                     capturedAtElapsedMs = elapsedRealtimeMs,
-                    source = if (replayActive) {
-                        FunctionalEventSource.REPLAY
-                    } else {
-                        FunctionalEventSource.EVENT_CENTER
-                    },
+                    source = source,
                     category = category,
                     type = type,
                     context = context,
@@ -697,9 +601,6 @@ class TelemetryService : Service() {
             )
         }.onFailure { Log.w(TAG, "Functional event journal unavailable: ${it.message}") }
     }
-
-    private fun Int.eventValue(): FunctionalEventValue = FunctionalEventValue.Integer(toLong())
-    private fun Double.eventValue(): FunctionalEventValue = FunctionalEventValue.Decimal(this)
 
     private fun restoreDistanceSinceRefuel(state: PersistedRefuelState) {
         distanceSinceRefuelTracker = DistanceSinceRefuelTracker(

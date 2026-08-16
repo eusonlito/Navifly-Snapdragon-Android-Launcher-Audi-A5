@@ -1,5 +1,7 @@
 package com.lito.a5launcher.functional
 
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -87,6 +89,26 @@ class FunctionalEventArchiveTest {
     }
 
     @Test
+    fun `deleting an absent category is a no-op without transaction residue`() {
+        withJournal { journal, root ->
+            journal.append(draft(1, FunctionalEventCategory.TRIP_SESSION))
+            journal.flush()
+            val snapshot = journal.sealSnapshot()
+
+            val result = FunctionalEventArchive.deleteCategory(
+                snapshot,
+                FunctionalEventCategory.GEAR_ESTIMATION,
+                FunctionalEventCodec(),
+            )
+
+            assertEquals(0L, result.deletedEvents)
+            assertEquals(1L, result.preservedEvents)
+            assertFalse(File(root, ".delete-transaction.json").exists())
+            assertEquals("test.1", journal.page(limit = 1).events.single().type.code)
+        }
+    }
+
+    @Test
     fun `append proceeds while an export owns a sealed snapshot`() {
         withJournal { journal, _ ->
             journal.append(draft(1))
@@ -110,6 +132,71 @@ class FunctionalEventArchiveTest {
             release.countDown()
             export.join(2_000)
             assertFalse(export.isAlive)
+        }
+    }
+
+    @Test
+    fun `prepared delete transaction is rolled back after interruption`() {
+        withJournal { journal, root ->
+            journal.append(draft(1))
+            journal.flush()
+            val segment = journal.sealSnapshot().segments.single()
+            val backup = File(root, ".delete-backup-test-${segment.file.name}")
+            java.nio.file.Files.move(segment.file.toPath(), backup.toPath())
+            segment.file.writeText("replacement-that-must-not-survive\n")
+            File(root, ".delete-transaction.json").writeText(
+                JSONObject()
+                    .put("state", "prepared")
+                    .put(
+                        "entries",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("original", segment.file.name)
+                                .put("backup", backup.name)
+                                .put("hadOriginal", true),
+                        ),
+                    )
+                    .toString(),
+            )
+
+            FunctionalEventArchive.recoverInterruptedDelete(root)
+
+            assertEquals("test.1", journal.page(limit = 1).events.single().type.code)
+            assertFalse(backup.exists())
+            assertFalse(File(root, ".delete-transaction.json").exists())
+        }
+    }
+
+    @Test
+    fun `staging transaction removes orphan rewrites without touching original`() {
+        withJournal { journal, root ->
+            journal.append(draft(1))
+            journal.flush()
+            val segment = journal.sealSnapshot().segments.single()
+            val staged = File(root, ".delete-stage-test-${segment.file.name}").apply {
+                writeText("orphaned rewrite\n")
+            }
+            File(root, ".delete-transaction.json").writeText(
+                JSONObject()
+                    .put("state", "staging")
+                    .put(
+                        "entries",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("original", segment.file.name)
+                                .put("staged", staged.name)
+                                .put("backup", ".delete-backup-test-${segment.file.name}")
+                                .put("hadOriginal", true),
+                        ),
+                    )
+                    .toString(),
+            )
+
+            FunctionalEventArchive.recoverInterruptedDelete(root)
+
+            assertEquals("test.1", journal.page(limit = 1).events.single().type.code)
+            assertFalse(staged.exists())
+            assertFalse(File(root, ".delete-transaction.json").exists())
         }
     }
 

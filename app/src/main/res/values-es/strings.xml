@@ -173,11 +173,12 @@
     <string name="functional_logs_delete_scope_title">¿Qué quieres borrar?</string>
     <string name="functional_logs_delete_continue">Continuar</string>
     <string name="functional_logs_delete_confirm_title">Confirmar Borrado</string>
-    <string name="functional_logs_delete_confirm">¿Borrar %1$d registros de %2$s?</string>
+    <string name="functional_logs_delete_confirm">¿Borrar los registros de %1$s?</string>
     <string name="functional_logs_delete_cancel">Cancelar</string>
     <string name="functional_logs_loading">Cargando registros…</string>
     <string name="functional_logs_loading_more">Cargando más…</string>
     <string name="functional_logs_end">Fin de los Registros</string>
+    <string name="functional_logs_display_limit">Mostrando los 800 Registros más Recientes</string>
     <string name="functional_logs_expanded">Expandido</string>
     <string name="functional_logs_collapsed">Contraído</string>
     <string name="functional_logs_empty">Todavía no se han capturado registros funcionales.</string>

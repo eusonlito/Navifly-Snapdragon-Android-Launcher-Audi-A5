@@ -6,6 +6,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -25,6 +28,20 @@ data class FunctionalEventDeleteResult(
 
 object FunctionalEventArchive {
     private val bulkLock = Any()
+
+    private data class DeleteEntry(
+        val originalName: String,
+        val stagedName: String?,
+        val backupName: String,
+        val hadOriginal: Boolean,
+    )
+
+    private data class CategoryStage(
+        val segment: FunctionalEventSegment,
+        val token: String,
+        val stagedSegment: File,
+        val stagedMetadata: File,
+    )
 
     fun export(snapshot: FunctionalEventSnapshot, output: OutputStream): FunctionalEventArchiveManifest =
         synchronized(bulkLock) {
@@ -47,62 +64,230 @@ object FunctionalEventArchive {
         category: FunctionalEventCategory,
         codec: FunctionalEventCodec,
     ): FunctionalEventDeleteResult = synchronized(bulkLock) {
+        val root = snapshot.segments.firstOrNull()?.file?.parentFile
+            ?: return@synchronized FunctionalEventDeleteResult(0, 0, 0)
+        recoverInterruptedDeleteLocked(root)
         var deleted = 0L
         var preserved = 0L
         var corrupt = 0L
-        snapshot.segments.forEach { segment ->
-            if (!segment.file.isFile) return@forEach
-            val temporary = File(segment.file.parentFile, ".${segment.file.name}.rewrite")
-            var first: Long? = null
-            var last: Long? = null
-            FileOutputStream(temporary).bufferedWriter(StandardCharsets.UTF_8).use { output ->
-                segment.file.useLines { lines ->
-                    lines.forEach { line ->
-                        val event = codec.decode(line).event
-                        when {
-                            event == null -> {
-                                corrupt++
-                                output.append(line).append('\n')
-                            }
-                            event.category == category -> deleted++
-                            else -> {
-                                preserved++
-                                if (first == null) first = event.sequence
-                                last = event.sequence
-                                output.append(line).append('\n')
+        val entries = mutableListOf<DeleteEntry>()
+        val stagedFiles = mutableListOf<File>()
+        val resolvedSegments = snapshot.segments.filter { it.file.isFile }.map { segment ->
+            FunctionalEventJournal.resolveSegmentStats(segment, codec)
+        }
+        resolvedSegments.filter { (it.categoryCounts[category] ?: 0L) == 0L }.forEach { segment ->
+            preserved += segment.validEvents ?: 0L
+            corrupt += segment.corruptLines ?: 0L
+        }
+        val stages = resolvedSegments.filter { (it.categoryCounts[category] ?: 0L) > 0L }.map { segment ->
+            val token = UUID.randomUUID().toString()
+            val metadata = FunctionalEventJournal.metadataFile(segment.file)
+            CategoryStage(
+                segment = segment,
+                token = token,
+                stagedSegment = File(root, ".delete-stage-$token-${segment.file.name}"),
+                stagedMetadata = File(root, ".delete-stage-$token-${metadata.name}"),
+            )
+        }
+        if (stages.isEmpty()) {
+            return@synchronized FunctionalEventDeleteResult(0, preserved, corrupt)
+        }
+        writeTransaction(
+            root,
+            TRANSACTION_STAGING,
+            stages.flatMap { stage ->
+                listOf(
+                    deleteEntry(stage.segment.file, stage.stagedSegment, stage.token),
+                    deleteEntry(
+                        FunctionalEventJournal.metadataFile(stage.segment.file),
+                        stage.stagedMetadata,
+                        stage.token,
+                    ),
+                )
+            },
+        )
+        try {
+            stages.forEach { stage ->
+                val segment = stage.segment
+                val stagedSegment = stage.stagedSegment
+                var first: Long? = null
+                var last: Long? = null
+                var segmentValid = 0L
+                var segmentCorrupt = 0L
+                val segmentCategories = FunctionalEventCategory.entries
+                    .associateWithTo(mutableMapOf()) { 0L }
+                FileOutputStream(stagedSegment).bufferedWriter(StandardCharsets.UTF_8).use { output ->
+                    segment.file.useLines { lines ->
+                        lines.forEach { line ->
+                            val event = codec.decode(line).event
+                            when {
+                                event == null -> {
+                                    corrupt++
+                                    segmentCorrupt++
+                                    output.append(line).append('\n')
+                                }
+                                event.category == category -> deleted++
+                                else -> {
+                                    preserved++
+                                    segmentValid++
+                                    segmentCategories[event.category] =
+                                        segmentCategories.getValue(event.category) + 1L
+                                    first = minOf(first ?: event.sequence, event.sequence)
+                                    last = maxOf(last ?: event.sequence, event.sequence)
+                                    output.append(line).append('\n')
+                                }
                             }
                         }
                     }
                 }
+                FileOutputStream(stagedSegment, true).use { it.fd.sync() }
+                val keepSegment = stagedSegment.length() > 0L
+                if (!keepSegment) stagedSegment.delete() else stagedFiles += stagedSegment
+                entries += deleteEntry(
+                    segment.file,
+                    stagedSegment.takeIf { keepSegment },
+                    stage.token,
+                )
+
+                val metadata = FunctionalEventJournal.metadataFile(segment.file)
+                val stagedMetadata = if (keepSegment) {
+                    stage.stagedMetadata.also { staged ->
+                        FunctionalEventJournal.writeSegmentMetadata(
+                            stagedSegment,
+                            first,
+                            last,
+                            segmentValid,
+                            segmentCorrupt,
+                            segmentCategories,
+                        )
+                        stagedFiles += staged
+                    }
+                } else null
+                entries += deleteEntry(metadata, stagedMetadata, stage.token)
             }
-            FileOutputStream(temporary, true).use { it.fd.sync() }
-            val metadata = FunctionalEventJournal.metadataFile(segment.file)
-            if (temporary.length() == 0L) {
-                temporary.delete()
-                java.nio.file.Files.deleteIfExists(segment.file.toPath())
-                metadata.delete()
-            } else {
-                replaceAtomically(temporary, segment.file)
-                if (first == null || last == null) {
-                    metadata.delete()
-                } else {
-                    FunctionalEventJournal.atomicWrite(
-                        metadata,
-                        JSONObject().put("first", first).put("last", last).toString(),
-                    )
-                }
-            }
+            commitDeleteTransaction(root, entries)
+        } catch (error: Throwable) {
+            stagedFiles.forEach(File::delete)
+            runCatching { recoverInterruptedDeleteLocked(root) }.onFailure(error::addSuppressed)
+            throw error
         }
         FunctionalEventDeleteResult(deleted, preserved, corrupt)
     }
 
     fun deleteAll(snapshot: FunctionalEventSnapshot): Long = synchronized(bulkLock) {
+        val root = snapshot.segments.firstOrNull()?.file?.parentFile
+            ?: return@synchronized inspect(snapshot, FunctionalEventCodec()).validEvents
+        recoverInterruptedDeleteLocked(root)
         val deletedEvents = inspect(snapshot, FunctionalEventCodec()).validEvents
-        snapshot.segments.forEach { segment ->
-            java.nio.file.Files.deleteIfExists(FunctionalEventJournal.metadataFile(segment.file).toPath())
-            java.nio.file.Files.deleteIfExists(segment.file.toPath())
+        val token = UUID.randomUUID().toString()
+        val entries = snapshot.segments.flatMap { segment ->
+            listOf(
+                deleteEntry(segment.file, null, token),
+                deleteEntry(FunctionalEventJournal.metadataFile(segment.file), null, token),
+            )
         }
+        commitDeleteTransaction(root, entries)
         deletedEvents
+    }
+
+    fun recoverInterruptedDelete(root: File) = synchronized(bulkLock) {
+        recoverInterruptedDeleteLocked(root)
+    }
+
+    private fun deleteEntry(original: File, staged: File?, token: String): DeleteEntry = DeleteEntry(
+        originalName = original.name,
+        stagedName = staged?.name,
+        backupName = ".delete-backup-$token-${original.name}",
+        hadOriginal = original.isFile,
+    )
+
+    private fun commitDeleteTransaction(root: File, entries: List<DeleteEntry>) {
+        if (entries.isEmpty()) return
+        writeTransaction(root, TRANSACTION_PREPARED, entries)
+        try {
+            entries.forEach { entry ->
+                val original = File(root, entry.originalName)
+                val backup = File(root, entry.backupName)
+                if (entry.hadOriginal && original.exists()) moveAtomically(original, backup)
+                entry.stagedName?.let { stagedName ->
+                    val staged = File(root, stagedName)
+                    if (staged.exists()) moveAtomically(staged, original)
+                }
+            }
+            writeTransaction(root, TRANSACTION_COMMITTED, entries)
+            cleanupCommitted(root, entries)
+        } catch (error: Throwable) {
+            runCatching { recoverInterruptedDeleteLocked(root) }.onFailure(error::addSuppressed)
+            throw error
+        }
+    }
+
+    private fun recoverInterruptedDeleteLocked(root: File) {
+        val transaction = File(root, DELETE_TRANSACTION_FILE)
+        if (!transaction.isFile) return
+        val json = JSONObject(transaction.readText())
+        val state = json.getString("state")
+        val values = json.getJSONArray("entries")
+        val entries = buildList {
+            for (index in 0 until values.length()) {
+                val value = values.getJSONObject(index)
+                add(
+                    DeleteEntry(
+                        originalName = value.getString("original"),
+                        stagedName = value.optString("staged").takeIf(String::isNotBlank),
+                        backupName = value.getString("backup"),
+                        hadOriginal = value.getBoolean("hadOriginal"),
+                    )
+                )
+            }
+        }
+        if (state == TRANSACTION_STAGING) {
+            entries.forEach { entry ->
+                entry.stagedName?.let { Files.deleteIfExists(File(root, it).toPath()) }
+            }
+            Files.deleteIfExists(transaction.toPath())
+            return
+        }
+        if (state == TRANSACTION_COMMITTED) {
+            cleanupCommitted(root, entries)
+            return
+        }
+        entries.asReversed().forEach { entry ->
+            val original = File(root, entry.originalName)
+            val backup = File(root, entry.backupName)
+            if (backup.exists()) {
+                Files.deleteIfExists(original.toPath())
+                moveAtomically(backup, original)
+            } else if (!entry.hadOriginal) {
+                Files.deleteIfExists(original.toPath())
+            }
+            entry.stagedName?.let { Files.deleteIfExists(File(root, it).toPath()) }
+        }
+        Files.deleteIfExists(transaction.toPath())
+    }
+
+    private fun cleanupCommitted(root: File, entries: List<DeleteEntry>) {
+        entries.forEach { entry ->
+            Files.deleteIfExists(File(root, entry.backupName).toPath())
+            entry.stagedName?.let { Files.deleteIfExists(File(root, it).toPath()) }
+        }
+        Files.deleteIfExists(File(root, DELETE_TRANSACTION_FILE).toPath())
+    }
+
+    private fun writeTransaction(root: File, state: String, entries: List<DeleteEntry>) {
+        val json = JSONObject()
+            .put("state", state)
+            .put(
+                "entries",
+                JSONArray(entries.map { entry ->
+                    JSONObject()
+                        .put("original", entry.originalName)
+                        .putOpt("staged", entry.stagedName)
+                        .put("backup", entry.backupName)
+                        .put("hadOriginal", entry.hadOriginal)
+                }),
+            )
+        FunctionalEventJournal.atomicWrite(File(root, DELETE_TRANSACTION_FILE), json.toString())
     }
 
     private fun inspect(
@@ -112,9 +297,9 @@ object FunctionalEventArchive {
         var valid = 0L
         var corrupt = 0L
         snapshot.segments.filter { it.file.isFile }.forEach { segment ->
-            segment.file.useLines { lines ->
-                lines.forEach { if (codec.decode(it).event == null) corrupt++ else valid++ }
-            }
+            val resolved = FunctionalEventJournal.resolveSegmentStats(segment, codec)
+            valid += resolved.validEvents ?: 0L
+            corrupt += resolved.corruptLines ?: 0L
         }
         return FunctionalEventArchiveManifest(
             schema = FunctionalEventCodec.SCHEMA,
@@ -146,18 +331,12 @@ object FunctionalEventArchive {
         )
         .toString(2)
 
-    private fun replaceAtomically(source: File, target: File) {
-        runCatching {
-            java.nio.file.Files.move(
-                source.toPath(), target.toPath(),
-                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-            )
-        }.getOrElse {
-            java.nio.file.Files.move(
-                source.toPath(), target.toPath(),
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-            )
-        }
+    private fun moveAtomically(source: File, target: File) {
+        FunctionalEventJournal.moveReplacingAtomically(source, target)
     }
+
+    private const val DELETE_TRANSACTION_FILE = ".delete-transaction.json"
+    private const val TRANSACTION_STAGING = "staging"
+    private const val TRANSACTION_PREPARED = "prepared"
+    private const val TRANSACTION_COMMITTED = "committed"
 }

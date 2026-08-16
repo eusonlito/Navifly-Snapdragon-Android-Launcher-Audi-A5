@@ -7,6 +7,7 @@ import org.junit.Test
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.system.measureTimeMillis
 import kotlin.io.path.createTempDirectory
 
 class FunctionalEventJournalTest {
@@ -121,9 +122,136 @@ class FunctionalEventJournalTest {
             assertTrue(journal.append(draft(index = 1)))
             journal.flush()
             assertTrue(journal.operationalState().failedWrites >= 1)
+            assertTrue(runCatching { journal.sealSnapshot() }.isFailure)
         } finally {
             journal.close()
             invalidRoot.delete()
+        }
+    }
+
+    @Test
+    fun `metadata-less crash segment is recovered before pagination`() {
+        withRoot { root ->
+            FunctionalEventJournal(root).use { journal ->
+                journal.append(draft(index = 1))
+                journal.flush()
+            }
+            val crashSegment = File(root, "segment-crash.jsonl")
+            crashSegment.writeText(
+                FunctionalEventCodec().encode(draft(index = 2).withSequence(100)) + "\n",
+            )
+
+            FunctionalEventJournal(root).use { journal ->
+                assertEquals(100L, journal.page(limit = 1).events.single().sequence)
+                assertTrue(FunctionalEventJournal.metadataFile(crashSegment).isFile)
+            }
+        }
+    }
+
+    @Test
+    fun `close returns within its budget when writer is stuck`() {
+        withRoot { root ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val journal = FunctionalEventJournal(
+                root = root,
+                closeTimeoutMs = 100,
+                beforeWrite = {
+                    entered.countDown()
+                    while (release.count > 0) runCatching { release.await() }
+                },
+            )
+            journal.append(draft(index = 1))
+            assertTrue(entered.await(1, TimeUnit.SECONDS))
+
+            val elapsed = measureTimeMillis { journal.close() }
+
+            release.countDown()
+            assertTrue("close took ${elapsed}ms", elapsed < 1_000)
+            assertTrue(journal.operationalState().failedWrites >= 1)
+        }
+    }
+
+    @Test
+    fun `seal failure completes caller exceptionally instead of hanging`() {
+        withRoot { root ->
+            val journal = FunctionalEventJournal(root)
+            try {
+                journal.append(draft(index = 1))
+                journal.flush()
+                root.deleteRecursively()
+                root.writeText("not a directory")
+
+                val elapsed = measureTimeMillis {
+                    assertTrue(runCatching { journal.sealSnapshot() }.isFailure)
+                }
+                assertTrue("seal took ${elapsed}ms", elapsed < 1_000)
+            } finally {
+                journal.close()
+                root.delete()
+            }
+        }
+    }
+
+    @Test
+    fun `control operation times out when writer is stuck`() {
+        withRoot { root ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val journal = FunctionalEventJournal(
+                root = root,
+                controlTimeoutMs = 100,
+                beforeWrite = {
+                    entered.countDown()
+                    while (release.count > 0) runCatching { release.await() }
+                },
+            )
+            try {
+                journal.append(draft(index = 1))
+                assertTrue(entered.await(1, TimeUnit.SECONDS))
+                val elapsed = measureTimeMillis {
+                    assertTrue(runCatching { journal.sealSnapshot() }.isFailure)
+                }
+                assertTrue("seal took ${elapsed}ms", elapsed < 1_000)
+            } finally {
+                release.countDown()
+                journal.close()
+            }
+        }
+    }
+
+    @Test
+    fun `timed out seal is cancelled and never runs later`() {
+        withRoot { root ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            var firstWrite = true
+            val journal = FunctionalEventJournal(
+                root = root,
+                controlTimeoutMs = 100,
+                beforeWrite = {
+                    if (firstWrite) {
+                        firstWrite = false
+                        entered.countDown()
+                        while (release.count > 0) runCatching { release.await() }
+                    }
+                },
+            )
+            try {
+                journal.append(draft(index = 1))
+                assertTrue(entered.await(1, TimeUnit.SECONDS))
+                assertTrue(runCatching { journal.sealSnapshot() }.isFailure)
+                release.countDown()
+                journal.flush()
+                journal.append(draft(index = 2))
+            } finally {
+                release.countDown()
+                journal.close()
+            }
+
+            val segments = root.listFiles().orEmpty().filter { it.extension == "jsonl" }
+            assertEquals(1, segments.size)
+            assertEquals(2, segments.single().readLines().size)
         }
     }
 

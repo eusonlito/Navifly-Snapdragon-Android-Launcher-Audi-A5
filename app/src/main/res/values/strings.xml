@@ -174,11 +174,12 @@
     <string name="functional_logs_delete_scope_title">What do you want to delete?</string>
     <string name="functional_logs_delete_continue">Continue</string>
     <string name="functional_logs_delete_confirm_title">Confirm Deletion</string>
-    <string name="functional_logs_delete_confirm">Delete %1$d records from %2$s?</string>
+    <string name="functional_logs_delete_confirm">Delete the records from %1$s?</string>
     <string name="functional_logs_delete_cancel">Cancel</string>
     <string name="functional_logs_loading">Loading records…</string>
     <string name="functional_logs_loading_more">Loading more…</string>
     <string name="functional_logs_end">End of Records</string>
+    <string name="functional_logs_display_limit">Showing the 800 Most Recent Records</string>
     <string name="functional_logs_expanded">Expanded</string>
     <string name="functional_logs_collapsed">Collapsed</string>
     <string name="functional_logs_empty">No functional records have been captured.</string>

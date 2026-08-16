@@ -367,10 +367,14 @@ seleccionado al leerlo.
 La captura está desactivada inicialmente, mantiene las cuatro categorías
 preseleccionadas y continúa en `TelemetryService` aunque el launcher no esté en
 primer plano. El historial permanece en almacenamiento privado hasta un
-borrado manual. La lectura es paginada; la descarga solicita un destino SAF y
-genera un ZIP de todos los segmentos sin eliminar los originales. El borrado
-puede afectar a una categoría o al diario completo y siempre requiere
-confirmación.
+borrado manual. La lectura es paginada y muestra como máximo los 800 registros
+más recientes en una apertura del panel, sin recortar lo almacenado; la descarga
+siempre incluye el diario completo. Los recuentos se agregan desde metadatos
+por segmento; si un apagado deja un segmento sin ellos, se reconstruyen al
+primer acceso. La descarga solicita un destino SAF y genera un ZIP de todos los
+segmentos sin eliminar los originales. El borrado puede afectar a una categoría
+o al diario completo, siempre requiere confirmación y utiliza una transacción
+recuperable para no dejar cambios parciales si el proceso se interrumpe.
 
 Este diario es deliberadamente independiente de:
 

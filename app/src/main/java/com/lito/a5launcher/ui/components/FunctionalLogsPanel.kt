@@ -148,13 +148,12 @@ internal fun FunctionalLogsPanel(
         )
     }
     if (confirmingDelete) {
-        val affected = controller.affectedCount(selectedDeleteScope)
         val scopeName = deleteScopeLabel(selectedDeleteScope)
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
             title = { Text(stringResource(R.string.functional_logs_delete_confirm_title)) },
             text = {
-                Text(stringResource(R.string.functional_logs_delete_confirm, affected, scopeName))
+                Text(stringResource(R.string.functional_logs_delete_confirm, scopeName))
             },
             confirmButton = {
                 TextButton(
@@ -419,7 +418,15 @@ private fun FunctionalLogsTimeline(
                         }
                     }
                 } else if (state.endReached && state.events.isNotEmpty()) {
-                    item(key = "end") { FunctionalLogsFooter(R.string.functional_logs_end) }
+                    item(key = "end") {
+                        FunctionalLogsFooter(
+                            if (state.displayLimitReached) {
+                                R.string.functional_logs_display_limit
+                            } else {
+                                R.string.functional_logs_end
+                            },
+                        )
+                    }
                 }
             }
         }

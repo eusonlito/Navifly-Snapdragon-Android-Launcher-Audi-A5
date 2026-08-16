@@ -11,6 +11,9 @@ import java.nio.file.StandardCopyOption
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
 
 data class FunctionalEventPage(
@@ -35,6 +38,10 @@ data class FunctionalEventSegment(
     val file: File,
     val firstSequence: Long?,
     val lastSequence: Long?,
+    val validEvents: Long? = null,
+    val corruptLines: Long? = null,
+    val categoryCounts: Map<FunctionalEventCategory, Long> = emptyMap(),
+    val recordedSizeBytes: Long? = null,
 )
 
 data class FunctionalEventSnapshot(
@@ -47,6 +54,8 @@ class FunctionalEventJournal(
     queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
     private val sequenceBlockSize: Int = DEFAULT_SEQUENCE_BLOCK_SIZE,
     private val maxEventsPerSegment: Int = DEFAULT_MAX_EVENTS_PER_SEGMENT,
+    private val closeTimeoutMs: Long = DEFAULT_CLOSE_TIMEOUT_MS,
+    private val controlTimeoutMs: Long = DEFAULT_CONTROL_TIMEOUT_MS,
     private val beforeWrite: () -> Unit = {},
 ) : AutoCloseable {
     private sealed interface Command {
@@ -56,26 +65,36 @@ class FunctionalEventJournal(
         data class Stop(val result: CompletableFuture<Unit>) : Command
     }
 
-    private val queue = ArrayBlockingQueue<Command>(queueCapacity.also { require(it > 0) })
+    private val appendQueueCapacity = queueCapacity.also { require(it > 0) }
+    private val queue = ArrayBlockingQueue<Command>(queueCapacity + CONTROL_QUEUE_RESERVE)
+    private val queuedAppends = AtomicLong()
     private val droppedEvents = AtomicLong()
     private val failedWrites = AtomicLong()
     @Volatile private var lastError: String? = null
     @Volatile private var closed = false
+    @Volatile private var shutdownRequested = false
     @Volatile private var activeDescriptor: FunctionalEventSegment? = null
+    private val enqueueLock = Any()
     private val worker = Thread(::writerLoop, "functional-event-journal").apply { isDaemon = true }
 
     init {
         require(sequenceBlockSize > 0)
         require(maxEventsPerSegment > 0)
+        require(closeTimeoutMs > 0)
+        require(controlTimeoutMs > 0)
         root.mkdirs()
         worker.start()
     }
 
-    fun append(draft: FunctionalEventDraft): Boolean {
+    fun append(draft: FunctionalEventDraft): Boolean = synchronized(enqueueLock) {
         if (closed) return false
+        if (queuedAppends.get() >= appendQueueCapacity) {
+            droppedEvents.incrementAndGet()
+            return false
+        }
         val accepted = queue.offer(Command.Append(draft))
-        if (!accepted) droppedEvents.incrementAndGet()
-        return accepted
+        if (accepted) queuedAppends.incrementAndGet() else droppedEvents.incrementAndGet()
+        accepted
     }
 
     fun flush() {
@@ -116,15 +135,21 @@ class FunctionalEventJournal(
         val categories = FunctionalEventCategory.entries.associateWithTo(mutableMapOf()) { 0L }
         val segments = discoverSegments()
         segments.forEach { segment ->
-            segment.file.useLines { lines ->
-                lines.forEach { line ->
-                    val event = codec.decode(line).event
-                    if (event == null) {
-                        corrupt++
-                    } else {
-                        valid++
-                        categories[event.category] = categories.getValue(event.category) + 1L
-                    }
+            if (
+                segment.validEvents != null && segment.corruptLines != null &&
+                segment.recordedSizeBytes == segment.file.length()
+            ) {
+                valid += segment.validEvents
+                corrupt += segment.corruptLines
+                segment.categoryCounts.forEach { (category, count) ->
+                    categories[category] = categories.getValue(category) + count
+                }
+            } else {
+                val recovered = inspectSegment(segment.file, codec)
+                valid += recovered.validEvents ?: 0L
+                corrupt += recovered.corruptLines ?: 0L
+                recovered.categoryCounts.forEach { (category, count) ->
+                    categories[category] = categories.getValue(category) + count
                 }
             }
         }
@@ -143,11 +168,40 @@ class FunctionalEventJournal(
     )
 
     override fun close() {
-        if (closed) return
-        closed = true
-        submitControl(allowClosed = true) { Command.Stop(it) }
-        worker.join(CLOSE_TIMEOUT_MS)
+        val result = CompletableFuture<Unit>()
+        val startedAt = System.nanoTime()
+        val queued = synchronized(enqueueLock) {
+            if (closed) return
+            closed = true
+            shutdownRequested = true
+            queue.offer(Command.Stop(result))
+        }
+        if (!queued) {
+            recordWriteFailure(TimeoutException("Timed out enqueueing journal shutdown"))
+            worker.interrupt()
+            return
+        }
+        val remainingAfterEnqueue = remainingMillis(startedAt)
+        try {
+            result.get(remainingAfterEnqueue, TimeUnit.MILLISECONDS)
+        } catch (error: java.util.concurrent.ExecutionException) {
+            worker.interrupt()
+            return
+        } catch (error: Exception) {
+            recordWriteFailure(error)
+            worker.interrupt()
+            return
+        }
+        val remainingAfterStop = remainingMillis(startedAt)
+        if (remainingAfterStop > 0L) worker.join(remainingAfterStop)
+        if (worker.isAlive) {
+            recordWriteFailure(TimeoutException("Timed out stopping journal writer"))
+            worker.interrupt()
+        }
     }
+
+    private fun remainingMillis(startedAtNanos: Long): Long =
+        (closeTimeoutMs - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos)).coerceAtLeast(1L)
 
     private fun writerLoop() = runCatching { activeWriterLoop() }
         .onFailure { error ->
@@ -158,10 +212,18 @@ class FunctionalEventJournal(
 
     private fun failedWriterLoop(cause: Throwable) {
         while (true) {
-            when (val command = queue.take()) {
+            val command = queue.poll(250, TimeUnit.MILLISECONDS)
+            if (command == null) {
+                if (shutdownRequested && queue.isEmpty()) return
+                continue
+            }
+            if (command is Command.Append) queuedAppends.decrementAndGet()
+            when (command) {
                 is Command.Append -> recordWriteFailure(cause)
-                is Command.Flush -> command.result.complete(Unit)
-                is Command.Seal -> command.result.complete(FunctionalEventSnapshot(emptyList()))
+                is Command.Flush -> if (!command.result.isCancelled) command.result.complete(Unit)
+                is Command.Seal -> if (!command.result.isCancelled) {
+                    command.result.completeExceptionally(cause)
+                }
                 is Command.Stop -> {
                     command.result.complete(Unit)
                     return
@@ -171,57 +233,118 @@ class FunctionalEventJournal(
     }
 
     private fun activeWriterLoop() {
+        FunctionalEventArchive.recoverInterruptedDelete(root)
         var active = createSegment()
         var count = 0
         var firstSequence: Long? = null
         var lastSequence: Long? = null
-        activeDescriptor = FunctionalEventSegment(active, null, null)
+        var activeNeedsInspection = false
+        val categoryCounts = FunctionalEventCategory.entries.associateWithTo(mutableMapOf()) { 0L }
+        activeDescriptor = FunctionalEventSegment(active, null, null, 0, 0, recordedSizeBytes = 0)
         val allocator = SequenceAllocator(root, sequenceBlockSize, codec)
 
         fun sealActive() {
-            if (count == 0) {
+            if (activeNeedsInspection) {
+                val recovered = resolveSegmentStats(
+                    FunctionalEventSegment(active, null, null),
+                    codec,
+                )
+                if ((recovered.validEvents ?: 0L) + (recovered.corruptLines ?: 0L) == 0L) {
+                    active.delete()
+                } else {
+                    writeSegmentMetadata(
+                        active,
+                        recovered.firstSequence,
+                        recovered.lastSequence,
+                        recovered.validEvents ?: 0L,
+                        recovered.corruptLines ?: 0L,
+                        recovered.categoryCounts,
+                    )
+                }
+            } else if (count == 0) {
                 active.delete()
             } else {
-                writeSegmentMetadata(active, firstSequence, lastSequence)
+                writeSegmentMetadata(active, firstSequence, lastSequence, count.toLong(), 0, categoryCounts)
             }
         }
 
         while (true) {
-            when (val command = queue.take()) {
-                is Command.Append -> runCatching {
-                    beforeWrite()
-                    val event = command.draft.withSequence(allocator.next())
-                    FileOutputStream(active, true).bufferedWriter(StandardCharsets.UTF_8).use { writer ->
-                        writer.append(codec.encode(event)).append('\n')
+            val command = queue.poll(250, TimeUnit.MILLISECONDS)
+            if (command == null) {
+                if (shutdownRequested && queue.isEmpty()) {
+                    sealActive()
+                    return
+                }
+                continue
+            }
+            if (command is Command.Append) queuedAppends.decrementAndGet()
+            when (command) {
+                is Command.Append -> {
+                    val previousLength = active.length()
+                    runCatching {
+                        beforeWrite()
+                        val event = command.draft.withSequence(allocator.next())
+                        FileOutputStream(active, true).bufferedWriter(StandardCharsets.UTF_8).use { writer ->
+                            writer.append(codec.encode(event)).append('\n')
+                        }
+                        if (firstSequence == null) firstSequence = event.sequence
+                        lastSequence = event.sequence
+                        count++
+                        categoryCounts[event.category] = categoryCounts.getValue(event.category) + 1L
+                        activeDescriptor = FunctionalEventSegment(
+                            active, firstSequence, lastSequence, count.toLong(), 0,
+                            categoryCounts.toMap(), active.length(),
+                        )
+                        if (count >= maxEventsPerSegment) {
+                            sealActive()
+                            active = createSegment()
+                            count = 0
+                            firstSequence = null
+                            lastSequence = null
+                            activeNeedsInspection = false
+                            categoryCounts.keys.forEach { categoryCounts[it] = 0L }
+                            activeDescriptor = FunctionalEventSegment(
+                                active, null, null, 0, 0, recordedSizeBytes = 0,
+                            )
+                        }
+                    }.onFailure { error ->
+                        val restored = runCatching {
+                            RandomAccessFile(active, "rw").use { it.setLength(previousLength) }
+                        }.isSuccess
+                        if (!restored) activeNeedsInspection = true
+                        recordWriteFailure(error)
                     }
-                    if (firstSequence == null) firstSequence = event.sequence
-                    lastSequence = event.sequence
-                    activeDescriptor = FunctionalEventSegment(active, firstSequence, lastSequence)
-                    count++
-                    if (count >= maxEventsPerSegment) {
-                        sealActive()
-                        active = createSegment()
-                        count = 0
-                        firstSequence = null
-                        lastSequence = null
-                        activeDescriptor = FunctionalEventSegment(active, null, null)
-                    }
-                }.onFailure(::recordWriteFailure)
-                is Command.Flush -> command.result.complete(Unit)
-                is Command.Seal -> {
+                }
+                is Command.Flush -> if (!command.result.isCancelled) command.result.complete(Unit)
+                is Command.Seal -> if (!command.result.isCancelled) runCatching {
                     sealActive()
                     active = createSegment()
                     count = 0
                     firstSequence = null
                     lastSequence = null
-                    activeDescriptor = FunctionalEventSegment(active, null, null)
-                    command.result.complete(FunctionalEventSnapshot(discoverSegments().filter { it.file != active }))
-                }
-                is Command.Stop -> {
-                    sealActive()
-                    command.result.complete(Unit)
-                    return
-                }
+                    activeNeedsInspection = false
+                    categoryCounts.keys.forEach { categoryCounts[it] = 0L }
+                    activeDescriptor = FunctionalEventSegment(
+                        active, null, null, 0, 0, recordedSizeBytes = 0,
+                    )
+                    FunctionalEventSnapshot(discoverSegments().filter { it.file != active })
+                }.fold(
+                    onSuccess = command.result::complete,
+                    onFailure = { error ->
+                        command.result.completeExceptionally(error)
+                        throw error
+                    },
+                ) else Unit
+                is Command.Stop -> runCatching { sealActive() }.fold(
+                    onSuccess = {
+                        command.result.complete(Unit)
+                        return
+                    },
+                    onFailure = { error ->
+                        command.result.completeExceptionally(error)
+                        throw error
+                    },
+                )
             }
         }
     }
@@ -241,7 +364,18 @@ class FunctionalEventJournal(
         ?.map { file ->
             activeDescriptor?.takeIf { it.file == file } ?: run {
                 val metadata = readSegmentMetadata(file)
-                FunctionalEventSegment(file, metadata?.first, metadata?.second)
+                metadata ?: inspectSegment(file, codec).also { recovered ->
+                    if ((recovered.validEvents ?: 0L) + (recovered.corruptLines ?: 0L) > 0L) {
+                        writeSegmentMetadata(
+                            file,
+                            recovered.firstSequence,
+                            recovered.lastSequence,
+                            recovered.validEvents ?: 0L,
+                            recovered.corruptLines ?: 0,
+                            recovered.categoryCounts,
+                        )
+                    }
+                }
             }
         }
         .orEmpty()
@@ -253,25 +387,40 @@ class FunctionalEventJournal(
             }
         }
 
-    private fun <T> submitControl(
-        allowClosed: Boolean = false,
-        factory: (CompletableFuture<T>) -> Command,
-    ): T {
-        check(allowClosed || !closed) { "Journal is closed" }
+    private fun <T> submitControl(factory: (CompletableFuture<T>) -> Command): T {
         val result = CompletableFuture<T>()
-        queue.put(factory(result))
-        return result.get()
+        val startedAt = System.nanoTime()
+        val accepted = synchronized(enqueueLock) {
+            check(!closed) { "Journal is closed" }
+            queue.offer(factory(result))
+        }
+        if (!accepted) throw RejectedExecutionException("Journal control queue is full")
+        val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+        return try {
+            result.get((controlTimeoutMs - elapsedMs).coerceAtLeast(1L), TimeUnit.MILLISECONDS)
+        } catch (error: TimeoutException) {
+            result.cancel(false)
+            throw error
+        }
     }
 
-    private fun readSegmentMetadata(file: File): Pair<Long, Long>? = runCatching {
+    private fun readSegmentMetadata(file: File): FunctionalEventSegment? = runCatching {
         val json = JSONObject(metadataFile(file).readText())
-        json.getLong("first") to json.getLong("last")
+        val categoryCounts = FunctionalEventCategory.entries.mapNotNull { category ->
+            json.optJSONObject("categoryCounts")?.optLong(category.code, -1L)
+                ?.takeIf { it >= 0L }
+                ?.let { category to it }
+        }.toMap()
+        FunctionalEventSegment(
+            file = file,
+            firstSequence = json.optLong("first").takeIf { json.has("first") },
+            lastSequence = json.optLong("last").takeIf { json.has("last") },
+            validEvents = json.optLong("validEvents", -1L).takeIf { it >= 0L },
+            corruptLines = json.optLong("corruptLines", -1L).takeIf { it >= 0L },
+            categoryCounts = categoryCounts,
+            recordedSizeBytes = json.optLong("sizeBytes", -1L).takeIf { it >= 0L },
+        ).takeIf { it.recordedSizeBytes == file.length() }
     }.getOrNull()
-
-    private fun writeSegmentMetadata(file: File, first: Long?, last: Long?) {
-        if (first == null || last == null) return
-        atomicWrite(metadataFile(file), JSONObject().put("first", first).put("last", last).toString())
-    }
 
     companion object {
         const val DIRECTORY_NAME = "functional-event-journal"
@@ -280,9 +429,50 @@ class FunctionalEventJournal(
         private const val DEFAULT_QUEUE_CAPACITY = 256
         private const val DEFAULT_SEQUENCE_BLOCK_SIZE = 64
         private const val DEFAULT_MAX_EVENTS_PER_SEGMENT = 512
-        private const val CLOSE_TIMEOUT_MS = 5_000L
+        private const val DEFAULT_CLOSE_TIMEOUT_MS = 5_000L
+        private const val DEFAULT_CONTROL_TIMEOUT_MS = 30_000L
+        private const val CONTROL_QUEUE_RESERVE = 8
 
         internal fun metadataFile(segment: File): File = File(segment.parentFile, "${segment.name}.meta")
+
+        internal fun writeSegmentMetadata(
+            file: File,
+            first: Long?,
+            last: Long?,
+            validEvents: Long,
+            corruptLines: Long,
+            categoryCounts: Map<FunctionalEventCategory, Long>,
+        ) {
+            atomicWrite(
+                metadataFile(file),
+                segmentMetadataJson(
+                    first, last, validEvents, corruptLines, categoryCounts, file.length(),
+                ),
+            )
+        }
+
+        internal fun segmentMetadataJson(
+            first: Long?,
+            last: Long?,
+            validEvents: Long,
+            corruptLines: Long,
+            categoryCounts: Map<FunctionalEventCategory, Long>,
+            sizeBytes: Long,
+        ): String = JSONObject()
+                .putOpt("first", first)
+                .putOpt("last", last)
+                .put("validEvents", validEvents)
+                .put("corruptLines", corruptLines)
+                .put("sizeBytes", sizeBytes)
+                .put(
+                    "categoryCounts",
+                    JSONObject().also { counts ->
+                        categoryCounts.filterValues { it > 0L }.forEach { (category, count) ->
+                            counts.put(category.code, count)
+                        }
+                    },
+                )
+                .toString()
 
         internal fun atomicWrite(target: File, content: String) {
             target.parentFile?.mkdirs()
@@ -292,13 +482,58 @@ class FunctionalEventJournal(
                 output.fd.sync()
             }
             try {
+                moveReplacingAtomically(temporary, target)
+            } catch (error: Throwable) {
+                temporary.delete()
+                throw error
+            }
+        }
+
+        internal fun moveReplacingAtomically(source: File, target: File) {
+            try {
                 Files.move(
-                    temporary.toPath(), target.toPath(),
+                    source.toPath(), target.toPath(),
                     StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
                 )
             } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                Files.move(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
+        }
+
+        internal fun resolveSegmentStats(
+            segment: FunctionalEventSegment,
+            codec: FunctionalEventCodec,
+        ): FunctionalEventSegment = if (
+            segment.validEvents != null && segment.corruptLines != null &&
+            segment.recordedSizeBytes == segment.file.length()
+        ) {
+            segment
+        } else {
+            inspectSegment(segment.file, codec)
+        }
+
+        private fun inspectSegment(file: File, codec: FunctionalEventCodec): FunctionalEventSegment {
+            var first: Long? = null
+            var last: Long? = null
+            var valid = 0L
+            var corrupt = 0L
+            val categories = FunctionalEventCategory.entries.associateWithTo(mutableMapOf()) { 0L }
+            file.useLines { lines ->
+                lines.forEach { line ->
+                    val event = codec.decode(line).event
+                    if (event == null) {
+                        corrupt++
+                    } else {
+                        first = minOf(first ?: event.sequence, event.sequence)
+                        last = maxOf(last ?: event.sequence, event.sequence)
+                        valid++
+                        categories[event.category] = categories.getValue(event.category) + 1L
+                    }
+                }
+            }
+            return FunctionalEventSegment(
+                file, first, last, valid, corrupt, categories.filterValues { it > 0 }, file.length(),
+            )
         }
 
         internal fun reverseLines(file: File): Sequence<String> = sequence {

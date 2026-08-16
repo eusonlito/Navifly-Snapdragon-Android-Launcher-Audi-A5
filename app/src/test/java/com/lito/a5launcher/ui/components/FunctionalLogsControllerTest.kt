@@ -62,6 +62,34 @@ class FunctionalLogsControllerTest {
         controller.retry()
         assertEquals(listOf(2L, 1L), controller.state.value.events.map { it.sequence })
         assertNull(controller.state.value.loadError)
+        assertEquals(listOf(null, 2L, 2L), repository.requestedCursors)
+    }
+
+    @Test
+    fun `deep paging keeps a bounded event window`() = runBlocking {
+        val repository = FakeRepository(
+            pages = mutableListOf(
+                FunctionalEventPage(listOf(event(5), event(4)), 4),
+                FunctionalEventPage(listOf(event(3), event(2)), 2),
+                FunctionalEventPage(listOf(event(1)), null),
+            ),
+        )
+        val controller = FunctionalLogsController(
+            repository,
+            Dispatchers.Unconfined,
+            maxRetainedEvents = 3,
+        )
+
+        controller.refresh()
+        controller.toggleExpanded(5)
+        controller.loadNextPage()
+        controller.loadNextPage()
+
+        assertEquals(listOf(5L, 4L, 3L), controller.state.value.events.map { it.sequence })
+        assertEquals(setOf(5L), controller.state.value.expandedSequences)
+        assertTrue(controller.state.value.endReached)
+        assertTrue(controller.state.value.displayLimitReached)
+        assertEquals(2, repository.pageCalls)
     }
 
     @Test
@@ -108,6 +136,22 @@ class FunctionalLogsControllerTest {
     }
 
     @Test
+    fun `failed export closes destination and reports action error`() = runBlocking {
+        val repository = FakeRepository().apply {
+            exportError = IllegalStateException("destination failed")
+        }
+        val controller = FunctionalLogsController(repository, Dispatchers.Unconfined)
+        val output = TrackingOutputStream()
+
+        assertEquals(FunctionalLogsExportResult.FAILED, controller.export(output))
+
+        assertTrue(output.closed)
+        assertEquals("destination failed", controller.state.value.actionError)
+        assertNull(controller.state.value.loadError)
+        assertEquals(FunctionalLogsOperation.IDLE, controller.state.value.operation)
+    }
+
+    @Test
     fun `delete scope uses category count and refreshes the chronology`() = runBlocking {
         val repository = FakeRepository(
             pages = mutableListOf(FunctionalEventPage(listOf(event(2), event(1)), null)),
@@ -119,13 +163,6 @@ class FunctionalLogsControllerTest {
         }
         val controller = FunctionalLogsController(repository, Dispatchers.Unconfined)
         controller.refresh()
-        assertEquals(
-            2L,
-            controller.affectedCount(
-                FunctionalLogsDeleteScope.Category(FunctionalEventCategory.TRIP_SESSION),
-            ),
-        )
-
         repository.pages.clear()
         repository.pages += FunctionalEventPage(emptyList(), null)
         val deleted = controller.delete(
@@ -148,10 +185,12 @@ class FunctionalLogsControllerTest {
         )
         var stats = FunctionalEventJournalStats(0, 0, 0, emptyMap())
         var pageCalls = 0
+        val requestedCursors = mutableListOf<Long?>()
         var statsCalls = 0
         var exportCalls = 0
         var pageError: Throwable? = null
         var settingsError: Throwable? = null
+        var exportError: Throwable? = null
 
         override fun settings(): FunctionalEventSettingsSnapshot = settings
 
@@ -169,6 +208,7 @@ class FunctionalLogsControllerTest {
 
         override fun page(beforeSequence: Long?, limit: Int): FunctionalEventPage {
             pageCalls++
+            requestedCursors += beforeSequence
             pageError?.let { throw it }
             return pages.removeFirst()
         }
@@ -182,6 +222,7 @@ class FunctionalLogsControllerTest {
 
         override fun export(output: OutputStream): FunctionalEventArchiveManifest {
             exportCalls++
+            exportError?.let { throw it }
             return FunctionalEventArchiveManifest(1, stats.validEvents, 0, 0, 0)
         }
 
@@ -193,6 +234,12 @@ class FunctionalLogsControllerTest {
             stats = FunctionalEventJournalStats(0, 0, 0, emptyMap())
             return count
         }
+    }
+
+    private class TrackingOutputStream : OutputStream() {
+        var closed = false
+        override fun write(value: Int) = Unit
+        override fun close() { closed = true }
     }
 
     private fun event(sequence: Long) = FunctionalEvent(
