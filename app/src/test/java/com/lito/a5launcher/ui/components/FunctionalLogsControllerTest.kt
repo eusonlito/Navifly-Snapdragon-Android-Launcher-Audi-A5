@@ -174,6 +174,27 @@ class FunctionalLogsControllerTest {
         assertEquals(FunctionalLogsOperation.IDLE, controller.state.value.operation)
     }
 
+    @Test
+    fun `deleting one event removes only that row and refreshes stats`() = runBlocking {
+        val repository = FakeRepository(
+            pages = mutableListOf(FunctionalEventPage(listOf(event(3), event(2), event(1)), null)),
+        ).apply {
+            stats = stats.copy(validEvents = 3)
+        }
+        val controller = FunctionalLogsController(repository, Dispatchers.Unconfined)
+        controller.refresh()
+        repository.pages.clear()
+        repository.pages += FunctionalEventPage(listOf(event(3), event(1)), null)
+
+        val deleted = controller.delete(FunctionalLogsDeleteScope.Event(sequence = 2L))
+
+        assertEquals(1L, deleted)
+        assertEquals(listOf(3L, 1L), controller.state.value.events.map { it.sequence })
+        assertEquals(2L, controller.state.value.stats.validEvents)
+        assertEquals(FunctionalLogsDeleteScope.Event(2L), repository.lastDeleteScope)
+        assertEquals(FunctionalLogsOperation.IDLE, controller.state.value.operation)
+    }
+
     private class FakeRepository(
         val pages: MutableList<FunctionalEventPage> = mutableListOf(
             FunctionalEventPage(emptyList(), null),
@@ -191,6 +212,7 @@ class FunctionalLogsControllerTest {
         var pageError: Throwable? = null
         var settingsError: Throwable? = null
         var exportError: Throwable? = null
+        var lastDeleteScope: FunctionalLogsDeleteScope? = null
 
         override fun settings(): FunctionalEventSettingsSnapshot = settings
 
@@ -227,11 +249,22 @@ class FunctionalLogsControllerTest {
         }
 
         override fun delete(scope: FunctionalLogsDeleteScope): Long {
+            lastDeleteScope = scope
             val count = when (scope) {
                 FunctionalLogsDeleteScope.All -> stats.validEvents
                 is FunctionalLogsDeleteScope.Category -> stats.categoryCounts[scope.category] ?: 0
+                is FunctionalLogsDeleteScope.Event -> 1L
             }
-            stats = FunctionalEventJournalStats(0, 0, 0, emptyMap())
+            stats = when (scope) {
+                FunctionalLogsDeleteScope.All -> FunctionalEventJournalStats(0, 0, 0, emptyMap())
+                is FunctionalLogsDeleteScope.Category -> stats.copy(
+                    validEvents = (stats.validEvents - count).coerceAtLeast(0),
+                    categoryCounts = stats.categoryCounts - scope.category,
+                )
+                is FunctionalLogsDeleteScope.Event -> stats.copy(
+                    validEvents = (stats.validEvents - count).coerceAtLeast(0),
+                )
+            }
             return count
         }
     }

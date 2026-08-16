@@ -163,6 +163,7 @@
     <string name="poi_import_failed">The selected file could not be imported.</string>
     <string name="functional_logs_capture">Capture</string>
     <string name="functional_logs_enabled">Enabled</string>
+    <string name="functional_logs_disabled">Disabled</string>
     <string name="functional_logs_categories">Categories</string>
     <string name="functional_logs_records">Records</string>
     <string name="functional_logs_stats">%1$d records · %2$s</string>
@@ -170,6 +171,8 @@
     <string name="functional_logs_last_error">Last error: %1$s</string>
     <string name="functional_logs_export_all">Download All</string>
     <string name="functional_logs_delete">Delete</string>
+    <string name="functional_logs_delete_event">Delete Record</string>
+    <string name="functional_logs_delete_event_confirm">Delete this record?</string>
     <string name="functional_logs_delete_all">All Records</string>
     <string name="functional_logs_delete_scope_title">What do you want to delete?</string>
     <string name="functional_logs_delete_continue">Continue</string>

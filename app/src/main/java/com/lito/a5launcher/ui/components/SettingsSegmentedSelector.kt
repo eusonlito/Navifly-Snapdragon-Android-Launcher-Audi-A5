@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -55,12 +58,39 @@ internal object SettingsDimensions {
 }
 
 @Composable
+internal fun SettingsCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(SettingsPalette.Card)
+            .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        content = content,
+    )
+}
+
+@Composable
+internal fun SettingsSectionTitle(text: String) {
+    val locale = LocalConfiguration.current.locales[0]
+    Text(
+        text.uppercase(locale),
+        color = SettingsPalette.Text,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Black,
+    )
+}
+
+@Composable
 internal fun <T> SettingsSegmentedSelector(
     options: List<T>,
     selected: T,
     label: (T) -> String,
     controlHeight: Dp,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onSelected: (T) -> Unit,
 ) {
     if (options.isEmpty()) return
@@ -72,6 +102,7 @@ internal fun <T> SettingsSegmentedSelector(
         modifier
             .fillMaxWidth()
             .height(controlHeight)
+            .alpha(if (enabled) 1f else .45f)
             .clip(shape)
             .background(SettingsPalette.Control)
             .border(1.dp, SettingsPalette.Border, shape),
@@ -104,6 +135,7 @@ internal fun <T> SettingsSegmentedSelector(
                         .fillMaxHeight()
                         .selectable(
                             selected = isSelected,
+                            enabled = enabled,
                             role = Role.RadioButton,
                             onClick = { if (!isSelected) onSelected(option) },
                         ),

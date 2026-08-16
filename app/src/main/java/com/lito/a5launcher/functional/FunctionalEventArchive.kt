@@ -36,7 +36,7 @@ object FunctionalEventArchive {
         val hadOriginal: Boolean,
     )
 
-    private data class CategoryStage(
+    private data class RewriteStage(
         val segment: FunctionalEventSegment,
         val token: String,
         val stagedSegment: File,
@@ -63,6 +63,33 @@ object FunctionalEventArchive {
         snapshot: FunctionalEventSnapshot,
         category: FunctionalEventCategory,
         codec: FunctionalEventCodec,
+    ): FunctionalEventDeleteResult = deleteMatching(
+        snapshot = snapshot,
+        codec = codec,
+        shouldRewrite = { segment -> (segment.categoryCounts[category] ?: 0L) > 0L },
+        shouldDelete = { event -> event.category == category },
+    )
+
+    fun deleteEvent(
+        snapshot: FunctionalEventSnapshot,
+        sequence: Long,
+        codec: FunctionalEventCodec,
+    ): FunctionalEventDeleteResult = deleteMatching(
+        snapshot = snapshot,
+        codec = codec,
+        shouldRewrite = { segment ->
+            val first = segment.firstSequence
+            val last = segment.lastSequence
+            first == null || last == null || sequence in first..last
+        },
+        shouldDelete = { event -> event.sequence == sequence },
+    )
+
+    private fun deleteMatching(
+        snapshot: FunctionalEventSnapshot,
+        codec: FunctionalEventCodec,
+        shouldRewrite: (FunctionalEventSegment) -> Boolean,
+        shouldDelete: (FunctionalEvent) -> Boolean,
     ): FunctionalEventDeleteResult = synchronized(bulkLock) {
         val root = snapshot.segments.firstOrNull()?.file?.parentFile
             ?: return@synchronized FunctionalEventDeleteResult(0, 0, 0)
@@ -75,14 +102,15 @@ object FunctionalEventArchive {
         val resolvedSegments = snapshot.segments.filter { it.file.isFile }.map { segment ->
             FunctionalEventJournal.resolveSegmentStats(segment, codec)
         }
-        resolvedSegments.filter { (it.categoryCounts[category] ?: 0L) == 0L }.forEach { segment ->
+        val (stagesToRewrite, preservedSegments) = resolvedSegments.partition(shouldRewrite)
+        preservedSegments.forEach { segment ->
             preserved += segment.validEvents ?: 0L
             corrupt += segment.corruptLines ?: 0L
         }
-        val stages = resolvedSegments.filter { (it.categoryCounts[category] ?: 0L) > 0L }.map { segment ->
+        val stages = stagesToRewrite.map { segment ->
             val token = UUID.randomUUID().toString()
             val metadata = FunctionalEventJournal.metadataFile(segment.file)
-            CategoryStage(
+            RewriteStage(
                 segment = segment,
                 token = token,
                 stagedSegment = File(root, ".delete-stage-$token-${segment.file.name}"),
@@ -126,7 +154,7 @@ object FunctionalEventArchive {
                                     segmentCorrupt++
                                     output.append(line).append('\n')
                                 }
-                                event.category == category -> deleted++
+                                shouldDelete(event) -> deleted++
                                 else -> {
                                     preserved++
                                     segmentValid++

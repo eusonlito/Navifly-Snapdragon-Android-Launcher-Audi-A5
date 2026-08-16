@@ -2412,32 +2412,6 @@ private fun <T> SegmentedSettingsSelector(
 )
 
 @Composable
-private fun SettingsCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(SettingsPalette.Card)
-            .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        content = content,
-    )
-}
-
-@Composable
-private fun SettingsSectionTitle(text: String) {
-    val locale = LocalConfiguration.current.locales[0]
-    Text(
-        text.uppercase(locale),
-        color = SettingsPalette.Text,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Black,
-    )
-}
-
-@Composable
 private fun SettingsInlineValue(
     label: String,
     value: String,

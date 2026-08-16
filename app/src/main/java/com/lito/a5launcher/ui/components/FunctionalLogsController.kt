@@ -24,6 +24,7 @@ import java.io.OutputStream
 internal sealed interface FunctionalLogsDeleteScope {
     data object All : FunctionalLogsDeleteScope
     data class Category(val category: FunctionalEventCategory) : FunctionalLogsDeleteScope
+    data class Event(val sequence: Long) : FunctionalLogsDeleteScope
 }
 
 internal enum class FunctionalLogsOperation { IDLE, EXPORTING, DELETING }
@@ -89,6 +90,11 @@ internal class JournalFunctionalLogsRepository(
             is FunctionalLogsDeleteScope.Category -> FunctionalEventArchive.deleteCategory(
                 snapshot,
                 scope.category,
+                codec,
+            ).deletedEvents
+            is FunctionalLogsDeleteScope.Event -> FunctionalEventArchive.deleteEvent(
+                snapshot,
+                scope.sequence,
                 codec,
             ).deletedEvents
         }

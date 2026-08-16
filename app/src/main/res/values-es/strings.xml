@@ -162,6 +162,7 @@
     <string name="poi_import_failed">No se ha podido importar el fichero seleccionado.</string>
     <string name="functional_logs_capture">Captura</string>
     <string name="functional_logs_enabled">Activada</string>
+    <string name="functional_logs_disabled">Desactivada</string>
     <string name="functional_logs_categories">Categorías</string>
     <string name="functional_logs_records">Registros</string>
     <string name="functional_logs_stats">%1$d registros · %2$s</string>
@@ -169,6 +170,8 @@
     <string name="functional_logs_last_error">Último error: %1$s</string>
     <string name="functional_logs_export_all">Descargar Todo</string>
     <string name="functional_logs_delete">Borrar</string>
+    <string name="functional_logs_delete_event">Borrar Registro</string>
+    <string name="functional_logs_delete_event_confirm">¿Borrar este registro?</string>
     <string name="functional_logs_delete_all">Todos los Registros</string>
     <string name="functional_logs_delete_scope_title">¿Qué quieres borrar?</string>
     <string name="functional_logs_delete_continue">Continuar</string>
