@@ -372,10 +372,9 @@ más recientes en una apertura del panel, sin recortar lo almacenado; la descarg
 siempre incluye el diario completo. Los recuentos se agregan desde metadatos
 por segmento; si un apagado deja un segmento sin ellos, se reconstruyen al
 primer acceso. La descarga solicita un destino SAF y genera un ZIP de todos los
-segmentos sin eliminar los originales. El borrado puede afectar a un registro
-concreto, a una categoría o al diario completo, siempre requiere confirmación y
-utiliza una transacción recuperable para no dejar cambios parciales si el
-proceso se interrumpe.
+segmentos sin eliminar los originales. El borrado puede afectar a una categoría
+o al diario completo, siempre requiere confirmación y utiliza una transacción
+recuperable para no dejar cambios parciales si el proceso se interrumpe.
 
 Este diario es deliberadamente independiente de:
 
@@ -384,8 +383,8 @@ Este diario es deliberadamente independiente de:
 - la captura exhaustiva del proyecto `a5-logger`.
 
 Por tanto, no registra muestras repetidas, POI, conectividad ordinaria ni
-actualizaciones de la aplicación. Un error o una línea dañada queda reflejado en
-las estadísticas del panel y no detiene el procesamiento de telemetría.
+actualizaciones de la aplicación. Un error o una línea dañada se conserva en el
+diagnóstico interno y no detiene el procesamiento de telemetría.
 
 ### Logger exhaustivo independiente
 

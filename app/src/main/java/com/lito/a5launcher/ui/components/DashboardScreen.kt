@@ -2378,12 +2378,9 @@ private fun PoiItemRow(label: String, onDelete: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            stringResource(R.string.poi_delete),
-            color = SLineRed,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.clickable(onClick = onDelete).padding(5.dp),
+        SettingsDeleteIconButton(
+            contentDescription = stringResource(R.string.poi_delete),
+            onClick = onDelete,
         )
     }
 }

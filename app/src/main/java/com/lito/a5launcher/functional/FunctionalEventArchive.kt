@@ -70,21 +70,6 @@ object FunctionalEventArchive {
         shouldDelete = { event -> event.category == category },
     )
 
-    fun deleteEvent(
-        snapshot: FunctionalEventSnapshot,
-        sequence: Long,
-        codec: FunctionalEventCodec,
-    ): FunctionalEventDeleteResult = deleteMatching(
-        snapshot = snapshot,
-        codec = codec,
-        shouldRewrite = { segment ->
-            val first = segment.firstSequence
-            val last = segment.lastSequence
-            first == null || last == null || sequence in first..last
-        },
-        shouldDelete = { event -> event.sequence == sequence },
-    )
-
     private fun deleteMatching(
         snapshot: FunctionalEventSnapshot,
         codec: FunctionalEventCodec,

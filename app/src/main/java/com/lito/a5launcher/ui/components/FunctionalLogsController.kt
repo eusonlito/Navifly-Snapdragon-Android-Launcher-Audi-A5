@@ -7,7 +7,6 @@ import com.lito.a5launcher.functional.FunctionalEventCategory
 import com.lito.a5launcher.functional.FunctionalEventCodec
 import com.lito.a5launcher.functional.FunctionalEventJournal
 import com.lito.a5launcher.functional.FunctionalEventJournalStats
-import com.lito.a5launcher.functional.FunctionalEventOperationalState
 import com.lito.a5launcher.functional.FunctionalEventPage
 import com.lito.a5launcher.functional.FunctionalEventSettings
 import com.lito.a5launcher.functional.FunctionalEventSettingsSnapshot
@@ -24,7 +23,6 @@ import java.io.OutputStream
 internal sealed interface FunctionalLogsDeleteScope {
     data object All : FunctionalLogsDeleteScope
     data class Category(val category: FunctionalEventCategory) : FunctionalLogsDeleteScope
-    data class Event(val sequence: Long) : FunctionalLogsDeleteScope
 }
 
 internal enum class FunctionalLogsOperation { IDLE, EXPORTING, DELETING }
@@ -40,7 +38,6 @@ internal data class FunctionalLogsUiState(
     val nextBeforeSequence: Long? = null,
     val expandedSequences: Set<Long> = emptySet(),
     val stats: FunctionalEventJournalStats = FunctionalEventJournalStats(0, 0, 0),
-    val operational: FunctionalEventOperationalState = FunctionalEventOperationalState(0, 0, null),
     val initialLoading: Boolean = true,
     val pageLoading: Boolean = false,
     val endReached: Boolean = false,
@@ -56,7 +53,6 @@ internal interface FunctionalLogsRepository {
     fun setCategoryEnabled(category: FunctionalEventCategory, enabled: Boolean)
     fun page(beforeSequence: Long?, limit: Int): FunctionalEventPage
     fun stats(): FunctionalEventJournalStats
-    fun operationalState(): FunctionalEventOperationalState
     fun export(output: OutputStream): FunctionalEventArchiveManifest
     fun delete(scope: FunctionalLogsDeleteScope): Long
 }
@@ -78,8 +74,6 @@ internal class JournalFunctionalLogsRepository(
 
     override fun stats(): FunctionalEventJournalStats = journal.stats()
 
-    override fun operationalState(): FunctionalEventOperationalState = journal.operationalState()
-
     override fun export(output: OutputStream): FunctionalEventArchiveManifest =
         FunctionalEventArchive.export(journal.sealSnapshot(), output)
 
@@ -90,11 +84,6 @@ internal class JournalFunctionalLogsRepository(
             is FunctionalLogsDeleteScope.Category -> FunctionalEventArchive.deleteCategory(
                 snapshot,
                 scope.category,
-                codec,
-            ).deletedEvents
-            is FunctionalLogsDeleteScope.Event -> FunctionalEventArchive.deleteEvent(
-                snapshot,
-                scope.sequence,
                 codec,
             ).deletedEvents
         }
@@ -121,7 +110,6 @@ internal class FunctionalLogsController(
                     settings = repository.settings(),
                     page = page,
                     stats = repository.stats(),
-                    operational = repository.operationalState(),
                 )
             }
         }.onSuccess { result ->
@@ -135,7 +123,6 @@ internal class FunctionalLogsController(
                     initialEvents.mapTo(mutableSetOf(), FunctionalEvent::sequence),
                 ),
                 stats = result.stats,
-                operational = result.operational,
                 initialLoading = false,
                 pageLoading = false,
                 endReached = reachedWindowLimit || result.page.nextBeforeSequence == null,
@@ -158,16 +145,13 @@ internal class FunctionalLogsController(
         _state.value = current.copy(pageLoading = true, loadError = null)
         runCatching {
             withContext(ioDispatcher) {
-                PageResult(
-                    page = repository.page(cursor, PAGE_SIZE),
-                    operational = repository.operationalState(),
-                )
+                repository.page(cursor, PAGE_SIZE)
             }
-        }.onSuccess { result ->
+        }.onSuccess { page ->
             val existing = _state.value.events
             val knownSequences = existing.mapTo(mutableSetOf(), FunctionalEvent::sequence)
             val remainingCapacity = (maxRetainedEvents - existing.size).coerceAtLeast(0)
-            val novelEvents = result.page.events.asSequence()
+            val novelEvents = page.events.asSequence()
                 .filter { knownSequences.add(it.sequence) }
                 .take(remainingCapacity)
                 .toList()
@@ -179,11 +163,10 @@ internal class FunctionalLogsController(
                 expandedSequences = _state.value.expandedSequences.intersect(
                     retainedSequences,
                 ),
-                nextBeforeSequence = result.page.nextBeforeSequence.takeUnless { reachedWindowLimit },
-                operational = result.operational,
+                nextBeforeSequence = page.nextBeforeSequence.takeUnless { reachedWindowLimit },
                 pageLoading = false,
-                endReached = reachedWindowLimit || result.page.nextBeforeSequence == null,
-                displayLimitReached = reachedWindowLimit && result.page.nextBeforeSequence != null,
+                endReached = reachedWindowLimit || page.nextBeforeSequence == null,
+                displayLimitReached = reachedWindowLimit && page.nextBeforeSequence != null,
                 loadError = null,
             )
         }.onFailure { error ->
@@ -198,27 +181,26 @@ internal class FunctionalLogsController(
         if (_state.value.events.isEmpty()) refresh() else loadNextPage()
     }
 
-    suspend fun setGlobalEnabled(enabled: Boolean) {
-        runCatching {
-            withContext(ioDispatcher) {
-                repository.setGlobalEnabled(enabled)
-                repository.settings()
-            }
-        }.onSuccess { settings ->
-            _state.value = _state.value.copy(settings = settings, actionError = null)
-        }.onFailure(::recordActionError)
-    }
+    suspend fun setGlobalEnabled(enabled: Boolean): Boolean = runCatching {
+        withContext(ioDispatcher) {
+            repository.setGlobalEnabled(enabled)
+            repository.settings()
+        }
+    }.onSuccess { settings ->
+        _state.value = _state.value.copy(settings = settings, actionError = null)
+    }.onFailure(::recordActionError).isSuccess
 
-    suspend fun setCategoryEnabled(category: FunctionalEventCategory, enabled: Boolean) {
-        runCatching {
-            withContext(ioDispatcher) {
-                repository.setCategoryEnabled(category, enabled)
-                repository.settings()
-            }
-        }.onSuccess { settings ->
-            _state.value = _state.value.copy(settings = settings, actionError = null)
-        }.onFailure(::recordActionError)
-    }
+    suspend fun setCategoryEnabled(
+        category: FunctionalEventCategory,
+        enabled: Boolean,
+    ): Boolean = runCatching {
+        withContext(ioDispatcher) {
+            repository.setCategoryEnabled(category, enabled)
+            repository.settings()
+        }
+    }.onSuccess { settings ->
+        _state.value = _state.value.copy(settings = settings, actionError = null)
+    }.onFailure(::recordActionError).isSuccess
 
     fun toggleExpanded(sequence: Long) {
         val expanded = _state.value.expandedSequences
@@ -281,12 +263,6 @@ internal class FunctionalLogsController(
         val settings: FunctionalEventSettingsSnapshot,
         val page: FunctionalEventPage,
         val stats: FunctionalEventJournalStats,
-        val operational: FunctionalEventOperationalState,
-    )
-
-    private data class PageResult(
-        val page: FunctionalEventPage,
-        val operational: FunctionalEventOperationalState,
     )
 
     private companion object {

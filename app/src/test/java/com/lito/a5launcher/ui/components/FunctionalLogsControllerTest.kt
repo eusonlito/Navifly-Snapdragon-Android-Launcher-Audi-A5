@@ -4,7 +4,6 @@ import com.lito.a5launcher.functional.FunctionalEvent
 import com.lito.a5launcher.functional.FunctionalEventArchiveManifest
 import com.lito.a5launcher.functional.FunctionalEventCategory
 import com.lito.a5launcher.functional.FunctionalEventJournalStats
-import com.lito.a5launcher.functional.FunctionalEventOperationalState
 import com.lito.a5launcher.functional.FunctionalEventPage
 import com.lito.a5launcher.functional.FunctionalEventSettingsSnapshot
 import com.lito.a5launcher.functional.FunctionalEventSource
@@ -113,8 +112,9 @@ class FunctionalLogsControllerTest {
         controller.refresh()
         repository.settingsError = IllegalStateException("settings failed")
 
-        controller.setGlobalEnabled(true)
+        val saved = controller.setGlobalEnabled(true)
 
+        assertFalse(saved)
         assertEquals("settings failed", controller.state.value.actionError)
         assertNull(controller.state.value.loadError)
     }
@@ -171,27 +171,29 @@ class FunctionalLogsControllerTest {
 
         assertEquals(2L, deleted)
         assertTrue(controller.state.value.events.isEmpty())
+        assertEquals(
+            FunctionalLogsDeleteScope.Category(FunctionalEventCategory.TRIP_SESSION),
+            repository.lastDeleteScope,
+        )
         assertEquals(FunctionalLogsOperation.IDLE, controller.state.value.operation)
     }
 
     @Test
-    fun `deleting one event removes only that row and refreshes stats`() = runBlocking {
+    fun `delete all refreshes the chronology and returns to idle`() = runBlocking {
         val repository = FakeRepository(
-            pages = mutableListOf(FunctionalEventPage(listOf(event(3), event(2), event(1)), null)),
-        ).apply {
-            stats = stats.copy(validEvents = 3)
-        }
+            pages = mutableListOf(FunctionalEventPage(listOf(event(2), event(1)), null)),
+        ).apply { stats = stats.copy(validEvents = 2) }
         val controller = FunctionalLogsController(repository, Dispatchers.Unconfined)
         controller.refresh()
         repository.pages.clear()
-        repository.pages += FunctionalEventPage(listOf(event(3), event(1)), null)
+        repository.pages += FunctionalEventPage(emptyList(), null)
 
-        val deleted = controller.delete(FunctionalLogsDeleteScope.Event(sequence = 2L))
+        val deleted = controller.delete(FunctionalLogsDeleteScope.All)
 
-        assertEquals(1L, deleted)
-        assertEquals(listOf(3L, 1L), controller.state.value.events.map { it.sequence })
-        assertEquals(2L, controller.state.value.stats.validEvents)
-        assertEquals(FunctionalLogsDeleteScope.Event(2L), repository.lastDeleteScope)
+        assertEquals(2L, deleted)
+        assertEquals(FunctionalLogsDeleteScope.All, repository.lastDeleteScope)
+        assertTrue(controller.state.value.events.isEmpty())
+        assertEquals(0L, controller.state.value.stats.validEvents)
         assertEquals(FunctionalLogsOperation.IDLE, controller.state.value.operation)
     }
 
@@ -240,8 +242,6 @@ class FunctionalLogsControllerTest {
             return stats
         }
 
-        override fun operationalState() = FunctionalEventOperationalState(0, 0, null)
-
         override fun export(output: OutputStream): FunctionalEventArchiveManifest {
             exportCalls++
             exportError?.let { throw it }
@@ -253,16 +253,12 @@ class FunctionalLogsControllerTest {
             val count = when (scope) {
                 FunctionalLogsDeleteScope.All -> stats.validEvents
                 is FunctionalLogsDeleteScope.Category -> stats.categoryCounts[scope.category] ?: 0
-                is FunctionalLogsDeleteScope.Event -> 1L
             }
             stats = when (scope) {
                 FunctionalLogsDeleteScope.All -> FunctionalEventJournalStats(0, 0, 0, emptyMap())
                 is FunctionalLogsDeleteScope.Category -> stats.copy(
                     validEvents = (stats.validEvents - count).coerceAtLeast(0),
                     categoryCounts = stats.categoryCounts - scope.category,
-                )
-                is FunctionalLogsDeleteScope.Event -> stats.copy(
-                    validEvents = (stats.validEvents - count).coerceAtLeast(0),
                 )
             }
             return count

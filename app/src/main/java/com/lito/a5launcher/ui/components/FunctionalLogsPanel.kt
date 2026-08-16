@@ -15,11 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,8 +65,8 @@ internal data class FunctionalLogsActions(
     val loadMore: () -> Unit,
     val retry: () -> Unit,
     val exportAll: () -> Unit,
-    val selectDeleteScope: () -> Unit,
-    val selectEventForDeletion: (Long) -> Unit,
+    val selectAllForDeletion: () -> Unit,
+    val selectCategoryForDeletion: (FunctionalEventCategory) -> Unit,
 )
 
 @Composable
@@ -96,11 +93,7 @@ internal fun FunctionalLogsPanel(
     }
     val state by controller.state.collectAsStateWithLifecycle()
     var notice by remember { mutableStateOf<FloatingNotification?>(null) }
-    var selectingDeleteScope by remember { mutableStateOf(false) }
-    var selectedDeleteScope by remember {
-        mutableStateOf<FunctionalLogsDeleteScope>(FunctionalLogsDeleteScope.All)
-    }
-    var confirmingDelete by remember { mutableStateOf(false) }
+    var pendingDeleteScope by remember { mutableStateOf<FunctionalLogsDeleteScope?>(null) }
 
     LaunchedEffect(controller) { controller.refresh() }
     LaunchedEffect(notice) {
@@ -141,39 +134,17 @@ internal fun FunctionalLogsPanel(
         }
     }
 
-    if (selectingDeleteScope) {
-        FunctionalLogsDeleteScopeDialog(
-            selected = selectedDeleteScope,
-            onSelected = { selectedDeleteScope = it },
-            onDismiss = { selectingDeleteScope = false },
-            onContinue = {
-                selectingDeleteScope = false
-                confirmingDelete = true
-            },
-        )
-    }
-    if (confirmingDelete) {
+    pendingDeleteScope?.let { deleteScope ->
         AlertDialog(
-            onDismissRequest = { confirmingDelete = false },
+            onDismissRequest = { pendingDeleteScope = null },
             title = { Text(stringResource(R.string.functional_logs_delete_confirm_title)) },
-            text = {
-                Text(
-                    if (selectedDeleteScope is FunctionalLogsDeleteScope.Event) {
-                        stringResource(R.string.functional_logs_delete_event_confirm)
-                    } else {
-                        stringResource(
-                            R.string.functional_logs_delete_confirm,
-                            deleteScopeLabel(selectedDeleteScope),
-                        )
-                    },
-                )
-            },
+            text = { Text(deleteConfirmationMessage(deleteScope)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        confirmingDelete = false
+                        pendingDeleteScope = null
                         scope.launch {
-                            val deleted = controller.delete(selectedDeleteScope)
+                            val deleted = controller.delete(deleteScope)
                             notice = if (deleted != null) {
                                 FloatingNotification(
                                     resources.getString(R.string.functional_logs_deleted, deleted),
@@ -195,7 +166,7 @@ internal fun FunctionalLogsPanel(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmingDelete = false }) {
+                TextButton(onClick = { pendingDeleteScope = null }) {
                     Text(stringResource(R.string.functional_logs_delete_cancel))
                 }
             },
@@ -204,9 +175,25 @@ internal fun FunctionalLogsPanel(
 
     val busy = state.operation != FunctionalLogsOperation.IDLE
     val actions = FunctionalLogsActions(
-        setGlobalEnabled = { enabled -> scope.launch { controller.setGlobalEnabled(enabled) } },
+        setGlobalEnabled = { enabled ->
+            scope.launch {
+                if (!controller.setGlobalEnabled(enabled)) {
+                    notice = FloatingNotification(
+                        resources.getString(R.string.functional_logs_settings_failed),
+                        FloatingNotificationTone.ERROR,
+                    )
+                }
+            }
+        },
         setCategoryEnabled = { category, enabled ->
-            scope.launch { controller.setCategoryEnabled(category, enabled) }
+            scope.launch {
+                if (!controller.setCategoryEnabled(category, enabled)) {
+                    notice = FloatingNotification(
+                        resources.getString(R.string.functional_logs_settings_failed),
+                        FloatingNotificationTone.ERROR,
+                    )
+                }
+            }
         },
         toggleExpanded = controller::toggleExpanded,
         loadMore = { scope.launch { controller.loadNextPage() } },
@@ -216,16 +203,14 @@ internal fun FunctionalLogsPanel(
                 resources.getString(R.string.functional_logs_export_file),
             )
         },
-        selectDeleteScope = {
+        selectAllForDeletion = {
             if (!busy) {
-                selectedDeleteScope = FunctionalLogsDeleteScope.All
-                selectingDeleteScope = true
+                pendingDeleteScope = FunctionalLogsDeleteScope.All
             }
         },
-        selectEventForDeletion = { sequence ->
+        selectCategoryForDeletion = { category ->
             if (!busy) {
-                selectedDeleteScope = FunctionalLogsDeleteScope.Event(sequence)
-                confirmingDelete = true
+                pendingDeleteScope = FunctionalLogsDeleteScope.Category(category)
             }
         },
     )
@@ -282,82 +267,37 @@ private fun FunctionalLogsControls(
     val disabledLabel = stringResource(R.string.functional_logs_disabled)
     val enabledLabel = stringResource(R.string.functional_logs_enabled)
     SettingsCard(modifier) {
+        SettingsSectionTitle(stringResource(R.string.functional_logs_capture))
+        Spacer(Modifier.height(8.dp))
+        SettingsSegmentedSelector(
+            options = listOf(false, true),
+            selected = state.settings.enabled,
+            label = { enabled -> if (enabled) enabledLabel else disabledLabel },
+            controlHeight = SettingsDimensions.SelectorHeight,
+            enabled = !busy,
+            onSelected = actions.setGlobalEnabled,
+        )
+        Spacer(Modifier.height(14.dp))
+        SettingsSectionTitle(stringResource(R.string.functional_logs_categories))
+        Spacer(Modifier.height(7.dp))
         Column(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSectionTitle(stringResource(R.string.functional_logs_capture))
-            Spacer(Modifier.height(8.dp))
-            SettingsSegmentedSelector(
-                options = listOf(false, true),
-                selected = state.settings.enabled,
-                label = { enabled -> if (enabled) enabledLabel else disabledLabel },
-                controlHeight = SettingsDimensions.SelectorHeight,
-                enabled = !busy,
-                onSelected = actions.setGlobalEnabled,
-            )
-            Spacer(Modifier.height(14.dp))
-            SettingsSectionTitle(stringResource(R.string.functional_logs_categories))
-            Spacer(Modifier.height(7.dp))
             FunctionalEventCategory.entries.forEach { category ->
+                val count = state.stats.categoryCounts[category] ?: 0L
                 FunctionalLogsCategoryRow(
                     label = stringResource(FunctionalEventPresentation.categoryLabelRes(category)),
-                    count = state.stats.categoryCounts[category] ?: 0L,
+                    count = count,
                     checked = category in state.settings.categories,
                     enabled = !busy,
+                    deleteEnabled = !busy && count > 0L,
                     onChecked = { actions.setCategoryEnabled(category, it) },
+                    onDelete = { actions.selectCategoryForDeletion(category) },
                 )
                 Spacer(Modifier.height(6.dp))
-            }
-            Spacer(Modifier.height(8.dp))
-            SettingsSectionTitle(stringResource(R.string.functional_logs_records))
-            Spacer(Modifier.height(7.dp))
-            Text(
-                stringResource(
-                    R.string.functional_logs_stats,
-                    state.stats.validEvents,
-                    formatStorageSize(
-                        state.stats.sizeBytes,
-                        LocalConfiguration.current.locales[0],
-                    ),
-                ),
-                color = SettingsPalette.Text,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                stringResource(
-                    R.string.functional_logs_health,
-                    state.stats.corruptLines,
-                    state.operational.droppedEvents,
-                    state.operational.failedWrites,
-                ),
-                color = if (
-                    state.stats.corruptLines + state.operational.droppedEvents +
-                    state.operational.failedWrites > 0
-                ) SettingsPalette.Danger else SettingsPalette.MutedText,
-                fontSize = 8.sp,
-                maxLines = 2,
-            )
-            state.operational.lastError?.takeIf(String::isNotBlank)?.let { error ->
-                Text(
-                    stringResource(R.string.functional_logs_last_error, error),
-                    color = SettingsPalette.Danger,
-                    fontSize = 8.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            state.actionError?.takeIf(String::isNotBlank)?.let { error ->
-                Text(
-                    stringResource(R.string.functional_logs_last_error, error),
-                    color = SettingsPalette.Danger,
-                    fontSize = 8.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -370,12 +310,12 @@ private fun FunctionalLogsControls(
                 onClick = actions.exportAll,
             )
             SettingsActionButton(
-                text = stringResource(R.string.functional_logs_delete),
+                text = stringResource(R.string.functional_logs_delete_all_button),
                 controlHeight = SettingsDimensions.ActionHeight,
                 modifier = Modifier.weight(1f),
                 enabled = !busy && (state.stats.validEvents > 0 || state.stats.corruptLines > 0),
                 destructive = true,
-                onClick = actions.selectDeleteScope,
+                onClick = actions.selectAllForDeletion,
             )
         }
     }
@@ -412,9 +352,7 @@ private fun FunctionalLogsTimeline(
                     FunctionalLogEventRow(
                         event = event,
                         expanded = event.sequence in state.expandedSequences,
-                        deleteEnabled = state.operation == FunctionalLogsOperation.IDLE,
                         onClick = { actions.toggleExpanded(event.sequence) },
-                        onDelete = { actions.selectEventForDeletion(event.sequence) },
                     )
                 }
                 if (state.events.isEmpty() && state.loadError == null) {
@@ -467,9 +405,7 @@ private fun FunctionalLogsTimeline(
 private fun FunctionalLogEventRow(
     event: FunctionalEvent,
     expanded: Boolean,
-    deleteEnabled: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val date = remember(event.capturedAtEpochMs, locale) {
@@ -490,55 +426,37 @@ private fun FunctionalLogEventRow(
             .fillMaxWidth()
             .semantics { stateDescription = expansionDescription }
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 7.dp)
+            .padding(vertical = 3.dp)
             .border(
                 width = 0.5.dp,
                 color = SettingsPalette.Border.copy(alpha = .7f),
                 shape = RoundedCornerShape(7.dp),
             )
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 8.dp, vertical = 5.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(FunctionalEventPresentation.categoryLabelRes(event.category)),
                 color = SettingsPalette.Accent,
-                fontSize = 9.sp,
+                fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                summary,
+                color = SettingsPalette.Text,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(date, color = SettingsPalette.MutedText, fontSize = 8.sp)
             Spacer(Modifier.width(8.dp))
-            Box(
-                Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(SettingsPalette.Danger.copy(alpha = .08f))
-                    .border(
-                        1.dp,
-                        SettingsPalette.Danger.copy(alpha = if (deleteEnabled) .5f else .18f),
-                        RoundedCornerShape(6.dp),
-                    )
-                    .clickable(enabled = deleteEnabled, onClick = onDelete),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.functional_logs_delete_event),
-                    tint = SettingsPalette.Danger.copy(alpha = if (deleteEnabled) 1f else .35f),
-                    modifier = Modifier.size(15.dp),
-                )
-            }
+            Text(date, color = SettingsPalette.MutedText, fontSize = 8.sp)
         }
-        Text(
-            summary,
-            color = SettingsPalette.Text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = if (expanded) 3 else 1,
-            overflow = TextOverflow.Ellipsis,
-        )
         if (expanded) {
-            Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(4.dp))
             val source = stringResource(
                 if (event.source == FunctionalEventSource.REPLAY) {
                     R.string.functional_logs_source_replay
@@ -577,126 +495,96 @@ private fun FunctionalLogsCategoryRow(
     count: Long,
     checked: Boolean,
     enabled: Boolean,
+    deleteEnabled: Boolean,
     onChecked: (Boolean) -> Unit,
+    onDelete: () -> Unit,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(38.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(
-                if (checked) SettingsPalette.Accent.copy(alpha = .08f)
-                else SettingsPalette.Control.copy(alpha = .55f),
-            )
-            .border(
-                1.dp,
-                if (checked) SettingsPalette.Accent.copy(alpha = .55f)
-                else SettingsPalette.Border,
-                RoundedCornerShape(7.dp),
-            )
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Checkbox,
-                onValueChange = onChecked,
-            )
-            .padding(horizontal = 10.dp),
+            .height(38.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            color = SettingsPalette.Text.copy(alpha = if (enabled) 1f else .45f),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            count.toString(),
-            color = SettingsPalette.MutedText.copy(alpha = if (enabled) 1f else .45f),
-            fontSize = 8.sp,
-            modifier = Modifier.padding(horizontal = 8.dp),
-        )
-        Box(
+        Row(
             Modifier
-                .size(18.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(if (checked) SettingsPalette.Accent else Color.Transparent)
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(7.dp))
+                .background(
+                    if (checked) SettingsPalette.Accent.copy(alpha = .08f)
+                    else SettingsPalette.Control.copy(alpha = .55f),
+                )
                 .border(
                     1.dp,
-                    if (checked) SettingsPalette.Accent else SettingsPalette.MutedText,
-                    RoundedCornerShape(5.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (checked) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(13.dp),
+                    if (checked) SettingsPalette.Accent.copy(alpha = .55f)
+                    else SettingsPalette.Border,
+                    RoundedCornerShape(7.dp),
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FunctionalLogsDeleteScopeDialog(
-    selected: FunctionalLogsDeleteScope,
-    onSelected: (FunctionalLogsDeleteScope) -> Unit,
-    onDismiss: () -> Unit,
-    onContinue: () -> Unit,
-) {
-    val scopes = remember {
-        listOf(FunctionalLogsDeleteScope.All) +
-            FunctionalEventCategory.entries.map(FunctionalLogsDeleteScope::Category)
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.functional_logs_delete_scope_title)) },
-        text = {
-            Column {
-                scopes.forEach { scope ->
-                    Row(
-                        Modifier.fillMaxWidth().height(38.dp)
-                            .toggleable(
-                                value = selected == scope,
-                                role = Role.RadioButton,
-                                onValueChange = { onSelected(scope) },
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = selected == scope,
-                            onClick = null,
-                            colors = RadioButtonDefaults.colors(selectedColor = SettingsPalette.Accent),
-                        )
-                        Text(deleteScopeLabel(scope), fontSize = 11.sp)
-                    }
+                .toggleable(
+                    value = checked,
+                    enabled = enabled,
+                    role = Role.Checkbox,
+                    onValueChange = onChecked,
+                )
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label,
+                color = SettingsPalette.Text.copy(alpha = if (enabled) 1f else .45f),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                count.toString(),
+                color = SettingsPalette.MutedText.copy(alpha = if (enabled) 1f else .45f),
+                fontSize = 8.sp,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+            Box(
+                Modifier
+                    .size(18.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(if (checked) SettingsPalette.Accent else Color.Transparent)
+                    .border(
+                        1.dp,
+                        if (checked) SettingsPalette.Accent else SettingsPalette.MutedText,
+                        RoundedCornerShape(5.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (checked) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(13.dp),
+                    )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onContinue) {
-                Text(stringResource(R.string.functional_logs_delete_continue))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.functional_logs_delete_cancel))
-            }
-        },
-    )
+        }
+        Spacer(Modifier.width(6.dp))
+        SettingsDeleteIconButton(
+            contentDescription = stringResource(
+                R.string.functional_logs_delete_category,
+                label,
+            ),
+            enabled = deleteEnabled,
+            onClick = onDelete,
+        )
+    }
 }
 
 @Composable
-private fun deleteScopeLabel(scope: FunctionalLogsDeleteScope): String = when (scope) {
-    FunctionalLogsDeleteScope.All -> stringResource(R.string.functional_logs_delete_all)
-    is FunctionalLogsDeleteScope.Category ->
-        stringResource(FunctionalEventPresentation.categoryLabelRes(scope.category))
-    is FunctionalLogsDeleteScope.Event -> stringResource(R.string.functional_logs_delete_event)
+private fun deleteConfirmationMessage(scope: FunctionalLogsDeleteScope): String = when (scope) {
+    FunctionalLogsDeleteScope.All -> stringResource(R.string.functional_logs_delete_all_confirm)
+    is FunctionalLogsDeleteScope.Category -> stringResource(
+        R.string.functional_logs_delete_category_confirm,
+        stringResource(FunctionalEventPresentation.categoryLabelRes(scope.category)),
+    )
 }
 
 @Composable
