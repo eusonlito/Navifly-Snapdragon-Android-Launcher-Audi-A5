@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -26,6 +27,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
+
+internal class NavigationLaunchGate(private val cooldownMs: Long = 5_000L) {
+    private var lockedUntilElapsedMs = Long.MIN_VALUE
+
+    @Synchronized
+    fun tryAcquire(nowElapsedMs: Long): Boolean {
+        if (nowElapsedMs < lockedUntilElapsedMs) return false
+        lockedUntilElapsedMs = nowElapsedMs + cooldownMs
+        return true
+    }
+
+    @Synchronized
+    fun remainingMs(nowElapsedMs: Long): Long =
+        (lockedUntilElapsedMs - nowElapsedMs).coerceAtLeast(0L)
+}
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -66,17 +82,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _gear = MutableStateFlow("—")
     val gear: StateFlow<String> = _gear.asStateFlow()
 
-    private val _consumptionMetrics = MutableStateFlow(ConsumptionMetrics())
-    val consumptionMetrics: StateFlow<ConsumptionMetrics> = _consumptionMetrics.asStateFlow()
+    private val _tripStatistics = MutableStateFlow(JourneyStatisticsSnapshot())
+    val tripStatistics: StateFlow<JourneyStatisticsSnapshot> = _tripStatistics.asStateFlow()
 
-    private val _tripElapsedRealtimeMs = MutableStateFlow(0L)
-    val tripElapsedRealtimeMs: StateFlow<Long> = _tripElapsedRealtimeMs.asStateFlow()
+    private val _partialStatistics = MutableStateFlow(JourneyStatisticsSnapshot())
+    val partialStatistics: StateFlow<JourneyStatisticsSnapshot> = _partialStatistics.asStateFlow()
 
-    private val _tripDistanceKm = MutableStateFlow(0.0)
-    val tripDistanceKm: StateFlow<Double> = _tripDistanceKm.asStateFlow()
-
-    private val _distanceSinceRefuelKm = MutableStateFlow(0.0)
-    val distanceSinceRefuelKm: StateFlow<Double> = _distanceSinceRefuelKm.asStateFlow()
+    private val _navigationLaunchLocked = MutableStateFlow(false)
+    val navigationLaunchLocked: StateFlow<Boolean> = _navigationLaunchLocked.asStateFlow()
+    private var navigationLaunchJob: Job? = null
+    private val navigationLaunchGate = NavigationLaunchGate()
 
     // Avoid displaying a false warning before the provider returns its first state.
     private val _seatbelt = MutableStateFlow(true)
@@ -128,16 +143,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 collectionJobs.add(viewModelScope.launch { svc.mileageFlow.collect { _mileage.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.rangeFlow.collect { _range.value = it } })
                 collectionJobs.add(viewModelScope.launch {
-                    svc.tripElapsedRealtimeMsFlow.collect { _tripElapsedRealtimeMs.value = it }
+                    svc.tripStatisticsFlow.collect { _tripStatistics.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch {
-                    svc.tripDistanceKmFlow.collect { _tripDistanceKm.value = it }
-                })
-                collectionJobs.add(viewModelScope.launch {
-                    svc.distanceSinceRefuelKmFlow.collect { _distanceSinceRefuelKm.value = it }
-                })
-                collectionJobs.add(viewModelScope.launch {
-                    svc.consumptionMetricsFlow.collect { _consumptionMetrics.value = it }
+                    svc.partialStatisticsFlow.collect { _partialStatistics.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch { svc.outsideTempFlow.collect { _outsideTemp.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.seatbeltFlow.collect { _seatbelt.value = it } })
@@ -236,13 +245,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun launchWaze() {
-        viewModelScope.launch {
-            val configured = kotlinx.coroutines.withContext(Dispatchers.IO) {
-                getSystemRecord(NAV_PACKAGE_KEY) to getSystemRecord(NAV_ACTIVITY_KEY)
-            }
-            val navPackage = configured.first.ifEmpty { "com.waze" }
-            val navActivity = configured.second
+        val startedAt = SystemClock.elapsedRealtime()
+        if (navigationLaunchJob?.isActive == true || !navigationLaunchGate.tryAcquire(startedAt)) return
+        _navigationLaunchLocked.value = true
+        navigationLaunchJob = viewModelScope.launch {
             try {
+                val configured = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    getSystemRecord(NAV_PACKAGE_KEY) to getSystemRecord(NAV_ACTIVITY_KEY)
+                }
+                val navPackage = configured.first.ifEmpty { "com.waze" }
+                val navActivity = configured.second
                 val intent = if (navActivity.isNotEmpty()) {
                     Intent().setComponent(ComponentName(navPackage, navActivity))
                 } else {
@@ -256,6 +268,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to launch configured navigation: ${e.message}")
+            } finally {
+                val remaining = navigationLaunchGate.remainingMs(SystemClock.elapsedRealtime())
+                if (remaining > 0L) delay(remaining)
+                _navigationLaunchLocked.value = false
             }
         }
     }

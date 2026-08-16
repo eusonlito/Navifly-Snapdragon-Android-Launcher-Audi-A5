@@ -463,7 +463,14 @@ class TelemetryDecoderTest {
         val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 12.5, initialFuelLitres = 40)
 
         tracker.advance(speedKmh = 36, fuelLitres = 40, elapsedRealtimeMs = 1_000)
-        val result = tracker.advance(speedKmh = 36, fuelLitres = 39, elapsedRealtimeMs = 11_000)
+        var result = DistanceSinceRefuelSnapshot(12.5, 40, false)
+        repeat(10) { second ->
+            result = tracker.advance(
+                speedKmh = 36,
+                fuelLitres = if (second == 9) 39 else 40,
+                elapsedRealtimeMs = (second + 2) * 1_000L,
+            )
+        }
 
         assertEquals(12.6, result.distanceKm, .000_001)
         assertFalse(result.refuelDetected)
@@ -758,6 +765,155 @@ class TelemetryDecoderTest {
         assertTrue(
             session.onTelemetryWithFuelDecision(30, 1_500, 37, 5_000, null).transitions.isEmpty(),
         )
+    }
+
+    @Test
+    fun tripStatisticsAccumulateElapsedDistanceAndSpeed() {
+        val session = TripSessionTracker()
+
+        session.onTelemetry(60, 1_800, 40, 0L)
+        repeat(59) { second ->
+            session.onTelemetry(60, 1_800, 40, (second + 1) * 1_000L)
+        }
+        val statistics = session.onTelemetry(100, 2_400, 40, 60_000L).statistics
+
+        assertEquals(60_000L, statistics.elapsedMs)
+        assertEquals(60_000L, statistics.movingElapsedMs)
+        assertEquals(1.0, statistics.distanceKm, .000_001)
+        assertEquals(100, statistics.maximumSpeedKmh)
+        assertEquals(60.0, statistics.averageSpeedKmh, .000_001)
+        assertTrue(statistics.calculatedConsumption > 0.0)
+        assertEquals(0.0, statistics.observedCanConsumption, .000_001)
+    }
+
+    @Test
+    fun partialStatisticsResetOnlyWithAConfirmedRefuel() {
+        val tracker = DistanceSinceRefuelTracker(initialFuelLitres = 40)
+
+        tracker.advanceWithFuelDecision(
+            speedKmh = 60,
+            fuelLitres = 40,
+            elapsedRealtimeMs = 0L,
+            fuelDecision = ConfirmedFuelLevelChange.Initialized,
+            tripFuelUsage = CumulativeFuelUsage(0.0, 0.0),
+        )
+        var driven = JourneyStatisticsSnapshot()
+        repeat(60) { second ->
+            val progress = (second + 1) / 60.0
+            driven = tracker.advanceWithFuelDecision(
+                speedKmh = if (second == 59) 100 else 60,
+                fuelLitres = if (second == 59) 39 else 40,
+                elapsedRealtimeMs = (second + 1) * 1_000L,
+                fuelDecision = if (second == 59) ConfirmedFuelLevelChange.Drop(1) else null,
+                tripFuelUsage = CumulativeFuelUsage(.08 * progress, progress),
+            ).statistics
+        }
+
+        assertEquals(60_000L, driven.elapsedMs)
+        assertEquals(60_000L, driven.movingElapsedMs)
+        assertEquals(1.0, driven.distanceKm, .000_001)
+        assertEquals(100, driven.maximumSpeedKmh)
+        assertEquals(60.0, driven.averageSpeedKmh, .000_001)
+        assertEquals(8.0, driven.calculatedConsumption, .000_001)
+        assertEquals(100.0, driven.observedCanConsumption, .000_001)
+
+        val reset = tracker.advanceWithFuelDecision(
+            speedKmh = 0,
+            fuelLitres = 45,
+            elapsedRealtimeMs = 61_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Refuel(45, 39, 2),
+            tripFuelUsage = CumulativeFuelUsage(.08, 1.0),
+        ).statistics
+
+        assertEquals(JourneyStatisticsSnapshot(), reset)
+        val oneSecondAfterRefuel = tracker.onTick(62_000L).statistics
+        assertEquals(1_000L, oneSecondAfterRefuel.elapsedMs)
+        assertEquals(0L, oneSecondAfterRefuel.movingElapsedMs)
+    }
+
+    @Test
+    fun partialStatisticsSurviveTrackerRecreation() {
+        val tracker = DistanceSinceRefuelTracker(initialFuelLitres = 40)
+        tracker.advanceWithFuelDecision(60, 40, 0L, null, CumulativeFuelUsage(0.0, 0.0))
+        val before = tracker.advanceWithFuelDecision(
+            60,
+            39,
+            1_000L,
+            null,
+            CumulativeFuelUsage(.08, 1.0),
+        )
+
+        val restored = DistanceSinceRefuelTracker(
+            initialDistanceKm = before.distanceKm,
+            initialFuelLitres = before.lastFuelLitres,
+            initialStatisticsState = tracker.state(),
+        )
+        val after = restored.advanceWithFuelDecision(
+            0,
+            39,
+            2_000L,
+            null,
+            CumulativeFuelUsage(.08, 1.0),
+        )
+
+        assertEquals(before.statistics, after.statistics)
+    }
+
+    @Test
+    fun partialStatisticsStopIntegratingWhenTelemetryBecomesStale() {
+        val tracker = DistanceSinceRefuelTracker(initialFuelLitres = 40)
+        tracker.advanceWithFuelDecision(60, 40, 0L, null)
+
+        tracker.onTick(1_000L)
+        val stale = tracker.onTick(5_000L).statistics
+
+        assertEquals(2_000L, stale.elapsedMs)
+        assertEquals(2_000L, stale.movingElapsedMs)
+        assertEquals(60.0 * 2.0 / 3_600.0, stale.distanceKm, .000_001)
+    }
+
+    @Test
+    fun partialFuelCheckpointKeepsSameBootHighWaterWithoutDoubleCounting() {
+        val tracker = DistanceSinceRefuelTracker(
+            initialStatisticsState = DistanceSinceRefuelStatisticsState(
+                fuelUsedLitres = 10.0,
+                sourceTripFuelUsage = CumulativeFuelUsage(10.0, 2.0),
+                sourceTripGeneration = 7L,
+                active = true,
+            ),
+        )
+
+        tracker.onTick(1_000L, CumulativeFuelUsage(9.0, 1.0), tripGeneration = 7L)
+        val caughtUp = tracker.onTick(
+            2_000L,
+            CumulativeFuelUsage(10.1, 2.1),
+            tripGeneration = 7L,
+        ).statistics
+
+        assertEquals(10.1, caughtUp.fuelUsedLitres, .000_001)
+        assertEquals(.1, caughtUp.confirmedCanFuelUsedLitres, .000_001)
+    }
+
+    @Test
+    fun partialFuelCheckpointRebasesAcrossBoots() {
+        val tracker = DistanceSinceRefuelTracker(
+            initialStatisticsState = DistanceSinceRefuelStatisticsState(
+                fuelUsedLitres = 10.0,
+                sourceTripFuelUsage = CumulativeFuelUsage(10.0, 2.0),
+                sourceTripGeneration = 7L,
+                active = true,
+            ),
+        )
+
+        tracker.onTick(1_000L, CumulativeFuelUsage(0.0, 0.0), tripGeneration = 8L)
+        val nextBoot = tracker.onTick(
+            2_000L,
+            CumulativeFuelUsage(.1, .1),
+            tripGeneration = 8L,
+        ).statistics
+
+        assertEquals(10.1, nextBoot.fuelUsedLitres, .000_001)
+        assertEquals(.1, nextBoot.confirmedCanFuelUsedLitres, .000_001)
     }
 
     private fun put16(target: ByteArray, offset: Int, value: Int) {

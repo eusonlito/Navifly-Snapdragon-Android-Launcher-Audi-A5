@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.atomic.AtomicBoolean
@@ -193,6 +194,7 @@ internal fun CockpitMapIntegrationOverlay(
 internal fun CommandSurface(
     buttonSize: Dp,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -205,6 +207,7 @@ internal fun CommandSurface(
     Box(
         Modifier
             .height(buttonSize)
+            .then(if (enabled) Modifier else Modifier.graphicsLayer { alpha = .35f })
             // The command group is centred in one third of the header. Its
             // touch padding must never squeeze the final icon when the group
             // is a few dp wider than that nominal third.
@@ -214,6 +217,7 @@ internal fun CommandSurface(
                 drawRect(OemCockpitTokens.GraphitePressed.copy(alpha = plateAlpha.value))
             }
             .clickable(
+                enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,

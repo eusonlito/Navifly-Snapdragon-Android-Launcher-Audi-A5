@@ -171,17 +171,17 @@ class DashboardPresentationTest {
 
     @Test
     fun tripDistanceUsesConfiguredDecimalSeparator() {
-        assertEquals("12,3", formatTripDistance(12.34, Locale.forLanguageTag("es-ES")))
-        assertEquals("12.3", formatTripDistance(12.34, Locale.US))
+        assertEquals("12,3", formatOneDecimal(12.34, Locale.forLanguageTag("es-ES")))
+        assertEquals("12.3", formatOneDecimal(12.34, Locale.US))
     }
 
     @Test
-    fun consumptionDetailsUseConfiguredDecimalSeparator() {
+    fun statisticsUseConfiguredDecimalSeparator() {
         assertEquals(
             "6,4",
-            formatConsumptionNumber(6.44, Locale.forLanguageTag("es-ES")),
+            formatOneDecimal(6.44, Locale.forLanguageTag("es-ES")),
         )
-        assertEquals("6.4", formatConsumptionNumber(6.44, Locale.US))
+        assertEquals("6.4", formatOneDecimal(6.44, Locale.US))
     }
 
     @Test

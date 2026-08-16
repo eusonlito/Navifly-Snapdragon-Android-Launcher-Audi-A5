@@ -76,7 +76,7 @@ import com.lito.a5launcher.R
 import com.lito.a5launcher.AppLanguage
 import com.lito.a5launcher.AppLanguageManager
 import com.lito.a5launcher.BuildConfig
-import com.lito.a5launcher.ConsumptionMetrics
+import com.lito.a5launcher.JourneyStatisticsSnapshot
 import com.lito.a5launcher.functional.FunctionalEventLogAccess
 import com.lito.a5launcher.DeviceRebootAction
 import com.lito.a5launcher.LauncherUpdateInstaller
@@ -241,10 +241,9 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val range by viewModel.range.collectAsStateWithLifecycle()
     val outside by viewModel.outsideTemp.collectAsStateWithLifecycle()
     val gear by viewModel.gear.collectAsStateWithLifecycle()
-    val consumptionMetrics by viewModel.consumptionMetrics.collectAsStateWithLifecycle()
-    val tripElapsedRealtimeMs by viewModel.tripElapsedRealtimeMs.collectAsStateWithLifecycle()
-    val tripDistanceKm by viewModel.tripDistanceKm.collectAsStateWithLifecycle()
-    val distanceSinceRefuelKm by viewModel.distanceSinceRefuelKm.collectAsStateWithLifecycle()
+    val tripStatistics by viewModel.tripStatistics.collectAsStateWithLifecycle()
+    val partialStatistics by viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val navigationLaunchLocked by viewModel.navigationLaunchLocked.collectAsStateWithLifecycle()
     val seatbelt by viewModel.seatbelt.collectAsStateWithLifecycle()
     val brake by viewModel.parkingBrake.collectAsStateWithLifecycle()
     val lightsOn by viewModel.lightsOn.collectAsStateWithLifecycle()
@@ -339,6 +338,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var debugLogStats by remember { mutableStateOf(MapDebugLogStats(0, 0L)) }
     var mapDiagnostics by remember { mutableStateOf(MapDiagnostics()) }
     val coroutineScope = rememberCoroutineScope()
+    val launchNavigation = { viewModel.launchWaze() }
     val poiRepository = remember { PoiRepository(context.applicationContext) }
     val locationRepository = remember(context) { LocationRepository(context) }
     var poiSnapshot by remember { mutableStateOf(PoiSnapshot()) }
@@ -584,7 +584,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     date = date,
                     time = time,
                     outside = outside,
-                    onNavigation = viewModel::launchWaze,
+                    onNavigation = launchNavigation,
+                    navigationEnabled = !navigationLaunchLocked,
                     onAssistant = startAssistantTurn,
                     assistantEnabled = assistantController.settings.provider != AssistantProvider.DISABLED,
                     assistantActive = assistantUi.status !is AssistantState.Disabled &&
@@ -710,10 +711,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     fuel = fuel,
                     mileage = mileage,
                     range = range,
-                    consumptionMetrics = consumptionMetrics,
-                    tripElapsedRealtimeMs = tripElapsedRealtimeMs,
-                    tripDistanceKm = tripDistanceKm,
-                    distanceSinceRefuelKm = distanceSinceRefuelKm,
+                    tripStatistics = tripStatistics,
+                    partialStatistics = partialStatistics,
                     barHeight = vitalsHeight,
                     labelSize = vitalsLabelSize,
                     valueSize = vitalsValueSize,
@@ -915,6 +914,7 @@ private fun TopCommandBar(
     time: String,
     outside: Double,
     onNavigation: () -> Unit,
+    navigationEnabled: Boolean,
     onAssistant: () -> Unit,
     assistantEnabled: Boolean,
     assistantActive: Boolean,
@@ -1012,6 +1012,7 @@ private fun TopCommandBar(
                                 TopCommandItem.NAVIGATION -> NavigationCommandButton(
                                     buttonSize,
                                     iconSize,
+                                    navigationEnabled,
                                     onNavigation,
                                 )
                                 TopCommandItem.APPS -> AppsCommandButton(
@@ -1195,9 +1196,10 @@ private fun CommandButton(
 private fun NavigationCommandButton(
     buttonSize: androidx.compose.ui.unit.Dp,
     iconSize: androidx.compose.ui.unit.Dp,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    CommandSurface(buttonSize, onClick) {
+    CommandSurface(buttonSize, onClick, enabled = enabled) {
         Canvas(
             Modifier.size(
                 width = iconSize * .56f,
@@ -1494,10 +1496,8 @@ private fun CompactVitals(
     fuel: Int,
     mileage: Int,
     range: Int,
-    consumptionMetrics: ConsumptionMetrics,
-    tripElapsedRealtimeMs: Long,
-    tripDistanceKm: Double,
-    distanceSinceRefuelKm: Double,
+    tripStatistics: JourneyStatisticsSnapshot,
+    partialStatistics: JourneyStatisticsSnapshot,
     barHeight: androidx.compose.ui.unit.Dp,
     labelSize: androidx.compose.ui.unit.TextUnit,
     valueSize: androidx.compose.ui.unit.TextUnit,
@@ -1510,7 +1510,7 @@ private fun CompactVitals(
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    var showConsumptionDetails by remember { mutableStateOf(false) }
+    var statisticsDialog by remember { mutableStateOf<StatisticsDialogScope?>(null) }
     val footerWidths = remember { mutableStateMapOf<FooterBlockItem, Int>() }
     val footerDividerWidthPx = with(LocalDensity.current) { 1.dp.roundToPx() }
     Box(
@@ -1535,26 +1535,32 @@ private fun CompactVitals(
                     ) {
                         when (item) {
                         FooterBlockItem.TIME -> FooterBlock {
-                            MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripElapsedRealtimeMs), false, labelSize, valueSize)
+                            MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripStatistics.elapsedMs), false, labelSize, valueSize)
                         }
-                        FooterBlockItem.TRIP -> FooterBlock {
-                            MiniValue(stringResource(R.string.dashboard_trip), formatTripDistance(tripDistanceKm, locale), false, labelSize, valueSize)
-                        }
-                        FooterBlockItem.CONSUMPTION -> FooterBlock(
-                            modifier = Modifier.clickable { showConsumptionDetails = true },
+                        FooterBlockItem.TRIP -> FooterBlock(
+                            modifier = Modifier.clickable {
+                                statisticsDialog = StatisticsDialogScope.TRIP
+                            },
                         ) {
+                            MiniValue(stringResource(R.string.dashboard_trip), formatOneDecimal(tripStatistics.distanceKm, locale), false, labelSize, valueSize)
+                        }
+                        FooterBlockItem.CONSUMPTION -> FooterBlock {
                             MiniValue(
                                 stringResource(R.string.dashboard_consumption),
-                                if (consumptionMetrics.calculated.isFinite()) {
-                                    String.format(locale, "%.1f", consumptionMetrics.calculated)
+                                if (tripStatistics.calculatedConsumption.isFinite()) {
+                                    String.format(locale, "%.1f", tripStatistics.calculatedConsumption)
                                 } else "—",
                                 false,
                                 labelSize,
                                 valueSize,
                             )
                         }
-                        FooterBlockItem.REFUEL_DISTANCE -> FooterBlock {
-                            MiniValue(stringResource(R.string.dashboard_refuel_distance), formatTripDistance(distanceSinceRefuelKm, locale), false, labelSize, valueSize)
+                        FooterBlockItem.REFUEL_DISTANCE -> FooterBlock(
+                            modifier = Modifier.clickable {
+                                statisticsDialog = StatisticsDialogScope.PARTIAL
+                            },
+                        ) {
+                            MiniValue(stringResource(R.string.dashboard_refuel_distance), formatOneDecimal(partialStatistics.distanceKm, locale), false, labelSize, valueSize)
                         }
                         FooterBlockItem.RANGE -> FooterBlock {
                             MiniValue(
@@ -1588,16 +1594,28 @@ private fun CompactVitals(
             }
         }
 
-        if (showConsumptionDetails) {
-            ConsumptionDetailsDialog(
-                calculatedConsumption = consumptionMetrics.calculated,
-                observedCanConsumption = consumptionMetrics.observedCan,
+        statisticsDialog?.let { scope ->
+            JourneyStatisticsDialog(
+                title = stringResource(
+                    if (scope == StatisticsDialogScope.TRIP) {
+                        R.string.trip_statistics_title
+                    } else {
+                        R.string.partial_statistics_title
+                    },
+                ),
+                statistics = if (scope == StatisticsDialogScope.TRIP) {
+                    tripStatistics
+                } else {
+                    partialStatistics
+                },
                 locale = locale,
-                onDismiss = { showConsumptionDetails = false },
+                onDismiss = { statisticsDialog = null },
             )
         }
     }
 }
+
+private enum class StatisticsDialogScope { TRIP, PARTIAL }
 
 @Composable
 private fun FooterReorderableSlot(
@@ -1692,10 +1710,10 @@ internal fun formatTripDuration(elapsedRealtimeMs: Long): String {
     )
 }
 
-internal fun formatTripDistance(
-    distanceKm: Double,
+internal fun formatOneDecimal(
+    value: Double,
     locale: java.util.Locale = java.util.Locale.getDefault(),
-): String = String.format(locale, "%.1f", distanceKm)
+): String = String.format(locale, "%.1f", value.takeIf { it.isFinite() } ?: 0.0)
 
 @Composable
 private fun FooterCell(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
