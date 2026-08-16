@@ -23,8 +23,9 @@ elimina mediante la acción de mantenimiento.
 ## Compatibilidad Android
 
 El proyecto usa Kotlin integrado en AGP 9.3, sin aplicar
-`org.jetbrains.kotlin.android`. Java 17 es el nivel de bytecode y compilación
-requerido por AGP; no añade una JVM al APK ni exige Java 17 en el coche.
+`org.jetbrains.kotlin.android`. El proyecto se construye con JDK 21 y conserva
+Java 17 como nivel de bytecode para Android; esto no añade una JVM al APK ni
+exige ninguna versión de Java en el coche.
 
 Se compila y se declara `targetSdk 37` para mantener el contrato Android actual;
 `minSdk 34` refleja que esta aplicación está diseñada exclusivamente para el

@@ -256,7 +256,7 @@ applications to force startup.
 
 Developer requirements:
 
-- JDK 17;
+- JDK 21;
 - Android SDK Platform 37;
 - Android SDK Build Tools compatible with Android Gradle Plugin 9.3.1;
 - a 64-bit build system.

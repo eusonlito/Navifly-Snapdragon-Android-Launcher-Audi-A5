@@ -260,7 +260,7 @@ aplicaciones del firmware para forzar el arranque.
 
 Requisitos para desarrolladores:
 
-- JDK 17;
+- JDK 21;
 - Android SDK Platform 37;
 - Android SDK Build Tools compatible con Android Gradle Plugin 9.3.1;
 - sistema de compilación de 64 bits.
