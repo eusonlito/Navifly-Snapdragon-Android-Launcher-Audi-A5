@@ -203,17 +203,9 @@ internal fun SettingsDeleteIconButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
     Box(
         modifier = modifier
             .size(28.dp)
-            .clip(shape)
-            .background(SettingsPalette.Danger.copy(alpha = .08f))
-            .border(
-                1.dp,
-                SettingsPalette.Danger.copy(alpha = if (enabled) .5f else .18f),
-                shape,
-            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
