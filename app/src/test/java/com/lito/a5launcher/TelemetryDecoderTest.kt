@@ -759,6 +759,59 @@ class TelemetryDecoderTest {
     }
 
     @Test
+    fun averageSpeedIncludesStoppedTime() {
+        val statistics = journeyStatistics(
+            elapsedMs = 120_000L,
+            movingElapsedMs = 60_000L,
+            distanceKm = 1.0,
+            maximumSpeedKmh = 100,
+            fuelUsedLitres = .08,
+            confirmedCanFuelUsedLitres = 0.0,
+        )
+
+        assertEquals(30.0, statistics.averageSpeedKmh, .000_001)
+    }
+
+    @Test
+    fun tripAverageSpeedIncludesTimeStoppedAfterDriving() {
+        val session = TripSessionTracker()
+
+        session.onTelemetry(60, 1_800, 40, 0L)
+        repeat(60) { second ->
+            session.onTelemetry(60, 1_800, 40, (second + 1) * 1_000L)
+        }
+        session.onTelemetry(0, 800, 40, 60_000L)
+        var statistics = JourneyStatisticsSnapshot()
+        repeat(60) { second ->
+            statistics = session.onTelemetry(
+                speedKmh = 0,
+                rpm = 800,
+                fuelLitres = 40,
+                elapsedRealtimeMs = (second + 61) * 1_000L,
+            ).statistics
+        }
+
+        assertEquals(120_000L, statistics.elapsedMs)
+        assertEquals(60_000L, statistics.movingElapsedMs)
+        assertEquals(1.0, statistics.distanceKm, .000_001)
+        assertEquals(30.0, statistics.averageSpeedKmh, .000_001)
+    }
+
+    @Test
+    fun averageSpeedIsZeroWithoutElapsedTime() {
+        val statistics = journeyStatistics(
+            elapsedMs = 0L,
+            movingElapsedMs = 0L,
+            distanceKm = 1.0,
+            maximumSpeedKmh = 100,
+            fuelUsedLitres = .08,
+            confirmedCanFuelUsedLitres = 0.0,
+        )
+
+        assertEquals(0.0, statistics.averageSpeedKmh, .000_001)
+    }
+
+    @Test
     fun partialStatisticsResetOnlyWithAConfirmedRefuel() {
         val tracker = DistanceSinceRefuelTracker(initialFuelLitres = 40)
 

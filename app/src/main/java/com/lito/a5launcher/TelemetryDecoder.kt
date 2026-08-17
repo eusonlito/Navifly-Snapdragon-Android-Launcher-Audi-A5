@@ -748,14 +748,15 @@ internal fun journeyStatistics(
     } else 0.0,
 ): JourneyStatisticsSnapshot {
     val safeDistanceKm = distanceKm.validMetric()
+    val safeElapsedMs = elapsedMs.coerceAtLeast(0L)
     val safeMovingElapsedMs = movingElapsedMs.coerceAtLeast(0L)
     return JourneyStatisticsSnapshot(
-        elapsedMs = elapsedMs.coerceAtLeast(0L),
+        elapsedMs = safeElapsedMs,
         movingElapsedMs = safeMovingElapsedMs,
         distanceKm = safeDistanceKm,
         maximumSpeedKmh = maximumSpeedKmh.coerceAtLeast(0),
-        averageSpeedKmh = if (safeMovingElapsedMs > 0L) {
-            safeDistanceKm / (safeMovingElapsedMs / 3_600_000.0)
+        averageSpeedKmh = if (safeElapsedMs > 0L) {
+            safeDistanceKm / (safeElapsedMs / 3_600_000.0)
         } else 0.0,
         calculatedConsumption = calculatedConsumption.validMetric(),
         observedCanConsumption = observedCanConsumption.validMetric(),
