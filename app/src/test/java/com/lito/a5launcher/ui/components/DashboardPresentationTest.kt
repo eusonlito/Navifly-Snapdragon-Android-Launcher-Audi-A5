@@ -7,6 +7,41 @@ import java.util.TimeZone
 
 class DashboardPresentationTest {
     @Test
+    fun statisticsPanelOnlyClosesWhenItsActiveFooterBlockIsPressedAgain() {
+        assertEquals(
+            StatisticsPanelScope.TRIP,
+            toggleStatisticsPanel(current = null, requested = StatisticsPanelScope.TRIP),
+        )
+        assertEquals(
+            null,
+            toggleStatisticsPanel(
+                current = StatisticsPanelScope.TRIP,
+                requested = StatisticsPanelScope.TRIP,
+            ),
+        )
+        assertEquals(
+            StatisticsPanelScope.PARTIAL,
+            toggleStatisticsPanel(
+                current = StatisticsPanelScope.TRIP,
+                requested = StatisticsPanelScope.PARTIAL,
+            ),
+        )
+        assertEquals(
+            null,
+            toggleStatisticsPanel(
+                current = StatisticsPanelScope.PARTIAL,
+                requested = StatisticsPanelScope.PARTIAL,
+            ),
+        )
+    }
+
+    @Test
+    fun stoppedTimeIsTheNonNegativeDifferenceFromMovingTime() {
+        assertEquals(40_000L, stoppedElapsedMs(elapsedMs = 100_000L, movingElapsedMs = 60_000L))
+        assertEquals(0L, stoppedElapsedMs(elapsedMs = 30_000L, movingElapsedMs = 40_000L))
+    }
+
+    @Test
     fun functionalLogsTabIsImmediatelyBeforeSystem() {
         assertEquals(
             listOf(

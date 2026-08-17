@@ -86,6 +86,7 @@
     <string name="statistics_average_speed">Velocidad Media</string>
     <string name="statistics_moving_average_speed">Media en Movimiento</string>
     <string name="statistics_maximum_speed">Velocidad Máxima</string>
+    <string name="statistics_stopped_time">Tiempo Parado</string>
     <string name="statistics_fuel_used">Combustible Estimado</string>
     <string name="statistics_distance_value">%1$s km</string>
     <string name="statistics_speed_value">%1$s km/h</string>

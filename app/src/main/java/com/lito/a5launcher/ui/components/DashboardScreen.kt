@@ -742,8 +742,18 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     parkingBrake = brake,
                     lightsActive = darkModeActive,
                     blockOrder = footerBlockOrder,
-                    onTripStatistics = { statisticsPanel = StatisticsPanelScope.TRIP },
-                    onPartialStatistics = { statisticsPanel = StatisticsPanelScope.PARTIAL },
+                    onTripStatistics = {
+                        statisticsPanel = toggleStatisticsPanel(
+                            current = statisticsPanel,
+                            requested = StatisticsPanelScope.TRIP,
+                        )
+                    },
+                    onPartialStatistics = {
+                        statisticsPanel = toggleStatisticsPanel(
+                            current = statisticsPanel,
+                            requested = StatisticsPanelScope.PARTIAL,
+                        )
+                    },
                     onBlockOrderChanged = { order ->
                         if (order !== footerBlockOrder) {
                             footerBlockOrder = order
@@ -1617,7 +1627,12 @@ private fun CompactVitals(
     }
 }
 
-private enum class StatisticsPanelScope { TRIP, PARTIAL }
+internal enum class StatisticsPanelScope { TRIP, PARTIAL }
+
+internal fun toggleStatisticsPanel(
+    current: StatisticsPanelScope?,
+    requested: StatisticsPanelScope,
+): StatisticsPanelScope? = requested.takeUnless { it == current }
 
 @Composable
 private fun FooterReorderableSlot(

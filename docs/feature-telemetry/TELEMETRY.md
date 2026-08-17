@@ -181,14 +181,16 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
    distancia, tiempo total y en movimiento, velocidad media total, velocidad
-   media mientras circula, velocidad máxima, combustible estimado y consumos
-   calculado y simple. `Consumo Calculado` es la estimación anterior; `Consumo
-   Simple` divide entre la distancia los descensos de litros enteros confirmados
-   por CAN. El segundo valor no se limita a 15 L/100 km y avanza por escalones,
-   porque el vehículo no entrega decimales. `Viaje` se reinicia al comenzar una
-   nueva sesión del coche; `Parcial` conserva sus datos entre arranques y sólo se
-   reinicia con un repostaje confirmado. Todo se mantiene mediante acumuladores
-   escalares O(1), sin guardar ni volver a recorrer historiales de muestras.
+   media mientras circula, velocidad máxima, tiempo parado, combustible estimado
+   y consumos calculado y simple. Pulsar de nuevo el mismo bloque cierra su panel;
+   pulsar el otro cambia directamente de ámbito. `Consumo Calculado` es la
+   estimación anterior; `Consumo Simple` divide entre la distancia los descensos
+   de litros enteros confirmados por CAN. El segundo valor no se limita a 15
+   L/100 km y avanza por escalones, porque el vehículo no entrega decimales.
+   `Viaje` se reinicia al comenzar una nueva sesión del coche; `Parcial` conserva
+   sus datos entre arranques y sólo se reinicia con un repostaje confirmado. Todo
+   se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a
+   recorrer historiales de muestras.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada

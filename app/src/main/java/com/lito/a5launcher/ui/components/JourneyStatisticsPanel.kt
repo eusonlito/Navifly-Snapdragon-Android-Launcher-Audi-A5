@@ -112,9 +112,13 @@ internal fun JourneyStatisticsPanel(
                     locale,
                 ),
             )
-            StatisticsSingleValue(
-                label = stringResource(R.string.statistics_maximum_speed),
-                value = speedValue(statistics.maximumSpeedKmh.toDouble(), locale),
+            StatisticsRow(
+                firstLabel = stringResource(R.string.statistics_maximum_speed),
+                firstValue = speedValue(statistics.maximumSpeedKmh.toDouble(), locale),
+                secondLabel = stringResource(R.string.statistics_stopped_time),
+                secondValue = formatTripDuration(
+                    stoppedElapsedMs(statistics.elapsedMs, statistics.movingElapsedMs),
+                ),
             )
         }
     }
@@ -144,17 +148,6 @@ private fun StatisticsRow(
         StatisticsValue(firstLabel, firstValue, Modifier.weight(1f))
         StatisticsValue(secondLabel, secondValue, Modifier.weight(1f))
     }
-}
-
-@Composable
-private fun StatisticsSingleValue(label: String, value: String) {
-    StatisticsValue(
-        label = label,
-        value = value,
-        modifier = Modifier
-            .fillMaxWidth(.5f)
-            .padding(vertical = 2.dp),
-    )
 }
 
 @Composable
@@ -196,3 +189,6 @@ private fun speedValue(value: Double, locale: Locale): String = stringResource(
 
 internal fun formatFuelUsed(value: Double, locale: Locale): String =
     String.format(locale, "%.2f", value.takeIf { it.isFinite() } ?: 0.0)
+
+internal fun stoppedElapsedMs(elapsedMs: Long, movingElapsedMs: Long): Long =
+    (elapsedMs - movingElapsedMs).coerceAtLeast(0L)
