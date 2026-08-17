@@ -33,6 +33,12 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
             putInt(MAXIMUM_SPEED_KMH, statistics.maximumSpeedKmh)
             putLong(FUEL_USED_BITS, statistics.fuelUsedLitres.toRawBits())
             putLong(CONFIRMED_CAN_FUEL_USED_BITS, statistics.confirmedCanFuelUsedLitres.toRawBits())
+            statistics.initialObservedFuelLitres?.let {
+                putInt(INITIAL_OBSERVED_FUEL_LITRES, it)
+            } ?: remove(INITIAL_OBSERVED_FUEL_LITRES)
+            statistics.currentObservedFuelLitres?.let {
+                putInt(CURRENT_OBSERVED_FUEL_LITRES, it)
+            } ?: remove(CURRENT_OBSERVED_FUEL_LITRES)
             statistics.sourceTripFuelUsage?.let {
                 putLong(SOURCE_TRIP_FUEL_USED_BITS, it.estimatedLitres.toRawBits())
                 putLong(SOURCE_TRIP_CONFIRMED_CAN_FUEL_USED_BITS, it.confirmedCanLitres.toRawBits())
@@ -52,6 +58,10 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
         maximumSpeedKmh = preferences.getInt(MAXIMUM_SPEED_KMH, 0).coerceAtLeast(0),
         fuelUsedLitres = preferences.nonNegativeDouble(FUEL_USED_BITS),
         confirmedCanFuelUsedLitres = preferences.nonNegativeDouble(CONFIRMED_CAN_FUEL_USED_BITS),
+        initialObservedFuelLitres = preferences.getInt(INITIAL_OBSERVED_FUEL_LITRES, 0)
+            .takeIf { it > 0 },
+        currentObservedFuelLitres = preferences.getInt(CURRENT_OBSERVED_FUEL_LITRES, 0)
+            .takeIf { it > 0 },
         sourceTripFuelUsage = readSourceTripFuelUsage(),
         sourceTripGeneration = preferences.getLong(SOURCE_TRIP_GENERATION, Long.MIN_VALUE)
             .takeUnless { it == Long.MIN_VALUE },
@@ -87,6 +97,8 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
         private const val MAXIMUM_SPEED_KMH = "maximum_speed_kmh"
         private const val FUEL_USED_BITS = "fuel_used_bits"
         private const val CONFIRMED_CAN_FUEL_USED_BITS = "confirmed_can_fuel_used_bits"
+        private const val INITIAL_OBSERVED_FUEL_LITRES = "initial_observed_fuel_litres"
+        private const val CURRENT_OBSERVED_FUEL_LITRES = "current_observed_fuel_litres"
         private const val SOURCE_TRIP_FUEL_USED_BITS = "source_trip_fuel_used_bits"
         private const val SOURCE_TRIP_CONFIRMED_CAN_FUEL_USED_BITS =
             "source_trip_confirmed_can_fuel_used_bits"

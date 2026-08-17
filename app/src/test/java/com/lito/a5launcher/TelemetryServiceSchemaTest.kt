@@ -12,7 +12,8 @@ class TelemetryServiceSchemaTest {
         assertFalse(isCompatibleTripSchema(2))
         assertFalse(isCompatibleTripSchema(3))
         assertFalse(isCompatibleTripSchema(1))
-        assertTrue(isCompatibleTripSchema(4))
+        assertFalse(isCompatibleTripSchema(4))
+        assertTrue(isCompatibleTripSchema(5))
     }
 
     @Test
@@ -20,7 +21,7 @@ class TelemetryServiceSchemaTest {
         val decision = decideTripRestoration(
             currentBootCount = 8,
             storedBootCount = 7,
-            storedSchema = 4,
+            storedSchema = 5,
             startedAtElapsedMs = 20_000,
             nowElapsedMs = 30_000,
             durableFuelBaseline = 35,
@@ -33,7 +34,7 @@ class TelemetryServiceSchemaTest {
 
     @Test
     fun sameBootRestoresOnlyAValidMonotonicStart() {
-        val decision = decideTripRestoration(4, 4, 4, 50_000, 40_000, 32)
+        val decision = decideTripRestoration(4, 4, 5, 50_000, 40_000, 32)
 
         assertEquals(TripRestoreReason.INVALID_ELAPSED_STATE, decision.reason)
         assertFalse(decision.restoreTripAccumulators)

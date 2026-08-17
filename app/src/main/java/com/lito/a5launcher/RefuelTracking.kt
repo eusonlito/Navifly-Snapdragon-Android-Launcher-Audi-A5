@@ -11,6 +11,7 @@ data class JourneyStatisticsSnapshot(
     val observedCanConsumption: Double = 0.0,
     val fuelUsedLitres: Double = 0.0,
     val confirmedCanFuelUsedLitres: Double = 0.0,
+    val observedFuelSpentLitres: Double? = null,
 )
 
 data class CumulativeFuelUsage(
@@ -24,6 +25,8 @@ data class DistanceSinceRefuelStatisticsState(
     val maximumSpeedKmh: Int = 0,
     val fuelUsedLitres: Double = 0.0,
     val confirmedCanFuelUsedLitres: Double = 0.0,
+    val initialObservedFuelLitres: Int? = null,
+    val currentObservedFuelLitres: Int? = null,
     val sourceTripFuelUsage: CumulativeFuelUsage? = null,
     val sourceTripGeneration: Long? = null,
     val active: Boolean = false,
@@ -206,6 +209,10 @@ class DistanceSinceRefuelTracker(
     private var statisticsFuelUsedLitres = initialStatisticsState.fuelUsedLitres.validMetric()
     private var statisticsConfirmedCanFuelUsedLitres =
         initialStatisticsState.confirmedCanFuelUsedLitres.validMetric()
+    private var initialObservedFuelLitres = initialStatisticsState.initialObservedFuelLitres
+        ?.takeIf { it > 0 }
+    private var currentObservedFuelLitres = initialStatisticsState.currentObservedFuelLitres
+        ?.takeIf { it > 0 }
     private var sourceTripFuelUsage = initialStatisticsState.sourceTripFuelUsage?.normalized()
     private var sourceTripGeneration = initialStatisticsState.sourceTripGeneration
     private var statisticsActive = initialStatisticsState.active || initialDistanceKm > 0.0
@@ -248,6 +255,10 @@ class DistanceSinceRefuelTracker(
         val fuelDelta = observeTripFuelUsage(tripFuelUsage, tripGeneration)
         statisticsFuelUsedLitres += fuelDelta.estimatedLitres
         statisticsConfirmedCanFuelUsedLitres += fuelDelta.confirmedCanLitres
+        fuelLitres.takeIf { it > 0 }?.let { observed ->
+            if (initialObservedFuelLitres == null) initialObservedFuelLitres = observed
+            currentObservedFuelLitres = observed
+        }
 
         when (fuelDecision) {
             ConfirmedFuelLevelChange.Initialized -> lastFuelLitres = fuelLitres.takeIf { it > 0 }
@@ -264,6 +275,8 @@ class DistanceSinceRefuelTracker(
             maximumSpeedKmh = 0
             statisticsFuelUsedLitres = 0.0
             statisticsConfirmedCanFuelUsedLitres = 0.0
+            initialObservedFuelLitres = fuelDecision.fuelLitres
+            currentObservedFuelLitres = fuelDecision.fuelLitres
             statisticsActive = true
         }
         return DistanceSinceRefuelSnapshot(
@@ -277,6 +290,8 @@ class DistanceSinceRefuelTracker(
                 maximumSpeedKmh = maximumSpeedKmh,
                 fuelUsedLitres = statisticsFuelUsedLitres,
                 confirmedCanFuelUsedLitres = statisticsConfirmedCanFuelUsedLitres,
+                initialObservedFuelLitres = initialObservedFuelLitres,
+                currentObservedFuelLitres = currentObservedFuelLitres,
             ),
         )
     }
@@ -301,6 +316,8 @@ class DistanceSinceRefuelTracker(
         maximumSpeedKmh = maximumSpeedKmh,
         fuelUsedLitres = statisticsFuelUsedLitres,
         confirmedCanFuelUsedLitres = statisticsConfirmedCanFuelUsedLitres,
+        initialObservedFuelLitres = initialObservedFuelLitres,
+        currentObservedFuelLitres = currentObservedFuelLitres,
         sourceTripFuelUsage = sourceTripFuelUsage,
         sourceTripGeneration = sourceTripGeneration,
         active = statisticsActive,
@@ -340,6 +357,8 @@ class DistanceSinceRefuelTracker(
             maximumSpeedKmh = maximumSpeedKmh,
             fuelUsedLitres = statisticsFuelUsedLitres,
             confirmedCanFuelUsedLitres = statisticsConfirmedCanFuelUsedLitres,
+            initialObservedFuelLitres = initialObservedFuelLitres,
+            currentObservedFuelLitres = currentObservedFuelLitres,
         ),
     )
 

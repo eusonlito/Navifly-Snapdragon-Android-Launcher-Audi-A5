@@ -219,9 +219,11 @@ object TripConsumptionEstimator {
     fun fuelFlowLitresPerHour(speed: Int, rpm: Int): Double {
         if (rpm <= ENGINE_OFF_RPM) return 0.0
         if (speed <= MOVING_SPEED_KMH) return IDLE_FUEL_FLOW_LPH
-        val rpmFactor = (rpm.toDouble() / 1_800.0) * 1.5
-        val speedDrag = if (speed > 110) (speed - 110) * 0.04 else 0.0
-        val consumptionLitresPer100Km = 4.8 + rpmFactor + speedDrag
+        val rpmFactor = rpm.toDouble() / RPM_REFERENCE
+        val speedDrag = if (speed > AERODYNAMIC_SPEED_THRESHOLD_KMH) {
+            (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH) * AERODYNAMIC_CONSUMPTION_PER_KMH
+        } else 0.0
+        val consumptionLitresPer100Km = BASE_CONSUMPTION_L_PER_100_KM + rpmFactor + speedDrag
         return maxOf(
             IDLE_FUEL_FLOW_LPH,
             consumptionLitresPer100Km * speed / 100.0,
@@ -231,6 +233,10 @@ object TripConsumptionEstimator {
     private const val ENGINE_OFF_RPM = 500
     private const val MOVING_SPEED_KMH = 1
     private const val IDLE_FUEL_FLOW_LPH = .7
+    private const val BASE_CONSUMPTION_L_PER_100_KM = 3.2
+    private const val RPM_REFERENCE = 1_800.0
+    private const val AERODYNAMIC_SPEED_THRESHOLD_KMH = 110
+    private const val AERODYNAMIC_CONSUMPTION_PER_KMH = .02
 }
 
 data class FuelDistanceSegment(
@@ -481,6 +487,8 @@ data class TripMetricsSnapshot(
     val estimatedRangeKm: Int,
     val movingElapsedMs: Long,
     val maximumSpeedKmh: Int,
+    val initialObservedFuelLitres: Int?,
+    val currentObservedFuelLitres: Int?,
 ) {
     val statistics: JourneyStatisticsSnapshot
         get() = journeyStatistics(
@@ -492,6 +500,8 @@ data class TripMetricsSnapshot(
             confirmedCanFuelUsedLitres = confirmedCanFuelUsedLitres,
             calculatedConsumption = averageConsumption,
             observedCanConsumption = observedCanConsumption,
+            initialObservedFuelLitres = initialObservedFuelLitres,
+            currentObservedFuelLitres = currentObservedFuelLitres,
         )
 }
 
@@ -510,6 +520,8 @@ data class TripSessionState(
     val rangeBaselineConsumption: Double? = null,
     val movingElapsedMs: Long = 0L,
     val maximumSpeedKmh: Int = 0,
+    val initialObservedFuelLitres: Int? = null,
+    val currentObservedFuelLitres: Int? = null,
 )
 
 class TripSessionTracker(
@@ -539,6 +551,10 @@ class TripSessionTracker(
     private var persistenceVersion = 0L
     private var movingElapsedMs = initialState.movingElapsedMs.coerceAtLeast(0L)
     private var maximumSpeedKmh = initialState.maximumSpeedKmh.coerceAtLeast(0)
+    private var initialObservedFuelLitres = initialState.initialObservedFuelLitres
+        ?.takeIf { it > 0 }
+    private var currentObservedFuelLitres = initialState.currentObservedFuelLitres
+        ?.takeIf { it > 0 }
 
     @Synchronized
     fun onTelemetry(
@@ -618,6 +634,14 @@ class TripSessionTracker(
     ) {
         if (fuelLitres <= 0) return
         var changed = false
+        if (initialObservedFuelLitres == null) {
+            initialObservedFuelLitres = fuelLitres
+            changed = true
+        }
+        if (currentObservedFuelLitres != fuelLitres) {
+            currentObservedFuelLitres = fuelLitres
+            changed = true
+        }
         if (virtualFuelLitres <= 0.0) {
             virtualFuelLitres = fuelLitres.toDouble()
             changed = true
@@ -700,6 +724,8 @@ class TripSessionTracker(
             } else 0,
             movingElapsedMs = movingElapsedMs,
             maximumSpeedKmh = maximumSpeedKmh,
+            initialObservedFuelLitres = initialObservedFuelLitres,
+            currentObservedFuelLitres = currentObservedFuelLitres,
         )
     }
 
@@ -722,6 +748,8 @@ class TripSessionTracker(
         rangeBaselineConsumption = rangeEstimator.baselineConsumption(),
         movingElapsedMs = movingElapsedMs,
         maximumSpeedKmh = maximumSpeedKmh,
+        initialObservedFuelLitres = initialObservedFuelLitres,
+        currentObservedFuelLitres = currentObservedFuelLitres,
     )
 
     private companion object {
@@ -746,6 +774,8 @@ internal fun journeyStatistics(
     observedCanConsumption: Double = if (distanceKm > 0.0) {
         confirmedCanFuelUsedLitres.validMetric() / distanceKm.validMetric() * 100.0
     } else 0.0,
+    initialObservedFuelLitres: Int? = null,
+    currentObservedFuelLitres: Int? = null,
 ): JourneyStatisticsSnapshot {
     val safeDistanceKm = distanceKm.validMetric()
     val safeElapsedMs = elapsedMs.coerceAtLeast(0L)
@@ -765,5 +795,15 @@ internal fun journeyStatistics(
         observedCanConsumption = observedCanConsumption.validMetric(),
         fuelUsedLitres = fuelUsedLitres.validMetric(),
         confirmedCanFuelUsedLitres = confirmedCanFuelUsedLitres.validMetric(),
+        observedFuelSpentLitres = observedFuelSpent(
+            initialObservedFuelLitres,
+            currentObservedFuelLitres,
+        ),
     )
+}
+
+internal fun observedFuelSpent(initialFuelLitres: Int?, currentFuelLitres: Int?): Double? {
+    val initial = initialFuelLitres?.takeIf { it > 0 } ?: return null
+    val current = currentFuelLitres?.takeIf { it > 0 } ?: return null
+    return (initial - current).coerceAtLeast(0).toDouble()
 }

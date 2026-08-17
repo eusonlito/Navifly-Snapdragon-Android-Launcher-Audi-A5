@@ -115,10 +115,13 @@ internal fun JourneyStatisticsPanel(
             StatisticsRow(
                 firstLabel = stringResource(R.string.statistics_maximum_speed),
                 firstValue = speedValue(statistics.maximumSpeedKmh.toDouble(), locale),
-                secondLabel = stringResource(R.string.statistics_stopped_time),
-                secondValue = formatTripDuration(
-                    stoppedElapsedMs(statistics.elapsedMs, statistics.movingElapsedMs),
-                ),
+                secondLabel = stringResource(R.string.statistics_fuel_spent),
+                secondValue = statistics.observedFuelSpentLitres?.let { fuelSpent ->
+                    stringResource(
+                        R.string.statistics_fuel_value,
+                        formatFuelUsed(fuelSpent, locale),
+                    )
+                } ?: "—",
             )
         }
     }
@@ -189,6 +192,3 @@ private fun speedValue(value: Double, locale: Locale): String = stringResource(
 
 internal fun formatFuelUsed(value: Double, locale: Locale): String =
     String.format(locale, "%.2f", value.takeIf { it.isFinite() } ?: 0.0)
-
-internal fun stoppedElapsedMs(elapsedMs: Long, movingElapsedMs: Long): Long =
-    (elapsedMs - movingElapsedMs).coerceAtLeast(0L)

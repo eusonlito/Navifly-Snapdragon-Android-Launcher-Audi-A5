@@ -74,8 +74,8 @@
     <string name="dashboard_time">Tiempo</string>
     <string name="dashboard_trip">Viaje</string>
     <string name="dashboard_consumption">Consumo</string>
-    <string name="consumption_calculated">Consumo Calculado</string>
-    <string name="consumption_simple">Consumo Simple</string>
+    <string name="consumption_calculated">Consumo Estimado</string>
+    <string name="consumption_simple">Consumo CAN</string>
     <string name="consumption_value_format">%1$s L/100 km</string>
     <string name="dialog_close">Cerrar</string>
     <string name="trip_statistics_title">Estadísticas Viaje</string>
@@ -86,7 +86,7 @@
     <string name="statistics_average_speed">Velocidad Media</string>
     <string name="statistics_moving_average_speed">Media en Movimiento</string>
     <string name="statistics_maximum_speed">Velocidad Máxima</string>
-    <string name="statistics_stopped_time">Tiempo Parado</string>
+    <string name="statistics_fuel_spent">Combustible Gastado</string>
     <string name="statistics_fuel_used">Combustible Estimado</string>
     <string name="statistics_distance_value">%1$s km</string>
     <string name="statistics_speed_value">%1$s km/h</string>

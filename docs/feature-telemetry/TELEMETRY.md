@@ -167,7 +167,8 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
 2. **Consumo medio y autonomía:** no existe un bus de consumo acumulado ni una
    autonomía nativa validados. El launcher estima primero un caudal en litros
    por hora a partir de RPM y velocidad. Mientras circula conserva la heurística
-   provisional de consumo instantáneo y la convierte mediante
+   provisional de consumo instantáneo —base 3,2, componente RPM y resistencia
+   adicional por encima de 110 km/h— y la convierte mediante
    `caudal = l/100 km × km/h / 100`; con el motor encendido y el coche detenido
    integra `0,7 l/h`. Cada intervalo monotónico añade combustible y distancia,
    y el consumo mostrado es siempre `litros acumulados / kilómetros × 100`
@@ -181,12 +182,15 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
    distancia, tiempo total y en movimiento, velocidad media total, velocidad
-   media mientras circula, velocidad máxima, tiempo parado, combustible estimado
-   y consumos calculado y simple. Pulsar de nuevo el mismo bloque cierra su panel;
-   pulsar el otro cambia directamente de ámbito. `Consumo Calculado` es la
-   estimación anterior; `Consumo Simple` divide entre la distancia los descensos
+   media mientras circula, velocidad máxima, combustible estimado, combustible
+   gastado y consumos estimado y CAN. Pulsar de nuevo el mismo bloque cierra su
+   panel; pulsar el otro cambia directamente de ámbito. `Consumo Estimado` usa
+   el modelo de caudal; `Consumo CAN` divide entre la distancia los descensos
    de litros enteros confirmados por CAN. El segundo valor no se limita a 15
    L/100 km y avanza por escalones, porque el vehículo no entrega decimales.
+   `Combustible Gastado` resta directamente la lectura CAN actual de la inicial;
+   por eso puede permanecer en cero durante bastantes kilómetros con el depósito
+   lleno y se muestra separado de `Combustible Estimado`.
    `Viaje` se reinicia al comenzar una nueva sesión del coche; `Parcial` conserva
    sus datos entre arranques y sólo se reinicia con un repostaje confirmado. Todo
    se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a

@@ -52,7 +52,7 @@ import java.io.File
 
 private fun JSONObject.longOrNull(key: String): Long? = (opt(key) as? Number)?.toLong()
 
-private const val CURRENT_TRIP_SCHEMA = 4
+private const val CURRENT_TRIP_SCHEMA = 5
 
 internal fun isCompatibleTripSchema(schema: Int): Boolean =
     schema == CURRENT_TRIP_SCHEMA
@@ -168,9 +168,11 @@ class TelemetryService : Service() {
         private const val TRIP_RANGE_BASELINE_BITS = "range_baseline_bits"
         private const val TRIP_MOVING_ELAPSED_MS = "moving_elapsed_ms"
         private const val TRIP_MAXIMUM_SPEED_KMH = "maximum_speed_kmh"
+        private const val TRIP_INITIAL_OBSERVED_FUEL_LITRES = "initial_observed_fuel_litres"
+        private const val TRIP_CURRENT_OBSERVED_FUEL_LITRES = "current_observed_fuel_litres"
         private const val RANGE_PREFS = "range_consumption_model"
         private const val RANGE_SCHEMA = "schema"
-        private const val CURRENT_RANGE_SCHEMA = 1
+        private const val CURRENT_RANGE_SCHEMA = 2
         private const val RANGE_LEARNED_CONSUMPTION_BITS = "learned_consumption_bits"
         private const val RANGE_PENDING_DISTANCE_BITS = "pending_distance_bits"
         private const val RANGE_PENDING_FUEL_BITS = "pending_fuel_bits"
@@ -566,6 +568,14 @@ class TelemetryService : Service() {
                 maximumSpeedKmh = if (sameBoot) {
                     tripPreferences.getInt(TRIP_MAXIMUM_SPEED_KMH, 0).coerceAtLeast(0)
                 } else 0,
+                initialObservedFuelLitres = if (sameBoot) {
+                    tripPreferences.getInt(TRIP_INITIAL_OBSERVED_FUEL_LITRES, 0)
+                        .takeIf { it > 0 }
+                } else null,
+                currentObservedFuelLitres = if (sameBoot) {
+                    tripPreferences.getInt(TRIP_CURRENT_OBSERVED_FUEL_LITRES, 0)
+                        .takeIf { it > 0 }
+                } else null,
             ),
             refuelDetector = null,
         )
@@ -693,6 +703,12 @@ class TelemetryService : Service() {
                 )
                 putLong(TRIP_MOVING_ELAPSED_MS, state.movingElapsedMs)
                 putInt(TRIP_MAXIMUM_SPEED_KMH, state.maximumSpeedKmh)
+                state.initialObservedFuelLitres?.let {
+                    putInt(TRIP_INITIAL_OBSERVED_FUEL_LITRES, it)
+                } ?: remove(TRIP_INITIAL_OBSERVED_FUEL_LITRES)
+                state.currentObservedFuelLitres?.let {
+                    putInt(TRIP_CURRENT_OBSERVED_FUEL_LITRES, it)
+                } ?: remove(TRIP_CURRENT_OBSERVED_FUEL_LITRES)
             }
         }
         if (state.rangeConsumptionState != lastPersistedRangeState) {
