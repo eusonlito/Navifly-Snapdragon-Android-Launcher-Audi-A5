@@ -662,6 +662,11 @@ class TripSessionTracker(
                 changed = true
             }
             is ConfirmedFuelLevelChange.Refuel -> {
+                // Keep the raw Trip fuel accounting continuous across refuelling.
+                // Partial statistics reset separately to the new tank level.
+                initialObservedFuelLitres = initialObservedFuelLitres?.plus(
+                    fuelLevelChange.fuelLitres - fuelLevelChange.baselineFuelLitres,
+                ) ?: fuelLevelChange.fuelLitres
                 virtualFuelLitres = fuelLevelChange.fuelLitres.toDouble()
                 lastFuelLitres = fuelLevelChange.fuelLitres
                 calibrationAnchorFuelLitres = fuelLevelChange.fuelLitres

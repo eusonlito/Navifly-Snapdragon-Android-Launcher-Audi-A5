@@ -190,7 +190,10 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    L/100 km y avanza por escalones, porque el vehículo no entrega decimales.
    `Combustible Gastado` resta directamente la lectura CAN actual de la inicial;
    por eso puede permanecer en cero durante bastantes kilómetros con el depósito
-   lleno y se muestra separado de `Combustible Estimado`.
+   lleno y se muestra separado de `Combustible Estimado`. Si se reposta durante
+   el mismo viaje, el incremento del depósito se incorpora a la referencia del
+   viaje para no perder el combustible gastado antes del repostaje; el parcial sí
+   adopta el nuevo nivel y vuelve a cero.
    `Viaje` se reinicia al comenzar una nueva sesión del coche; `Parcial` conserva
    sus datos entre arranques y sólo se reinicia con un repostaje confirmado. Todo
    se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a

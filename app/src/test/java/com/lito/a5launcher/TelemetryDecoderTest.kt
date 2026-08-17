@@ -818,6 +818,44 @@ class TelemetryDecoderTest {
     }
 
     @Test
+    fun tripObservedFuelSpentRemainsContinuousAcrossRefuelling() {
+        val session = TripSessionTracker(refuelDetector = null)
+
+        session.onTelemetryWithFuelDecision(
+            60,
+            1_800,
+            40,
+            0L,
+            ConfirmedFuelLevelChange.Initialized,
+        )
+        val beforeRefuel = session.onTelemetryWithFuelDecision(
+            60,
+            1_800,
+            35,
+            1_000L,
+            ConfirmedFuelLevelChange.Drop(5),
+        ).statistics
+        val afterRefuel = session.onTelemetryWithFuelDecision(
+            0,
+            800,
+            45,
+            2_000L,
+            ConfirmedFuelLevelChange.Refuel(45, 35, 2),
+        ).statistics
+        val afterAnotherLitre = session.onTelemetryWithFuelDecision(
+            60,
+            1_800,
+            44,
+            3_000L,
+            null,
+        ).statistics
+
+        assertEquals(5.0, beforeRefuel.observedFuelSpentLitres)
+        assertEquals(5.0, afterRefuel.observedFuelSpentLitres)
+        assertEquals(6.0, afterAnotherLitre.observedFuelSpentLitres)
+    }
+
+    @Test
     fun averageSpeedIsZeroWithoutElapsedTime() {
         val statistics = journeyStatistics(
             elapsedMs = 0L,
