@@ -795,6 +795,7 @@ class TelemetryDecoderTest {
         assertEquals(60_000L, statistics.movingElapsedMs)
         assertEquals(1.0, statistics.distanceKm, .000_001)
         assertEquals(30.0, statistics.averageSpeedKmh, .000_001)
+        assertEquals(60.0, statistics.movingAverageSpeedKmh, .000_001)
     }
 
     @Test
@@ -809,6 +810,7 @@ class TelemetryDecoderTest {
         )
 
         assertEquals(0.0, statistics.averageSpeedKmh, .000_001)
+        assertEquals(0.0, statistics.movingAverageSpeedKmh, .000_001)
     }
 
     @Test

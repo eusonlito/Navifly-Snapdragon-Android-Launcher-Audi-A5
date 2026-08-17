@@ -6,6 +6,7 @@ data class JourneyStatisticsSnapshot(
     val distanceKm: Double = 0.0,
     val maximumSpeedKmh: Int = 0,
     val averageSpeedKmh: Double = 0.0,
+    val movingAverageSpeedKmh: Double = 0.0,
     val calculatedConsumption: Double = 0.0,
     val observedCanConsumption: Double = 0.0,
     val fuelUsedLitres: Double = 0.0,

@@ -272,6 +272,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
     var showApps by remember { mutableStateOf(false) }
     var showLauncherSettings by remember { mutableStateOf(false) }
+    var statisticsPanel by remember { mutableStateOf<StatisticsPanelScope?>(null) }
     var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.MAP) }
     var topCommandOrder by remember {
         mutableStateOf(parseTopCommandOrder(launcherPreferences.getString(TOP_COMMAND_ORDER_KEY, null)))
@@ -661,6 +662,26 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                             .zIndex(3f),
                     )
 
+                    statisticsPanel?.let { scope ->
+                        JourneyStatisticsPanel(
+                            title = stringResource(
+                                if (scope == StatisticsPanelScope.TRIP) {
+                                    R.string.trip_statistics_title
+                                } else {
+                                    R.string.partial_statistics_title
+                                },
+                            ),
+                            statistics = if (scope == StatisticsPanelScope.TRIP) {
+                                tripStatistics
+                            } else {
+                                partialStatistics
+                            },
+                            locale = dashboardLocale,
+                            onClose = { statisticsPanel = null },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
                     CockpitMapIntegrationOverlay(
                         dialDiameter = dialSize,
                         modifier = Modifier.fillMaxSize(),
@@ -721,6 +742,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     parkingBrake = brake,
                     lightsActive = darkModeActive,
                     blockOrder = footerBlockOrder,
+                    onTripStatistics = { statisticsPanel = StatisticsPanelScope.TRIP },
+                    onPartialStatistics = { statisticsPanel = StatisticsPanelScope.PARTIAL },
                     onBlockOrderChanged = { order ->
                         if (order !== footerBlockOrder) {
                             footerBlockOrder = order
@@ -1506,11 +1529,12 @@ private fun CompactVitals(
     parkingBrake: Boolean,
     lightsActive: Boolean,
     blockOrder: List<FooterBlockItem>,
+    onTripStatistics: () -> Unit,
+    onPartialStatistics: () -> Unit,
     onBlockOrderChanged: (List<FooterBlockItem>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    var statisticsDialog by remember { mutableStateOf<StatisticsDialogScope?>(null) }
     val footerWidths = remember { mutableStateMapOf<FooterBlockItem, Int>() }
     val footerDividerWidthPx = with(LocalDensity.current) { 1.dp.roundToPx() }
     Box(
@@ -1538,9 +1562,7 @@ private fun CompactVitals(
                             MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripStatistics.elapsedMs), false, labelSize, valueSize)
                         }
                         FooterBlockItem.TRIP -> FooterBlock(
-                            modifier = Modifier.clickable {
-                                statisticsDialog = StatisticsDialogScope.TRIP
-                            },
+                            modifier = Modifier.clickable(onClick = onTripStatistics),
                         ) {
                             MiniValue(stringResource(R.string.dashboard_trip), formatOneDecimal(tripStatistics.distanceKm, locale), false, labelSize, valueSize)
                         }
@@ -1556,9 +1578,7 @@ private fun CompactVitals(
                             )
                         }
                         FooterBlockItem.REFUEL_DISTANCE -> FooterBlock(
-                            modifier = Modifier.clickable {
-                                statisticsDialog = StatisticsDialogScope.PARTIAL
-                            },
+                            modifier = Modifier.clickable(onClick = onPartialStatistics),
                         ) {
                             MiniValue(stringResource(R.string.dashboard_refuel_distance), formatOneDecimal(partialStatistics.distanceKm, locale), false, labelSize, valueSize)
                         }
@@ -1594,28 +1614,10 @@ private fun CompactVitals(
             }
         }
 
-        statisticsDialog?.let { scope ->
-            JourneyStatisticsDialog(
-                title = stringResource(
-                    if (scope == StatisticsDialogScope.TRIP) {
-                        R.string.trip_statistics_title
-                    } else {
-                        R.string.partial_statistics_title
-                    },
-                ),
-                statistics = if (scope == StatisticsDialogScope.TRIP) {
-                    tripStatistics
-                } else {
-                    partialStatistics
-                },
-                locale = locale,
-                onDismiss = { statisticsDialog = null },
-            )
-        }
     }
 }
 
-private enum class StatisticsDialogScope { TRIP, PARTIAL }
+private enum class StatisticsPanelScope { TRIP, PARTIAL }
 
 @Composable
 private fun FooterReorderableSlot(

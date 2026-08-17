@@ -758,6 +758,9 @@ internal fun journeyStatistics(
         averageSpeedKmh = if (safeElapsedMs > 0L) {
             safeDistanceKm / (safeElapsedMs / 3_600_000.0)
         } else 0.0,
+        movingAverageSpeedKmh = if (safeMovingElapsedMs > 0L) {
+            safeDistanceKm / (safeMovingElapsedMs / 3_600_000.0)
+        } else 0.0,
         calculatedConsumption = calculatedConsumption.validMetric(),
         observedCanConsumption = observedCanConsumption.validMetric(),
         fuelUsedLitres = fuelUsedLitres.validMetric(),

@@ -85,6 +85,7 @@
     <string name="statistics_elapsed_time">Total Time</string>
     <string name="statistics_moving_time">In Motion</string>
     <string name="statistics_average_speed">Average Speed</string>
+    <string name="statistics_moving_average_speed">Moving Average</string>
     <string name="statistics_maximum_speed">Maximum Speed</string>
     <string name="statistics_fuel_used">Estimated Fuel</string>
     <string name="statistics_distance_value">%1$s km</string>
