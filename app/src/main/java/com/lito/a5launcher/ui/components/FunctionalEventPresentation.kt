@@ -20,6 +20,8 @@ internal object FunctionalEventPresentation {
             R.string.functional_logs_category_consumption_range
         FunctionalEventCategory.GEAR_ESTIMATION ->
             R.string.functional_logs_category_gear_estimation
+        FunctionalEventCategory.MAXIMUM_SPEED ->
+            R.string.functional_logs_category_maximum_speed
     }
 
     @StringRes
@@ -27,6 +29,8 @@ internal object FunctionalEventPresentation {
         FunctionalEventTypes.PARTIAL_RESET,
         FunctionalEventTypes.REFUEL_CONFIRMED,
         -> R.string.functional_logs_summary_refuel_confirmed
+        FunctionalEventTypes.PARTIAL_MAXIMUM_SPEED ->
+            R.string.functional_logs_summary_partial_maximum_speed
         FunctionalEventTypes.REFUEL_REJECTED -> R.string.functional_logs_summary_refuel_rejected
         FunctionalEventTypes.TRIP_RESTORED -> R.string.functional_logs_summary_trip_restored
         FunctionalEventTypes.TRIP_RESET -> R.string.functional_logs_summary_trip_reset
@@ -50,6 +54,10 @@ internal object FunctionalEventPresentation {
         "reason" -> R.string.functional_logs_context_reason
         "restored" -> R.string.functional_logs_context_restored
         "speedKmh" -> R.string.functional_logs_context_speed
+        FunctionalEventContextKeys.PREVIOUS_MAXIMUM_SPEED_KMH ->
+            R.string.functional_logs_context_previous_maximum_speed
+        FunctionalEventContextKeys.MAXIMUM_SPEED_KMH ->
+            R.string.functional_logs_context_maximum_speed
         "rpm" -> R.string.functional_logs_context_rpm
         FunctionalEventContextKeys.FUEL_BEFORE_LITRES -> R.string.functional_logs_context_fuel_before
         FunctionalEventContextKeys.FUEL_AFTER_LITRES -> R.string.functional_logs_context_fuel_after

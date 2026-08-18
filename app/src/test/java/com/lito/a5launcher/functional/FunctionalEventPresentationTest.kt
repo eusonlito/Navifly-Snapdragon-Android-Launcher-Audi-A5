@@ -21,6 +21,8 @@ class FunctionalEventPresentationTest {
                     R.string.functional_logs_category_consumption_range,
                 FunctionalEventCategory.GEAR_ESTIMATION to
                     R.string.functional_logs_category_gear_estimation,
+                FunctionalEventCategory.MAXIMUM_SPEED to
+                    R.string.functional_logs_category_maximum_speed,
             ),
             FunctionalEventCategory.entries.associateWith(
                 FunctionalEventPresentation::categoryLabelRes,
@@ -37,6 +39,10 @@ class FunctionalEventPresentationTest {
         assertEquals(
             R.string.functional_logs_summary_unknown,
             FunctionalEventPresentation.summaryRes(FunctionalEventType("future.event")),
+        )
+        assertEquals(
+            R.string.functional_logs_summary_partial_maximum_speed,
+            FunctionalEventPresentation.summaryRes(FunctionalEventTypes.PARTIAL_MAXIMUM_SPEED),
         )
     }
 

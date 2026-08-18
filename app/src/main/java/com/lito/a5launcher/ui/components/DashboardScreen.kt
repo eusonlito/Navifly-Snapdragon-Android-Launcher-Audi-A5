@@ -85,6 +85,7 @@ import com.lito.a5launcher.model.AppInfo
 import com.lito.a5launcher.model.DoorStatus
 import com.lito.a5launcher.assistant.AssistantController
 import com.lito.a5launcher.assistant.AssistantErrorLogStats
+import com.lito.a5launcher.A5_FUEL_TANK_CAPACITY_LITRES
 import com.lito.a5launcher.assistant.AssistantConversationDialog
 import com.lito.a5launcher.assistant.AssistantProvider
 import com.lito.a5launcher.assistant.AssistantRobotButton
@@ -109,7 +110,6 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private const val A5_FUEL_TANK_LITRES = 63f
 private const val TOP_COMMAND_ORDER_KEY = "top_command_order"
 private const val FOOTER_BLOCK_ORDER_KEY = "footer_block_order"
 internal enum class TopCommandItem {
@@ -218,7 +218,7 @@ private sealed interface LauncherUpdateState {
 }
 
 internal fun fuelFraction(litres: Number): Float =
-    (litres.toFloat() / A5_FUEL_TANK_LITRES).coerceIn(0f, 1f)
+    (litres.toFloat() / A5_FUEL_TANK_CAPACITY_LITRES).coerceIn(0f, 1f)
 
 internal fun fuelSegments(litres: Number): Int =
     (fuelFraction(litres) * 10f).roundToInt()

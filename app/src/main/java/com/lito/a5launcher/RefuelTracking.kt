@@ -43,6 +43,12 @@ data class DistanceSinceRefuelSnapshot(
     val lastFuelLitres: Int?,
     val refuelDetected: Boolean,
     val statistics: JourneyStatisticsSnapshot = JourneyStatisticsSnapshot(distanceKm = distanceKm),
+    val maximumSpeedChange: PartialMaximumSpeedChange? = null,
+)
+
+data class PartialMaximumSpeedChange(
+    val previousSpeedKmh: Int,
+    val currentSpeedKmh: Int,
 )
 
 sealed interface ConfirmedFuelLevelChange {
@@ -205,7 +211,7 @@ class DistanceSinceRefuelTracker(
     private var lastFuelLitres = initialFuelLitres?.takeIf { it > 0 }
     private var statisticsElapsedMs = initialStatisticsState.elapsedMs.coerceAtLeast(0L)
     private var statisticsMovingElapsedMs = initialStatisticsState.movingElapsedMs.coerceAtLeast(0L)
-    private var maximumSpeedKmh = initialStatisticsState.maximumSpeedKmh.coerceAtLeast(0)
+    private var maximumSpeedKmh = validMaximumSpeedKmh(initialStatisticsState.maximumSpeedKmh)
     private var statisticsFuelUsedLitres = initialStatisticsState.fuelUsedLitres.validMetric()
     private var statisticsConfirmedCanFuelUsedLitres =
         initialStatisticsState.confirmedCanFuelUsedLitres.validMetric()
@@ -247,7 +253,8 @@ class DistanceSinceRefuelTracker(
         tripGeneration: Long? = null,
     ): DistanceSinceRefuelSnapshot {
         advanceTo(elapsedRealtimeMs)
-        val safeSpeed = speedKmh.coerceAtLeast(0)
+        val safeSpeed = validVehicleSpeedKmh(speedKmh) ?: 0
+        val previousMaximumSpeedKmh = maximumSpeedKmh
         if (!statisticsActive && safeSpeed > 0) statisticsActive = true
         previousSpeedKmh = safeSpeed
         lastTelemetryElapsedMs = elapsedRealtimeMs
@@ -293,6 +300,9 @@ class DistanceSinceRefuelTracker(
                 initialObservedFuelLitres = initialObservedFuelLitres,
                 currentObservedFuelLitres = currentObservedFuelLitres,
             ),
+            maximumSpeedChange = if (!refuelDetected && maximumSpeedKmh > previousMaximumSpeedKmh) {
+                PartialMaximumSpeedChange(previousMaximumSpeedKmh, maximumSpeedKmh)
+            } else null,
         )
     }
 

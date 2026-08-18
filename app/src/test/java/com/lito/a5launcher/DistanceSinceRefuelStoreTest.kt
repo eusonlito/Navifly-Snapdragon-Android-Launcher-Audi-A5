@@ -59,6 +59,21 @@ class DistanceSinceRefuelStoreTest {
         assertNull(restored.statisticsState.currentObservedFuelLitres)
         assertFalse(restored.statisticsState.active)
     }
+
+    @Test
+    fun implausiblePersistedMaximumSpeedIsDiscarded() {
+        val preferences = MemorySharedPreferences()
+        val store = DistanceSinceRefuelStore(preferences)
+        store.write(
+            DistanceSinceRefuelPersistenceSnapshot(
+                distanceKm = 20.0,
+                lastFuelLitres = 40,
+                statisticsState = DistanceSinceRefuelStatisticsState(maximumSpeedKmh = 655),
+            ),
+        )
+
+        assertEquals(0, store.read().statisticsState.maximumSpeedKmh)
+    }
 }
 
 internal class MemorySharedPreferences : SharedPreferences {

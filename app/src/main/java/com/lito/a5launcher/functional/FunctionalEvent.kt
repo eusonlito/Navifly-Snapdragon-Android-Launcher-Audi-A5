@@ -5,10 +5,11 @@ enum class FunctionalEventCategory(val code: String) {
     PARTIAL_RESET("partial-reset"),
     TRIP_SESSION("trip-session"),
     CONSUMPTION_AND_RANGE("consumption-range"),
-    GEAR_ESTIMATION("gear-estimation");
+    GEAR_ESTIMATION("gear-estimation"),
+    MAXIMUM_SPEED("maximum-speed");
 
     companion object {
-        val captureOptions = listOf(PARTIAL_RESET)
+        val captureOptions = listOf(PARTIAL_RESET, MAXIMUM_SPEED)
 
         fun fromCode(code: String): FunctionalEventCategory? = entries.firstOrNull { it.code == code }
     }
@@ -39,6 +40,7 @@ value class FunctionalEventType(val code: String) {
 
 object FunctionalEventTypes {
     val PARTIAL_RESET = FunctionalEventType("partial.reset")
+    val PARTIAL_MAXIMUM_SPEED = FunctionalEventType("partial.maximum-speed")
     val REFUEL_CONFIRMED = FunctionalEventType("refuel.confirmed")
     val REFUEL_REJECTED = FunctionalEventType("refuel.rejected")
     val TRIP_RESTORED = FunctionalEventType("trip.restored")
@@ -55,6 +57,8 @@ object FunctionalEventTypes {
 object FunctionalEventContextKeys {
     const val FUEL_BEFORE_LITRES = "fuelBeforeLitres"
     const val FUEL_AFTER_LITRES = "fuelAfterLitres"
+    const val PREVIOUS_MAXIMUM_SPEED_KMH = "previousMaximumSpeedKmh"
+    const val MAXIMUM_SPEED_KMH = "maximumSpeedKmh"
 }
 
 sealed interface FunctionalEventValue {

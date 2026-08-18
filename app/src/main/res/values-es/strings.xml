@@ -207,7 +207,9 @@
     <string name="functional_logs_category_trip_session">Sesión de Viaje</string>
     <string name="functional_logs_category_consumption_range">Consumo y Autonomía</string>
     <string name="functional_logs_category_gear_estimation">Estimación de Marcha</string>
+    <string name="functional_logs_category_maximum_speed">Velocidad Máxima</string>
     <string name="functional_logs_summary_refuel_confirmed">Repostaje confirmado y parcial reiniciado</string>
+    <string name="functional_logs_summary_partial_maximum_speed">Nueva Velocidad Máxima del Parcial</string>
     <string name="functional_logs_summary_refuel_rejected">Candidato a repostaje rechazado</string>
     <string name="functional_logs_summary_trip_restored">Sesión de viaje anterior restaurada</string>
     <string name="functional_logs_summary_trip_reset">Sesión de viaje reiniciada</string>
@@ -222,6 +224,8 @@
     <string name="functional_logs_context_reason">Motivo</string>
     <string name="functional_logs_context_restored">Restaurada</string>
     <string name="functional_logs_context_speed">Velocidad</string>
+    <string name="functional_logs_context_previous_maximum_speed">Máxima Anterior</string>
+    <string name="functional_logs_context_maximum_speed">Velocidad Máxima</string>
     <string name="functional_logs_context_rpm">RPM</string>
     <string name="functional_logs_context_fuel">Combustible</string>
     <string name="functional_logs_context_fuel_before">Combustible Antes</string>

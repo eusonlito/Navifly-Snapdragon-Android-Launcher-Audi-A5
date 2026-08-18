@@ -8,6 +8,11 @@ internal const val DEFAULT_RANGE_CONSUMPTION_L_PER_100_KM = 6.9
 internal const val MAX_DISPLAY_CONSUMPTION = 15.0
 internal const val MAX_IDLE_SPEED_KMH = 1
 
+internal fun validVehicleSpeedKmh(speedKmh: Int): Int? =
+    speedKmh.takeIf { it in 0..MAX_PLAUSIBLE_VEHICLE_SPEED_KMH }
+
+internal fun validMaximumSpeedKmh(speedKmh: Int): Int = validVehicleSpeedKmh(speedKmh) ?: 0
+
 internal fun cappedConsumption(consumptionLitresPer100Km: Double): Double =
     consumptionLitresPer100Km.takeIf { it.isFinite() }
         ?.coerceIn(0.0, MAX_DISPLAY_CONSUMPTION) ?: 0.0
@@ -34,8 +39,9 @@ data class DrivingSample(
 object TelemetryDecoder {
     fun decodeCore(bytes: ByteArray): CoreTelemetry? {
         if (bytes.size < 20) return null
+        val speed = validVehicleSpeedKmh(unsigned16(bytes, 11)) ?: return null
         return CoreTelemetry(
-            speed = unsigned16(bytes, 11),
+            speed = speed,
             averageSpeed = unsigned16(bytes, 9),
             rpm = unsigned16(bytes, 13),
             fuelLitres = unsigned16(bytes, 15),
@@ -583,7 +589,7 @@ class TripDistanceAccumulator(initialDistanceKm: Double = 0.0) {
             distanceKm += previousSpeedKmh * elapsedMs / 3_600_000.0
         }
         lastElapsedRealtimeMs = elapsedRealtimeMs
-        previousSpeedKmh = speedKmh.coerceAtLeast(0)
+        previousSpeedKmh = validVehicleSpeedKmh(speedKmh) ?: 0
         return distanceKm
     }
 }
@@ -629,6 +635,7 @@ data class TripSessionState(
     val lastFuelLitres: Int? = null,
     val calibrationAnchorFuelLitres: Int? = null,
     val uncalibratedFuelSinceAnchorLitres: Double = 0.0,
+    val calibrationEvidenceLitres: Double = 0.0,
     val recentConsumptionState: RecentConsumptionState = RecentConsumptionState(),
     val rangeConsumptionState: RangeConsumptionState = RangeConsumptionState(),
     val rangeBaselineConsumption: Double? = null,
@@ -657,6 +664,7 @@ class TripSessionTracker(
     private var lastFuelLitres = initialState.lastFuelLitres?.takeIf { it > 0 }
     private var calibrationAnchorFuelLitres = initialState.calibrationAnchorFuelLitres?.takeIf { it > 0 }
     private var uncalibratedFuelSinceAnchorLitres = initialState.uncalibratedFuelSinceAnchorLitres.validMetric()
+    private var calibrationEvidenceLitres = initialState.calibrationEvidenceLitres.validMetric()
     private val accelerationFuelEstimator = PositiveAccelerationFuelEstimator()
     private val recentConsumption = RecentConsumptionTracker(initialState.recentConsumptionState)
     private val rangeEstimator = RangeConsumptionEstimator(
@@ -665,7 +673,7 @@ class TripSessionTracker(
     )
     private var persistenceVersion = 0L
     private var movingElapsedMs = initialState.movingElapsedMs.coerceAtLeast(0L)
-    private var maximumSpeedKmh = initialState.maximumSpeedKmh.coerceAtLeast(0)
+    private var maximumSpeedKmh = validMaximumSpeedKmh(initialState.maximumSpeedKmh)
     private var initialObservedFuelLitres = initialState.initialObservedFuelLitres
         ?.takeIf { it > 0 }
     private var currentObservedFuelLitres = initialState.currentObservedFuelLitres
@@ -697,7 +705,7 @@ class TripSessionTracker(
         fuelDecision: ConfirmedFuelLevelChange?,
     ): TripMetricsSnapshot {
         advanceTo(elapsedRealtimeMs)
-        val nextSpeedKmh = speedKmh.coerceAtLeast(0)
+        val nextSpeedKmh = validVehicleSpeedKmh(speedKmh) ?: 0
         addAccelerationFuel(accelerationFuelEstimator.observe(nextSpeedKmh))
         this.speedKmh = nextSpeedKmh
         this.rpm = rpm.coerceAtLeast(0)
@@ -753,7 +761,9 @@ class TripSessionTracker(
         val validRawFuelLitres = rawFuelLitres.validMetric()
         val calibratedFuelLitres = validRawFuelLitres * calibrationFactor
         fuelUsedLitres += calibratedFuelLitres
-        uncalibratedFuelSinceAnchorLitres += validRawFuelLitres
+        if (calibrationAnchorFuelLitres != null) {
+            uncalibratedFuelSinceAnchorLitres += validRawFuelLitres
+        }
         if (virtualFuelLitres > 0.0) {
             virtualFuelLitres = (virtualFuelLitres - calibratedFuelLitres).coerceAtLeast(0.0)
         }
@@ -806,39 +816,60 @@ class TripSessionTracker(
                 ) ?: fuelLevelChange.fuelLitres
                 virtualFuelLitres = fuelLevelChange.fuelLitres.toDouble()
                 lastFuelLitres = fuelLevelChange.fuelLitres
-                calibrationAnchorFuelLitres = fuelLevelChange.fuelLitres
-                uncalibratedFuelSinceAnchorLitres = 0.0
                 changed = true
             }
             is ConfirmedFuelLevelChange.Rejected -> Unit
             null -> Unit
         }
         refuelDetector?.baselineFuelLitres()?.let { lastFuelLitres = it }
-        if (fuelLevelChange !is ConfirmedFuelLevelChange.Refuel) {
-            val anchor = calibrationAnchorFuelLitres
-            val confirmedFuelLitres = lastFuelLitres
-            val observedDrop = if (anchor != null && confirmedFuelLitres != null) {
-                anchor - confirmedFuelLitres
-            } else 0
-            if (
-                confirmedFuelLitres != null &&
-                observedDrop >= CALIBRATION_DROP_LITRES &&
-                uncalibratedFuelSinceAnchorLitres > 0.0
-            ) {
-                val observedFactor = (observedDrop / uncalibratedFuelSinceAnchorLitres)
-                    .coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
-                calibrationFactor = (
-                    calibrationFactor * (1.0 - CALIBRATION_ADJUSTMENT_WEIGHT) +
-                        observedFactor * CALIBRATION_ADJUSTMENT_WEIGHT
-                    ).coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
-                virtualFuelLitres +=
-                    (confirmedFuelLitres - virtualFuelLitres) * VIRTUAL_FUEL_CORRECTION_WEIGHT
-                calibrationAnchorFuelLitres = confirmedFuelLitres
-                uncalibratedFuelSinceAnchorLitres = 0.0
-                changed = true
-            }
-        }
+        changed = updateConsumptionCalibration() || changed
         if (changed) persistenceVersion++
+    }
+
+    private fun updateConsumptionCalibration(): Boolean {
+        val confirmedFuelLitres = lastFuelLitres
+        if (confirmedFuelLitres == null || !isCalibrationFuelLevel(confirmedFuelLitres)) {
+            val changed = calibrationAnchorFuelLitres != null ||
+                uncalibratedFuelSinceAnchorLitres > 0.0
+            calibrationAnchorFuelLitres = null
+            uncalibratedFuelSinceAnchorLitres = 0.0
+            return changed
+        }
+
+        val anchor = calibrationAnchorFuelLitres
+        if (anchor == null || !isCalibrationFuelLevel(anchor) || anchor < confirmedFuelLitres) {
+            calibrationAnchorFuelLitres = confirmedFuelLitres
+            uncalibratedFuelSinceAnchorLitres = 0.0
+            return true
+        }
+
+        val observedDrop = anchor - confirmedFuelLitres
+        if (observedDrop < CALIBRATION_DROP_LITRES || uncalibratedFuelSinceAnchorLitres <= 0.0) {
+            return false
+        }
+
+        val observedFactor = (observedDrop / uncalibratedFuelSinceAnchorLitres)
+            .coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
+        val evidenceWeight = (observedDrop / (calibrationEvidenceLitres + observedDrop))
+            .coerceIn(MIN_CALIBRATION_ADJUSTMENT_WEIGHT, MAX_CALIBRATION_ADJUSTMENT_WEIGHT)
+        val weightedFactor = calibrationFactor +
+            (observedFactor - calibrationFactor) * evidenceWeight
+        val maximumStep = calibrationFactor * MAX_CALIBRATION_RELATIVE_STEP
+        calibrationFactor = weightedFactor
+            .coerceIn(calibrationFactor - maximumStep, calibrationFactor + maximumStep)
+            .coerceIn(MIN_CALIBRATION_FACTOR, MAX_CALIBRATION_FACTOR)
+        calibrationEvidenceLitres = (calibrationEvidenceLitres + observedDrop)
+            .coerceAtMost(MAX_CALIBRATION_EVIDENCE_LITRES)
+        virtualFuelLitres +=
+            (confirmedFuelLitres - virtualFuelLitres) * VIRTUAL_FUEL_CORRECTION_WEIGHT
+        calibrationAnchorFuelLitres = confirmedFuelLitres
+        uncalibratedFuelSinceAnchorLitres = 0.0
+        return true
+    }
+
+    private fun isCalibrationFuelLevel(fuelLitres: Int): Boolean {
+        val margin = A5_FUEL_TANK_CAPACITY_LITRES * CALIBRATION_TANK_MARGIN_FRACTION
+        return fuelLitres > margin && fuelLitres < A5_FUEL_TANK_CAPACITY_LITRES - margin
     }
 
     private fun snapshot(elapsedRealtimeMs: Long): TripMetricsSnapshot {
@@ -885,6 +916,7 @@ class TripSessionTracker(
         lastFuelLitres = lastFuelLitres,
         calibrationAnchorFuelLitres = calibrationAnchorFuelLitres,
         uncalibratedFuelSinceAnchorLitres = uncalibratedFuelSinceAnchorLitres,
+        calibrationEvidenceLitres = calibrationEvidenceLitres,
         recentConsumptionState = recentConsumption.state(),
         rangeConsumptionState = rangeEstimator.state(),
         rangeBaselineConsumption = rangeEstimator.baselineConsumption(),
@@ -900,7 +932,11 @@ class TripSessionTracker(
         const val CALIBRATION_DROP_LITRES = 3
         const val MIN_CALIBRATION_FACTOR = .7
         const val MAX_CALIBRATION_FACTOR = 1.8
-        const val CALIBRATION_ADJUSTMENT_WEIGHT = .5
+        const val MIN_CALIBRATION_ADJUSTMENT_WEIGHT = .08
+        const val MAX_CALIBRATION_ADJUSTMENT_WEIGHT = .30
+        const val MAX_CALIBRATION_RELATIVE_STEP = .10
+        const val MAX_CALIBRATION_EVIDENCE_LITRES = 30.0
+        const val CALIBRATION_TANK_MARGIN_FRACTION = .05
         const val VIRTUAL_FUEL_CORRECTION_WEIGHT = .2
     }
 }
@@ -926,7 +962,7 @@ internal fun journeyStatistics(
         elapsedMs = safeElapsedMs,
         movingElapsedMs = safeMovingElapsedMs,
         distanceKm = safeDistanceKm,
-        maximumSpeedKmh = maximumSpeedKmh.coerceAtLeast(0),
+        maximumSpeedKmh = validMaximumSpeedKmh(maximumSpeedKmh),
         averageSpeedKmh = if (safeElapsedMs > 0L) {
             safeDistanceKm / (safeElapsedMs / 3_600_000.0)
         } else 0.0,

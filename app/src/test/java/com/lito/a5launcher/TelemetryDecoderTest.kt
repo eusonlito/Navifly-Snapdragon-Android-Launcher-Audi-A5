@@ -49,6 +49,30 @@ class TelemetryDecoderTest {
     }
 
     @Test
+    fun implausibleCoreSpeedFramesAreRejectedBeforeTheyReachStatistics() {
+        val bytes = ByteArray(23)
+        put16(bytes, 11, 655)
+        put16(bytes, 13, 1_900)
+        put16(bytes, 15, 40)
+
+        assertNull(TelemetryDecoder.decodeCore(bytes))
+    }
+
+    @Test
+    fun maximumPlausibleCoreSpeedIsAcceptedAndTheNextValueIsRejected() {
+        val bytes = ByteArray(23)
+        put16(bytes, 11, MAX_PLAUSIBLE_VEHICLE_SPEED_KMH)
+
+        assertEquals(
+            MAX_PLAUSIBLE_VEHICLE_SPEED_KMH,
+            requireNotNull(TelemetryDecoder.decodeCore(bytes)).speed,
+        )
+
+        put16(bytes, 11, MAX_PLAUSIBLE_VEHICLE_SPEED_KMH + 1)
+        assertNull(TelemetryDecoder.decodeCore(bytes))
+    }
+
+    @Test
     fun doorsAndBonnetAreDecodedByProductionCode() {
         val bytes = ByteArray(6)
         bytes[5] = 0x28
@@ -961,7 +985,189 @@ class TelemetryDecoderTest {
             fuelDecision = ConfirmedFuelLevelChange.Drop(3),
         )
 
-        assertEquals(1.25, session.state().calibrationFactor, .000_001)
+        assertTrue(session.state().calibrationFactor > 1.0)
+        assertTrue(session.state().calibrationFactor <= 1.1)
+    }
+
+    @Test
+    fun consumptionCalibrationWeightsEvidenceAcrossRestoredWindowsAndCapsIt() {
+        val firstWindow = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 40.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 40,
+                calibrationAnchorFuelLitres = 40,
+                uncalibratedFuelSinceAnchorLitres = 2.5,
+            ),
+            refuelDetector = null,
+        )
+        firstWindow.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 37,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        assertEquals(1.06, firstWindow.state().calibrationFactor, .000_001)
+        assertEquals(3.0, firstWindow.state().calibrationEvidenceLitres, .000_001)
+
+        val restoredWindow = TripSessionTracker(
+            initialState = firstWindow.state().copy(
+                calibrationAnchorFuelLitres = 37,
+                uncalibratedFuelSinceAnchorLitres = 2.5,
+            ),
+            refuelDetector = null,
+        )
+        restoredWindow.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 34,
+            elapsedRealtimeMs = 2_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        assertEquals(1.102, restoredWindow.state().calibrationFactor, .000_001)
+        assertEquals(6.0, restoredWindow.state().calibrationEvidenceLitres, .000_001)
+
+        val nearEvidenceCap = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 40.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 40,
+                calibrationAnchorFuelLitres = 40,
+                uncalibratedFuelSinceAnchorLitres = 2.5,
+                calibrationEvidenceLitres = 29.0,
+            ),
+            refuelDetector = null,
+        )
+        nearEvidenceCap.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 37,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        assertEquals(30.0, nearEvidenceCap.state().calibrationEvidenceLitres, .000_001)
+    }
+
+    @Test
+    fun consumptionCalibrationUsesTheExactFivePercentTankBoundaries() {
+        fun anchorAfterObserving(fuelLitres: Int): Int? {
+            val session = TripSessionTracker(refuelDetector = null)
+            session.onTelemetryWithFuelDecision(
+                speedKmh = 0,
+                rpm = 0,
+                fuelLitres = fuelLitres,
+                elapsedRealtimeMs = 1_000L,
+                fuelDecision = ConfirmedFuelLevelChange.Initialized,
+            )
+            return session.state().calibrationAnchorFuelLitres
+        }
+
+        assertNull(anchorAfterObserving(3))
+        assertEquals(4, anchorAfterObserving(4))
+        assertEquals(59, anchorAfterObserving(59))
+        assertNull(anchorAfterObserving(60))
+    }
+
+    @Test
+    fun consumptionCalibrationLearnsOnlyInsideTheUsefulTankRange() {
+        val nearlyFull = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 63.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 63,
+                calibrationAnchorFuelLitres = 63,
+                uncalibratedFuelSinceAnchorLitres = 2.0,
+            ),
+            refuelDetector = null,
+        )
+        nearlyFull.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 60,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        val usefulRange = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 50.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 50,
+                calibrationAnchorFuelLitres = 50,
+                uncalibratedFuelSinceAnchorLitres = 2.0,
+            ),
+            refuelDetector = null,
+        )
+        usefulRange.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 47,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        val nearlyEmpty = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 6.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 6,
+                calibrationAnchorFuelLitres = 6,
+                uncalibratedFuelSinceAnchorLitres = 2.0,
+            ),
+            refuelDetector = null,
+        )
+        nearlyEmpty.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 3,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        assertEquals(1.0, nearlyFull.state().calibrationFactor, .000_001)
+        assertNull(nearlyFull.state().calibrationAnchorFuelLitres)
+        assertEquals(0.0, nearlyFull.state().uncalibratedFuelSinceAnchorLitres, .000_001)
+        assertTrue(usefulRange.state().calibrationFactor > 1.0)
+        assertEquals(1.0, nearlyEmpty.state().calibrationFactor, .000_001)
+        assertNull(nearlyEmpty.state().calibrationAnchorFuelLitres)
+        assertEquals(0.0, nearlyEmpty.state().uncalibratedFuelSinceAnchorLitres, .000_001)
+    }
+
+    @Test
+    fun implausibleSpeedsNeverBecomeTripOrPartialMaximums() {
+        val trip = TripSessionTracker(
+            TripSessionState(maximumSpeedKmh = 655),
+            refuelDetector = null,
+        )
+        val partial = DistanceSinceRefuelTracker(
+            initialStatisticsState = DistanceSinceRefuelStatisticsState(maximumSpeedKmh = 655),
+            refuelDetector = null,
+        )
+
+        val tripMetrics = trip.onTelemetryWithFuelDecision(655, 1_900, 40, 1_000L, null)
+        val partialMetrics = partial.advanceWithFuelDecision(655, 40, 1_000L, null)
+
+        assertEquals(0, tripMetrics.maximumSpeedKmh)
+        assertEquals(0, partialMetrics.statistics.maximumSpeedKmh)
+    }
+
+    @Test
+    fun partialReportsOnlyActualMaximumSpeedIncreases() {
+        val partial = DistanceSinceRefuelTracker(refuelDetector = null)
+
+        val first = partial.advanceWithFuelDecision(80, 40, 1_000L, null)
+        val repeated = partial.advanceWithFuelDecision(80, 40, 2_000L, null)
+        val lower = partial.advanceWithFuelDecision(70, 40, 3_000L, null)
+        val higher = partial.advanceWithFuelDecision(90, 40, 4_000L, null)
+
+        assertEquals(PartialMaximumSpeedChange(0, 80), first.maximumSpeedChange)
+        assertNull(repeated.maximumSpeedChange)
+        assertNull(lower.maximumSpeedChange)
+        assertEquals(PartialMaximumSpeedChange(80, 90), higher.maximumSpeedChange)
     }
 
     @Test

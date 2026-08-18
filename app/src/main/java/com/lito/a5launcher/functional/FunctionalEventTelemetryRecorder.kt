@@ -2,6 +2,7 @@ package com.lito.a5launcher.functional
 
 import com.lito.a5launcher.ConfirmedFuelLevelChange
 import com.lito.a5launcher.CoreTelemetry
+import com.lito.a5launcher.PartialMaximumSpeedChange
 
 /**
  * Converts confirmed vehicle decisions into the small set of diagnostic events
@@ -37,6 +38,28 @@ internal class FunctionalEventTelemetryRecorder(
                 "rpm" to telemetry.rpm.eventValue(),
                 "partialBeforeKm" to partialBeforeKm.eventValue(),
                 "partialAfterKm" to partialAfterKm.eventValue(),
+            ),
+            source,
+        )
+    }
+
+    fun recordPartialMaximumSpeed(
+        maximumSpeedChange: PartialMaximumSpeedChange,
+        partialKm: Double,
+        telemetry: CoreTelemetry,
+        source: FunctionalEventSource,
+    ) {
+        publish(
+            FunctionalEventCategory.MAXIMUM_SPEED,
+            FunctionalEventTypes.PARTIAL_MAXIMUM_SPEED,
+            mapOf(
+                FunctionalEventContextKeys.PREVIOUS_MAXIMUM_SPEED_KMH to
+                    maximumSpeedChange.previousSpeedKmh.eventValue(),
+                FunctionalEventContextKeys.MAXIMUM_SPEED_KMH to
+                    maximumSpeedChange.currentSpeedKmh.eventValue(),
+                "partialKm" to partialKm.eventValue(),
+                "rpm" to telemetry.rpm.eventValue(),
+                "fuelLitres" to telemetry.fuelLitres.eventValue(),
             ),
             source,
         )

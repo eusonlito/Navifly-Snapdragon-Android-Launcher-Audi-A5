@@ -55,7 +55,7 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
     private fun readStatistics() = DistanceSinceRefuelStatisticsState(
         elapsedMs = preferences.getLong(ELAPSED_MS, 0L).coerceAtLeast(0L),
         movingElapsedMs = preferences.getLong(MOVING_ELAPSED_MS, 0L).coerceAtLeast(0L),
-        maximumSpeedKmh = preferences.getInt(MAXIMUM_SPEED_KMH, 0).coerceAtLeast(0),
+        maximumSpeedKmh = validMaximumSpeedKmh(preferences.getInt(MAXIMUM_SPEED_KMH, 0)),
         fuelUsedLitres = preferences.nonNegativeDouble(FUEL_USED_BITS),
         confirmedCanFuelUsedLitres = preferences.nonNegativeDouble(CONFIRMED_CAN_FUEL_USED_BITS),
         initialObservedFuelLitres = preferences.getInt(INITIAL_OBSERVED_FUEL_LITRES, 0)

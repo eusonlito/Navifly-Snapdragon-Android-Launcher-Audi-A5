@@ -208,7 +208,9 @@
     <string name="functional_logs_category_trip_session">Trip Session</string>
     <string name="functional_logs_category_consumption_range">Consumption and Range</string>
     <string name="functional_logs_category_gear_estimation">Gear Estimation</string>
+    <string name="functional_logs_category_maximum_speed">Maximum Speed</string>
     <string name="functional_logs_summary_refuel_confirmed">Refuelling confirmed and partial reset</string>
+    <string name="functional_logs_summary_partial_maximum_speed">New Partial Maximum Speed</string>
     <string name="functional_logs_summary_refuel_rejected">Refuelling candidate rejected</string>
     <string name="functional_logs_summary_trip_restored">Previous trip session restored</string>
     <string name="functional_logs_summary_trip_reset">Trip session reset</string>
@@ -223,6 +225,8 @@
     <string name="functional_logs_context_reason">Reason</string>
     <string name="functional_logs_context_restored">Restored</string>
     <string name="functional_logs_context_speed">Speed</string>
+    <string name="functional_logs_context_previous_maximum_speed">Previous Maximum</string>
+    <string name="functional_logs_context_maximum_speed">Maximum Speed</string>
     <string name="functional_logs_context_rpm">RPM</string>
     <string name="functional_logs_context_fuel">Fuel</string>
     <string name="functional_logs_context_fuel_before">Fuel Before</string>

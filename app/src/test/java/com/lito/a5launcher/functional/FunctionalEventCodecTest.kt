@@ -83,6 +83,23 @@ class FunctionalEventCodecTest {
     }
 
     @Test
+    fun `maximum speed event keeps its stable persisted codes`() {
+        val codec = FunctionalEventCodec()
+        val encoded = codec.encode(
+            event(sequence = 10, epochMs = 1_000).copy(
+                category = FunctionalEventCategory.MAXIMUM_SPEED,
+                type = FunctionalEventTypes.PARTIAL_MAXIMUM_SPEED,
+            ),
+        )
+        val decoded = codec.decode(encoded).event
+
+        assertEquals(FunctionalEventCategory.MAXIMUM_SPEED, decoded?.category)
+        assertEquals(FunctionalEventTypes.PARTIAL_MAXIMUM_SPEED, decoded?.type)
+        assertTrue(encoded.contains("\"category\":\"maximum-speed\""))
+        assertTrue(encoded.contains("\"type\":\"partial.maximum-speed\""))
+    }
+
+    @Test
     fun `publisher obeys global and category settings and isolates sink failures`() {
         val store = MemoryPreferenceStore()
         val settings = FunctionalEventSettings(store)

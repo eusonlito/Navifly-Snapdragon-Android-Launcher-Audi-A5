@@ -53,7 +53,7 @@ import java.io.File
 private fun JSONObject.longOrNull(key: String): Long? = (opt(key) as? Number)?.toLong()
 
 private const val CURRENT_TRIP_SCHEMA = 5
-private const val CURRENT_CONSUMPTION_CALIBRATION_SCHEMA = 1
+private const val CURRENT_CONSUMPTION_CALIBRATION_SCHEMA = 2
 
 internal fun isCompatibleTripSchema(schema: Int): Boolean =
     schema == CURRENT_TRIP_SCHEMA
@@ -62,6 +62,7 @@ internal data class ConsumptionCalibrationState(
     val factor: Double = 1.0,
     val anchorFuelLitres: Int? = null,
     val uncalibratedFuelLitres: Double = 0.0,
+    val evidenceLitres: Double = 0.0,
 )
 
 internal fun restoreConsumptionCalibration(
@@ -69,14 +70,16 @@ internal fun restoreConsumptionCalibration(
     storedFactor: Double,
     storedAnchorFuelLitres: Int,
     storedUncalibratedFuelLitres: Double,
+    storedEvidenceLitres: Double = 0.0,
 ): ConsumptionCalibrationState {
-    if (storedSchema != CURRENT_CONSUMPTION_CALIBRATION_SCHEMA) {
+    if (storedSchema !in 1..CURRENT_CONSUMPTION_CALIBRATION_SCHEMA) {
         return ConsumptionCalibrationState()
     }
     return ConsumptionCalibrationState(
         factor = storedFactor.takeIf { it.isFinite() && it > 0.0 } ?: 1.0,
         anchorFuelLitres = storedAnchorFuelLitres.takeIf { it > 0 },
         uncalibratedFuelLitres = storedUncalibratedFuelLitres.validMetric(),
+        evidenceLitres = if (storedSchema >= 2) storedEvidenceLitres.validMetric() else 0.0,
     )
 }
 
@@ -91,6 +94,7 @@ internal class ConsumptionCalibrationStore(
             UNCALIBRATED_FUEL_BITS,
             0.0,
         ),
+        storedEvidenceLitres = preferences.getNonNegativeDoubleBits(EVIDENCE_LITRES_BITS, 0.0),
     )
 
     fun write(state: ConsumptionCalibrationState) {
@@ -100,6 +104,7 @@ internal class ConsumptionCalibrationStore(
             state.anchorFuelLitres?.let { putInt(ANCHOR_FUEL_LITRES, it) }
                 ?: remove(ANCHOR_FUEL_LITRES)
             putLong(UNCALIBRATED_FUEL_BITS, state.uncalibratedFuelLitres.toRawBits())
+            putLong(EVIDENCE_LITRES_BITS, state.evidenceLitres.toRawBits())
         }
     }
 
@@ -108,6 +113,7 @@ internal class ConsumptionCalibrationStore(
         const val FACTOR_BITS = "factor_bits"
         const val ANCHOR_FUEL_LITRES = "anchor_fuel_litres"
         const val UNCALIBRATED_FUEL_BITS = "uncalibrated_fuel_bits"
+        const val EVIDENCE_LITRES_BITS = "evidence_litres_bits"
     }
 }
 
@@ -431,6 +437,14 @@ class TelemetryService : Service() {
                                     )
                                 },
                             )
+                            partialUpdate.maximumSpeedChange?.let { maximum ->
+                                functionalEventTelemetryRecorder.recordPartialMaximumSpeed(
+                                    maximumSpeedChange = maximum,
+                                    partialKm = partialUpdate.distanceKm,
+                                    telemetry = telemetry,
+                                    source = eventSource,
+                                )
+                            }
                             publishDistanceSinceRefuel(partialUpdate)
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
@@ -612,6 +626,7 @@ class TelemetryService : Service() {
                 lastFuelLitres = restoreDecision.fuelBaselineLitres,
                 calibrationAnchorFuelLitres = calibrationState.anchorFuelLitres,
                 uncalibratedFuelSinceAnchorLitres = recoveredFuel.uncalibratedFuelLitres,
+                calibrationEvidenceLitres = calibrationState.evidenceLitres,
                 recentConsumptionState = if (sameBoot) {
                     decodeRecentConsumptionState(tripPreferences.getString(TRIP_RECENT_CONSUMPTION, null))
                 } else RecentConsumptionState(),
@@ -626,7 +641,7 @@ class TelemetryService : Service() {
                     tripPreferences.getLong(TRIP_MOVING_ELAPSED_MS, 0L).coerceAtLeast(0L)
                 } else 0L,
                 maximumSpeedKmh = if (sameBoot) {
-                    tripPreferences.getInt(TRIP_MAXIMUM_SPEED_KMH, 0).coerceAtLeast(0)
+                    validMaximumSpeedKmh(tripPreferences.getInt(TRIP_MAXIMUM_SPEED_KMH, 0))
                 } else 0,
                 initialObservedFuelLitres = if (sameBoot) {
                     tripPreferences.getInt(TRIP_INITIAL_OBSERVED_FUEL_LITRES, 0)
@@ -771,6 +786,7 @@ class TelemetryService : Service() {
             factor = state.calibrationFactor,
             anchorFuelLitres = state.calibrationAnchorFuelLitres,
             uncalibratedFuelLitres = state.uncalibratedFuelSinceAnchorLitres,
+            evidenceLitres = state.calibrationEvidenceLitres,
         )
         if (calibrationState != lastPersistedCalibrationState) {
             consumptionCalibrationStore.write(calibrationState)

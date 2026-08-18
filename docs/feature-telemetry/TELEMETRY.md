@@ -194,8 +194,13 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    acelerador. Por eso no
    sustituyen el factor de calibración aprendido a partir de descensos confirmados
    del depósito ni se presentan como consumo instantáneo real. Ese factor se
-   conserva entre arranques, admite correcciones de hasta 1,8× y aplica la mitad
-   de cada corrección contrastada tras tres litros confirmados.
+   conserva entre arranques, admite correcciones de hasta 1,8× y se autorregula
+   progresivamente cada tres litros confirmados. Cada ajuste queda limitado al
+   10 % del factor anterior y el peso de nuevas observaciones disminuye conforme
+   se acumula evidencia, sin dejar de adaptarse a cambios sostenidos de uso o
+   entorno. El aprendizaje sólo acumula datos entre el 5 % y el 95 % de los
+   63 litros del depósito: al entrar o salir de esa zona reinicia su ventana para
+   no aprender de las mesetas imprecisas de lleno y reserva.
 
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
@@ -389,20 +394,24 @@ forman parte del producto.
 ### Diario funcional del launcher
 
 La pestaña **Registros** de los ajustes no es un capturador CAN. Actualmente
-conserva un único evento diagnóstico, **Reinicio Parciales**, emitido sólo
+conserva dos diagnósticos optativos. **Reinicio Parciales** se emite sólo
 cuando queda confirmado un repostaje. La entrada guarda el combustible antes y
 después del repostaje, el incremento detectado, las muestras de confirmación,
 velocidad, RPM y el valor del parcial antes y después del reinicio. Esta evidencia
 permite revisar falsos positivos o ajustar el detector sin almacenar telemetría
-continua ni eventos que no aporten información al problema.
+continua ni eventos que no aporten información al problema. **Velocidad Máxima**
+crea una entrada únicamente cuando el parcial supera su máximo anterior; conserva
+ambos valores, distancia parcial, RPM y combustible para detectar saltos anómalos
+sin guardar las muestras repetidas del viaje.
 
 Los nuevos reinicios usan la categoría persistida `partial-reset`. La categoría
 anterior `refuel-partial` se conserva únicamente para interpretar correctamente
 los registros históricos que ya existan.
 
 La infraestructura y el panel siguen admitiendo categorías y tipos adicionales
-en el futuro, pero sólo `Reinicio Parciales` está disponible para captura. Esta
-se encuentra desactivada inicialmente y continúa en `TelemetryService` aunque
+en el futuro, pero sólo `Reinicio Parciales` y `Velocidad Máxima` están disponibles
+para captura. El registro global se encuentra desactivado inicialmente y continúa
+en `TelemetryService` aunque
 el launcher no esté en primer plano. El historial permanece en almacenamiento
 privado hasta un borrado manual. La lectura es paginada y muestra como máximo
 los 800 registros más recientes en una apertura del panel, sin recortar lo
