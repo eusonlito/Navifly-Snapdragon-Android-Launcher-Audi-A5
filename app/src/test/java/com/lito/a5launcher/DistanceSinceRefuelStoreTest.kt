@@ -61,7 +61,7 @@ class DistanceSinceRefuelStoreTest {
     }
 }
 
-private class MemorySharedPreferences : SharedPreferences {
+internal class MemorySharedPreferences : SharedPreferences {
     private val values = linkedMapOf<String, Any?>()
 
     override fun getAll(): Map<String, *> = values.toMap()

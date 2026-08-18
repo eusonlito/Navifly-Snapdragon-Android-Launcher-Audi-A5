@@ -83,4 +83,26 @@ class TelemetryServiceSchemaTest {
     fun aResetAlwaysCreatesADifferentTripGeneration() {
         assertEquals(101L, nextTripGeneration(100L, 100L, 0L))
     }
+
+    @Test
+    fun calibrationSurvivesANewBootWhenItsSchemaIsCompatible() {
+        val restored = restoreConsumptionCalibration(
+            storedSchema = 1,
+            storedFactor = 1.45,
+            storedAnchorFuelLitres = 38,
+            storedUncalibratedFuelLitres = 1.75,
+        )
+
+        assertEquals(1.45, restored.factor, .000_001)
+        assertEquals(38, restored.anchorFuelLitres)
+        assertEquals(1.75, restored.uncalibratedFuelLitres, .000_001)
+    }
+
+    @Test
+    fun calibrationRejectsAnIncompatibleStoredSchema() {
+        assertEquals(
+            ConsumptionCalibrationState(),
+            restoreConsumptionCalibration(0, 1.45, 38, 1.75),
+        )
+    }
 }

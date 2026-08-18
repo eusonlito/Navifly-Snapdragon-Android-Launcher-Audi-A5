@@ -53,9 +53,63 @@ import java.io.File
 private fun JSONObject.longOrNull(key: String): Long? = (opt(key) as? Number)?.toLong()
 
 private const val CURRENT_TRIP_SCHEMA = 5
+private const val CURRENT_CONSUMPTION_CALIBRATION_SCHEMA = 1
 
 internal fun isCompatibleTripSchema(schema: Int): Boolean =
     schema == CURRENT_TRIP_SCHEMA
+
+internal data class ConsumptionCalibrationState(
+    val factor: Double = 1.0,
+    val anchorFuelLitres: Int? = null,
+    val uncalibratedFuelLitres: Double = 0.0,
+)
+
+internal fun restoreConsumptionCalibration(
+    storedSchema: Int,
+    storedFactor: Double,
+    storedAnchorFuelLitres: Int,
+    storedUncalibratedFuelLitres: Double,
+): ConsumptionCalibrationState {
+    if (storedSchema != CURRENT_CONSUMPTION_CALIBRATION_SCHEMA) {
+        return ConsumptionCalibrationState()
+    }
+    return ConsumptionCalibrationState(
+        factor = storedFactor.takeIf { it.isFinite() && it > 0.0 } ?: 1.0,
+        anchorFuelLitres = storedAnchorFuelLitres.takeIf { it > 0 },
+        uncalibratedFuelLitres = storedUncalibratedFuelLitres.validMetric(),
+    )
+}
+
+internal class ConsumptionCalibrationStore(
+    private val preferences: SharedPreferences,
+) {
+    fun read(): ConsumptionCalibrationState = restoreConsumptionCalibration(
+        storedSchema = preferences.getInt(SCHEMA, 0),
+        storedFactor = preferences.getNonNegativeDoubleBits(FACTOR_BITS, 1.0),
+        storedAnchorFuelLitres = preferences.getInt(ANCHOR_FUEL_LITRES, 0),
+        storedUncalibratedFuelLitres = preferences.getNonNegativeDoubleBits(
+            UNCALIBRATED_FUEL_BITS,
+            0.0,
+        ),
+    )
+
+    fun write(state: ConsumptionCalibrationState) {
+        preferences.edit {
+            putInt(SCHEMA, CURRENT_CONSUMPTION_CALIBRATION_SCHEMA)
+            putLong(FACTOR_BITS, state.factor.toRawBits())
+            state.anchorFuelLitres?.let { putInt(ANCHOR_FUEL_LITRES, it) }
+                ?: remove(ANCHOR_FUEL_LITRES)
+            putLong(UNCALIBRATED_FUEL_BITS, state.uncalibratedFuelLitres.toRawBits())
+        }
+    }
+
+    private companion object {
+        const val SCHEMA = "schema"
+        const val FACTOR_BITS = "factor_bits"
+        const val ANCHOR_FUEL_LITRES = "anchor_fuel_litres"
+        const val UNCALIBRATED_FUEL_BITS = "uncalibrated_fuel_bits"
+    }
+}
 
 internal data class RestoredTripFuel(
     val estimatedLitres: Double,
@@ -160,10 +214,7 @@ class TelemetryService : Service() {
         private const val TRIP_FUEL_USED_BITS = "fuel_used_bits"
         private const val TRIP_CONFIRMED_CAN_FUEL_USED_BITS = "confirmed_can_fuel_used_bits"
         private const val TRIP_VIRTUAL_FUEL_BITS = "virtual_fuel_bits"
-        private const val TRIP_CALIBRATION_FACTOR_BITS = "calibration_factor_bits"
         private const val TRIP_LAST_FUEL_LITRES = "last_fuel_litres"
-        private const val TRIP_CALIBRATION_ANCHOR_FUEL_LITRES = "calibration_anchor_fuel_litres"
-        private const val TRIP_UNCALIBRATED_FUEL_BITS = "uncalibrated_fuel_bits"
         private const val TRIP_RECENT_CONSUMPTION = "recent_consumption"
         private const val TRIP_RANGE_BASELINE_BITS = "range_baseline_bits"
         private const val TRIP_MOVING_ELAPSED_MS = "moving_elapsed_ms"
@@ -172,11 +223,12 @@ class TelemetryService : Service() {
         private const val TRIP_CURRENT_OBSERVED_FUEL_LITRES = "current_observed_fuel_litres"
         private const val RANGE_PREFS = "range_consumption_model"
         private const val RANGE_SCHEMA = "schema"
-        private const val CURRENT_RANGE_SCHEMA = 2
+        private const val CURRENT_RANGE_SCHEMA = 3
         private const val RANGE_LEARNED_CONSUMPTION_BITS = "learned_consumption_bits"
         private const val RANGE_PENDING_DISTANCE_BITS = "pending_distance_bits"
         private const val RANGE_PENDING_FUEL_BITS = "pending_fuel_bits"
         private const val FUNCTIONAL_EVENT_PREFS = "functional_event_settings"
+        private const val CONSUMPTION_CALIBRATION_PREFS = "consumption_calibration"
     }
 
     private val binder = LocalBinder()
@@ -257,10 +309,16 @@ class TelemetryService : Service() {
     private val rangePreferences by lazy {
         getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE)
     }
+    private val consumptionCalibrationStore by lazy {
+        ConsumptionCalibrationStore(
+            getSharedPreferences(CONSUMPTION_CALIBRATION_PREFS, Context.MODE_PRIVATE),
+        )
+    }
     private var currentBootCount = -1
     private var currentTripGeneration = 0L
     private var lastPersistedTripVersion = 0L
     private var lastPersistedRangeState: RangeConsumptionState? = null
+    private var lastPersistedCalibrationState = ConsumptionCalibrationState()
     @Volatile private var shuttingDown = false
     @Volatile private var replayActive = false
     private val providerObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -379,6 +437,7 @@ class TelemetryService : Service() {
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel
                             ) {
                                 persistDistanceSinceRefuel()
+                                persistTripSession()
                             }
                             telemetry.odometerKm?.takeIf { it > 0 }?.let {
                                 _mileageFlow.value = it
@@ -513,15 +572,18 @@ class TelemetryService : Service() {
             Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT)
         }.getOrDefault(-1)
         val now = SystemClock.elapsedRealtime()
+        val storedSchema = tripPreferences.getInt(TRIP_SCHEMA, 0)
         val restoreDecision = decideTripRestoration(
             currentBootCount = currentBootCount,
             storedBootCount = tripPreferences.getInt(TRIP_BOOT_COUNT, -1),
-            storedSchema = tripPreferences.getInt(TRIP_SCHEMA, 0),
+            storedSchema = storedSchema,
             startedAtElapsedMs = tripPreferences.getLong(TRIP_STARTED_AT, -1L),
             nowElapsedMs = now,
             durableFuelBaseline = refuelState.lastFuelLitres,
         )
         val sameBoot = restoreDecision.restoreTripAccumulators
+        val calibrationState = consumptionCalibrationStore.read()
+        lastPersistedCalibrationState = calibrationState
         val storedGeneration = tripPreferences.getLong(TRIP_GENERATION, 0L)
         currentTripGeneration = storedGeneration.takeIf { sameBoot && it > 0L }
             ?: nextTripGeneration(storedGeneration, System.currentTimeMillis(), now)
@@ -535,7 +597,7 @@ class TelemetryService : Service() {
                 confirmedCanLitres = restoredDouble(TRIP_CONFIRMED_CAN_FUEL_USED_BITS),
             ),
             storedVirtualFuelLitres = restoredDouble(TRIP_VIRTUAL_FUEL_BITS),
-            storedUncalibratedFuelLitres = restoredDouble(TRIP_UNCALIBRATED_FUEL_BITS),
+            storedUncalibratedFuelLitres = calibrationState.uncalibratedFuelLitres,
             tripGeneration = currentTripGeneration,
             partialState = refuelState.statisticsState,
         )
@@ -546,11 +608,9 @@ class TelemetryService : Service() {
                 fuelUsedLitres = recoveredFuel.estimatedLitres,
                 confirmedCanFuelUsedLitres = recoveredFuel.confirmedCanLitres,
                 virtualFuelLitres = recoveredFuel.virtualFuelLitres,
-                calibrationFactor = restoredDouble(TRIP_CALIBRATION_FACTOR_BITS, 1.0),
+                calibrationFactor = calibrationState.factor,
                 lastFuelLitres = restoreDecision.fuelBaselineLitres,
-                calibrationAnchorFuelLitres = if (sameBoot) {
-                    tripPreferences.getInt(TRIP_CALIBRATION_ANCHOR_FUEL_LITRES, 0).takeIf { it > 0 }
-                } else null,
+                calibrationAnchorFuelLitres = calibrationState.anchorFuelLitres,
                 uncalibratedFuelSinceAnchorLitres = recoveredFuel.uncalibratedFuelLitres,
                 recentConsumptionState = if (sameBoot) {
                     decodeRecentConsumptionState(tripPreferences.getString(TRIP_RECENT_CONSUMPTION, null))
@@ -686,15 +746,7 @@ class TelemetryService : Service() {
                     state.confirmedCanFuelUsedLitres.toRawBits(),
                 )
                 putLong(TRIP_VIRTUAL_FUEL_BITS, state.virtualFuelLitres.toRawBits())
-                putLong(TRIP_CALIBRATION_FACTOR_BITS, state.calibrationFactor.toRawBits())
                 state.lastFuelLitres?.let { putInt(TRIP_LAST_FUEL_LITRES, it) }
-                state.calibrationAnchorFuelLitres?.let {
-                    putInt(TRIP_CALIBRATION_ANCHOR_FUEL_LITRES, it)
-                }
-                putLong(
-                    TRIP_UNCALIBRATED_FUEL_BITS,
-                    state.uncalibratedFuelSinceAnchorLitres.toRawBits(),
-                )
                 putString(TRIP_RECENT_CONSUMPTION, state.recentConsumptionState.encode())
                 putLong(
                     TRIP_RANGE_BASELINE_BITS,
@@ -714,6 +766,15 @@ class TelemetryService : Service() {
         if (state.rangeConsumptionState != lastPersistedRangeState) {
             persistRangeConsumptionState(state.rangeConsumptionState)
             lastPersistedRangeState = state.rangeConsumptionState
+        }
+        val calibrationState = ConsumptionCalibrationState(
+            factor = state.calibrationFactor,
+            anchorFuelLitres = state.calibrationAnchorFuelLitres,
+            uncalibratedFuelLitres = state.uncalibratedFuelSinceAnchorLitres,
+        )
+        if (calibrationState != lastPersistedCalibrationState) {
+            consumptionCalibrationStore.write(calibrationState)
+            lastPersistedCalibrationState = calibrationState
         }
         lastPersistedTripVersion = version
     }

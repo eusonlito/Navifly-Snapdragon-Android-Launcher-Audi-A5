@@ -168,14 +168,17 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    autonomía nativa validados. El launcher estima primero un caudal en litros
    por hora a partir de RPM y velocidad. Mientras circula parte de la heurística
    provisional de consumo instantáneo —base 3,2, componente RPM y resistencia
-   adicional por encima de 110 km/h—. Desde 110 km/h incorpora progresivamente
-   una referencia de crucero específica del vehículo, interpolada por velocidad
-   y corregida suavemente por el régimen respecto a sexta. Esta referencia pesa
-   como máximo un 35 %, alcanzado a 130 km/h, y sólo puede elevar la heurística:
-   evita alterar el comportamiento urbano ya calibrado y corrige la pendiente
-   excesivamente plana del modelo anterior a alta velocidad. Después la convierte
-   mediante
-   `caudal = l/100 km × km/h / 100`; con el motor encendido y el coche detenido
+   adicional por encima de 110 km/h—. Entre 20 y 110 km/h usa como suelo una
+   curva de crucero específica del vehículo, interpolada por velocidad y
+   corregida por el régimen respecto a sexta. Por encima de 110 km/h esa misma
+   referencia entra progresivamente, pesa como máximo un 35 % desde 130 km/h y
+   sólo puede elevar la heurística. Esto mantiene el ajuste estable de autopista
+   y corrige la infravaloración observada en carreteras secundarias. Después la
+   convierte mediante
+   `caudal = l/100 km × km/h / 100`. Los aumentos reales de velocidad añaden
+   además un 20 % del combustible teórico necesario para recuperar energía
+   cinética; una histéresis de 4 km/h evita contar repetidamente la cuantización
+   del CAN. Con el motor encendido y el coche detenido
    integra `0,7 l/h`. Cada intervalo monotónico añade combustible y distancia,
    y el consumo mostrado es siempre `litros acumulados / kilómetros × 100`
    desde la primera distancia positiva, sin umbral mínimo. Antes de recorrer
@@ -187,9 +190,12 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
 
    La curva de crucero y su corrección de régimen son referencias de trabajo, no
    lecturas CAN ni un mapa BSFC del motor. No pueden distinguir pendiente,
-   aceleración, viento, regeneración del filtro o cargas auxiliares. Por eso no
+   viento, regeneración del filtro, cargas auxiliares ni la demanda real del
+   acelerador. Por eso no
    sustituyen el factor de calibración aprendido a partir de descensos confirmados
-   del depósito ni se presentan como consumo instantáneo real.
+   del depósito ni se presentan como consumo instantáneo real. Ese factor se
+   conserva entre arranques, admite correcciones de hasta 1,8× y aplica la mitad
+   de cada corrección contrastada tras tres litros confirmados.
 
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
@@ -527,9 +533,10 @@ Como fallback, el launcher mantiene dos magnitudes separadas:
   kilómetros × 100`), aparece desde la primera distancia positiva, incorpora
   el caudal de ralentí y se limita visualmente a 15 L/100 km;
 * la autonomía no usa directamente esa media volátil. Parte de un consumo
-  aprendido persistente de 6,0 L/100 km, lo corrige lentamente en bloques de
-  un kilómetro y deja que el consumo de los últimos 20 km gane hasta un 60 % de
-  influencia durante los primeros 10 km recorridos.
+  conservador de 6,9 L/100 km —unos 900 km con 62 litros—, lo corrige lentamente
+  en bloques de un kilómetro y deja que el consumo de los últimos 20 km gane
+  hasta un 60 % de influencia durante los primeros 10 km recorridos. Ni el
+  aprendizaje ni el consumo reciente pueden rebajar ese suelo.
 
 Así, con el motor al ralentí se descuentan litros del depósito virtual y la
 autonomía disminuye por el combustible realmente estimado, pero no se desploma

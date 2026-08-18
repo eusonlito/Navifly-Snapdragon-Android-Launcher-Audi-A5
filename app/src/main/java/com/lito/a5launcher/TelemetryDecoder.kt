@@ -4,7 +4,7 @@ import com.lito.a5launcher.model.DoorStatus
 import kotlin.math.pow
 
 internal fun Double.validMetric(): Double = takeIf { isFinite() && this >= 0.0 } ?: 0.0
-internal const val DEFAULT_RANGE_CONSUMPTION_L_PER_100_KM = 6.0
+internal const val DEFAULT_RANGE_CONSUMPTION_L_PER_100_KM = 6.9
 internal const val MAX_DISPLAY_CONSUMPTION = 15.0
 internal const val MAX_IDLE_SPEED_KMH = 1
 
@@ -225,26 +225,35 @@ object TripConsumptionEstimator {
             (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH) * AERODYNAMIC_CONSUMPTION_PER_KMH
         } else 0.0
         val provisionalConsumption = BASE_CONSUMPTION_L_PER_100_KM + rpmFactor + speedDrag
-        val consumptionLitresPer100Km = highSpeedReference(speed, rpm)?.let { reference ->
-            val referenceWeight = (
-                (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH).toDouble() / REFERENCE_BLEND_DISTANCE_KMH
-                ).coerceIn(0.0, 1.0) * MAX_REFERENCE_WEIGHT
-            maxOf(
-                provisionalConsumption,
-                provisionalConsumption + (reference - provisionalConsumption) * referenceWeight,
-            )
-        } ?: provisionalConsumption
+        val reference = vehicleCruiseReference(speed, rpm)
+        val consumptionLitresPer100Km = when {
+            reference == null -> provisionalConsumption
+            speed <= AERODYNAMIC_SPEED_THRESHOLD_KMH -> maxOf(provisionalConsumption, reference)
+            else -> {
+                val referenceWeight = (
+                    (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH).toDouble() /
+                        REFERENCE_BLEND_DISTANCE_KMH
+                    ).coerceIn(0.0, 1.0) * MAX_REFERENCE_WEIGHT
+                maxOf(
+                    provisionalConsumption,
+                    provisionalConsumption + (reference - provisionalConsumption) * referenceWeight,
+                )
+            }
+        }
         return maxOf(
             IDLE_FUEL_FLOW_LPH,
             consumptionLitresPer100Km * speed / 100.0,
         )
     }
 
-    private fun highSpeedReference(speed: Int, rpm: Int): Double? {
-        if (speed <= AERODYNAMIC_SPEED_THRESHOLD_KMH) return null
+    private fun vehicleCruiseReference(speed: Int, rpm: Int): Double? {
+        if (speed < REFERENCE_POINTS.first().speedKmh) return null
         val boundedSpeed = speed.coerceAtMost(REFERENCE_POINTS.last().speedKmh)
-        val upperIndex = REFERENCE_POINTS.indexOfFirst { boundedSpeed <= it.speedKmh }
-            .coerceAtLeast(1)
+        val upperIndex = if (boundedSpeed > LAST_REGULAR_REFERENCE_SPEED_KMH) {
+            REFERENCE_POINTS.lastIndex
+        } else {
+            ((boundedSpeed - FIRST_REFERENCE_SPEED_KMH + 9) / 10).coerceAtLeast(1)
+        }
         val lower = REFERENCE_POINTS[upperIndex - 1]
         val upper = REFERENCE_POINTS[upperIndex]
         val interpolation = (boundedSpeed - lower.speedKmh).toDouble() /
@@ -269,7 +278,18 @@ object TripConsumptionEstimator {
     private const val REGIME_EXPONENT = .22
     private const val MIN_REGIME_RATIO = .75
     private const val MAX_REGIME_RATIO = 1.6
+    private const val FIRST_REFERENCE_SPEED_KMH = 20
+    private const val LAST_REGULAR_REFERENCE_SPEED_KMH = 210
     private val REFERENCE_POINTS = arrayOf(
+        ReferencePoint(20, 5.4),
+        ReferencePoint(30, 5.2),
+        ReferencePoint(40, 4.9),
+        ReferencePoint(50, 4.5),
+        ReferencePoint(60, 4.2),
+        ReferencePoint(70, 4.0),
+        ReferencePoint(80, 3.9),
+        ReferencePoint(90, 4.0),
+        ReferencePoint(100, 4.3),
         ReferencePoint(110, 4.8),
         ReferencePoint(120, 5.6),
         ReferencePoint(130, 6.67),
@@ -288,6 +308,45 @@ object TripConsumptionEstimator {
         val speedKmh: Int,
         val consumptionLitresPer100Km: Double,
     )
+}
+
+/**
+ * Adds a conservative share of the energy needed to regain speed. A small
+ * hysteresis prevents integer CAN speed jitter from charging it repeatedly.
+ */
+class PositiveAccelerationFuelEstimator {
+    private var referenceSpeedKmh: Int? = null
+
+    fun observe(speedKmh: Int): Double {
+        val current = speedKmh.coerceAtLeast(0)
+        val reference = referenceSpeedKmh
+        if (reference == null) {
+            referenceSpeedKmh = current
+            return 0.0
+        }
+        if (current <= reference - SPEED_DROP_TO_RESET_KMH) {
+            referenceSpeedKmh = current
+            return 0.0
+        }
+        if (current <= reference) return 0.0
+        referenceSpeedKmh = current
+        val fromMetresPerSecond = reference / 3.6
+        val toMetresPerSecond = current / 3.6
+        val kineticEnergyJoules = VEHICLE_MASS_KG *
+            (toMetresPerSecond * toMetresPerSecond -
+                fromMetresPerSecond * fromMetresPerSecond) / 2.0
+        return kineticEnergyJoules /
+            (DIESEL_ENERGY_JOULES_PER_LITRE * DRIVETRAIN_EFFICIENCY) *
+            ACCELERATION_ENERGY_ATTRIBUTION
+    }
+
+    private companion object {
+        const val SPEED_DROP_TO_RESET_KMH = 4
+        const val VEHICLE_MASS_KG = 1_600.0
+        const val DIESEL_ENERGY_JOULES_PER_LITRE = 35_800_000.0
+        const val DRIVETRAIN_EFFICIENCY = .30
+        const val ACCELERATION_ENERGY_ATTRIBUTION = .20
+    }
 }
 
 data class FuelDistanceSegment(
@@ -466,10 +525,14 @@ class RangeConsumptionEstimator(
         val recent = recentConsumption.takeIf { it.isFinite() && it > 0.0 }
             ?.coerceIn(MIN_CONSUMPTION, MAX_CONSUMPTION)
             ?: return baselineConsumption
+        if (recent <= baselineConsumption) return baselineConsumption
         val recentWeight = (
             recentDistanceKm.validMetric() / FULL_RECENT_INFLUENCE_KM
             ).coerceIn(0.0, 1.0) * MAX_RECENT_WEIGHT
-        return baselineConsumption * (1.0 - recentWeight) + recent * recentWeight
+        return maxOf(
+            baselineConsumption,
+            baselineConsumption * (1.0 - recentWeight) + recent * recentWeight,
+        )
     }
 
     fun baselineConsumption(): Double = baselineConsumption
@@ -498,7 +561,7 @@ class RangeConsumptionEstimator(
 
     private companion object {
         const val DEFAULT_CONSUMPTION = DEFAULT_RANGE_CONSUMPTION_L_PER_100_KM
-        const val MIN_CONSUMPTION = 3.0
+        const val MIN_CONSUMPTION = DEFAULT_CONSUMPTION
         const val MAX_CONSUMPTION = 15.0
         const val LEARNING_SEGMENT_KM = 1.0
         const val LEARNING_WEIGHT = .1
@@ -594,6 +657,7 @@ class TripSessionTracker(
     private var lastFuelLitres = initialState.lastFuelLitres?.takeIf { it > 0 }
     private var calibrationAnchorFuelLitres = initialState.calibrationAnchorFuelLitres?.takeIf { it > 0 }
     private var uncalibratedFuelSinceAnchorLitres = initialState.uncalibratedFuelSinceAnchorLitres.validMetric()
+    private val accelerationFuelEstimator = PositiveAccelerationFuelEstimator()
     private val recentConsumption = RecentConsumptionTracker(initialState.recentConsumptionState)
     private val rangeEstimator = RangeConsumptionEstimator(
         initialState.rangeConsumptionState,
@@ -633,7 +697,9 @@ class TripSessionTracker(
         fuelDecision: ConfirmedFuelLevelChange?,
     ): TripMetricsSnapshot {
         advanceTo(elapsedRealtimeMs)
-        this.speedKmh = speedKmh.coerceAtLeast(0)
+        val nextSpeedKmh = speedKmh.coerceAtLeast(0)
+        addAccelerationFuel(accelerationFuelEstimator.observe(nextSpeedKmh))
+        this.speedKmh = nextSpeedKmh
         this.rpm = rpm.coerceAtLeast(0)
         maximumSpeedKmh = maxOf(maximumSpeedKmh, this.speedKmh)
         lastTelemetryElapsedMs = elapsedRealtimeMs
@@ -666,17 +732,37 @@ class TripSessionTracker(
         val distanceDeltaKm = speedKmh * elapsedHours
         val rawFuelDelta = TripConsumptionEstimator
             .fuelFlowLitresPerHour(speedKmh, rpm) * elapsedHours
-        val fuelDelta = rawFuelDelta * calibrationFactor
         distanceKm += distanceDeltaKm
-        fuelUsedLitres += fuelDelta
-        uncalibratedFuelSinceAnchorLitres += rawFuelDelta
+        recordEstimatedFuel(
+            rawFuelLitres = rawFuelDelta,
+            distanceKm = distanceDeltaKm,
+            countsTowardDistanceConsumption = speedKmh > MAX_IDLE_SPEED_KMH,
+        )
+    }
+
+    private fun addAccelerationFuel(rawFuelLitres: Double) {
+        if (rawFuelLitres <= 0.0) return
+        recordEstimatedFuel(rawFuelLitres, 0.0, countsTowardDistanceConsumption = true)
+    }
+
+    private fun recordEstimatedFuel(
+        rawFuelLitres: Double,
+        distanceKm: Double,
+        countsTowardDistanceConsumption: Boolean,
+    ) {
+        val validRawFuelLitres = rawFuelLitres.validMetric()
+        val calibratedFuelLitres = validRawFuelLitres * calibrationFactor
+        fuelUsedLitres += calibratedFuelLitres
+        uncalibratedFuelSinceAnchorLitres += validRawFuelLitres
         if (virtualFuelLitres > 0.0) {
-            virtualFuelLitres = (virtualFuelLitres - fuelDelta).coerceAtLeast(0.0)
+            virtualFuelLitres = (virtualFuelLitres - calibratedFuelLitres).coerceAtLeast(0.0)
         }
-        val movingFuelDelta = if (speedKmh > MAX_IDLE_SPEED_KMH) fuelDelta else 0.0
-        recentConsumption.add(distanceDeltaKm, movingFuelDelta)
-        rangeEstimator.add(distanceDeltaKm, movingFuelDelta)
-        if (distanceDeltaKm > 0.0 || rawFuelDelta > 0.0) persistenceVersion++
+        val distanceFuelLitres = calibratedFuelLitres.takeIf {
+            countsTowardDistanceConsumption
+        } ?: 0.0
+        recentConsumption.add(distanceKm, distanceFuelLitres)
+        rangeEstimator.add(distanceKm, distanceFuelLitres)
+        if (distanceKm > 0.0 || validRawFuelLitres > 0.0) persistenceVersion++
     }
 
     private fun observeFuelLevel(
@@ -813,8 +899,8 @@ class TripSessionTracker(
         const val TELEMETRY_FRESHNESS_MS = 2_000L
         const val CALIBRATION_DROP_LITRES = 3
         const val MIN_CALIBRATION_FACTOR = .7
-        const val MAX_CALIBRATION_FACTOR = 1.3
-        const val CALIBRATION_ADJUSTMENT_WEIGHT = .2
+        const val MAX_CALIBRATION_FACTOR = 1.8
+        const val CALIBRATION_ADJUSTMENT_WEIGHT = .5
         const val VIRTUAL_FUEL_CORRECTION_WEIGHT = .2
     }
 }

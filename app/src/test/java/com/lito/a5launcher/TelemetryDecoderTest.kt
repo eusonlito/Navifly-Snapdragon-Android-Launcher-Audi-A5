@@ -204,10 +204,53 @@ class TelemetryDecoderTest {
     @Test
     fun consumptionEstimatorKeepsTheExistingModelAtAndBelow110Kmh() {
         assertEquals(
-            4.7461,
+            5.28,
             TripConsumptionEstimator.fuelFlowLitresPerHour(110, 2_007),
             .001,
         )
+    }
+
+    @Test
+    fun consumptionEstimatorUsesTheVehicleReferenceOnSecondaryRoads() {
+        val consumption = TripConsumptionEstimator
+            .fuelFlowLitresPerHour(50, 1_416) / 50.0 * 100.0
+
+        assertTrue(consumption in 4.9..5.0)
+    }
+
+    @Test
+    fun accelerationFuelCountsOnlyGenuinePositiveSpeedChanges() {
+        val estimator = PositiveAccelerationFuelEstimator()
+
+        assertEquals(0.0, estimator.observe(0), .000_001)
+        assertEquals(.007356, estimator.observe(80), .000_1)
+        assertEquals(0.0, estimator.observe(79), .000_001)
+        assertEquals(0.0, estimator.observe(80), .000_001)
+        assertEquals(0.0, estimator.observe(75), .000_001)
+        assertTrue(estimator.observe(80) > 0.0)
+    }
+
+    @Test
+    fun tripSessionAppliesCalibratedAccelerationFuelToConsumptionAndRange() {
+        val session = TripSessionTracker(
+            TripSessionState(
+                virtualFuelLitres = 62.0,
+                calibrationFactor = 1.5,
+            ),
+        )
+        session.onTelemetry(0, 900, 62, 0L)
+
+        val accelerated = session.onTelemetry(80, 1_800, 62, 100L)
+        var driven = accelerated
+        repeat(100) { sample ->
+            driven = session.onTelemetry(80, 1_800, 62, 200L + sample * 100L)
+        }
+
+        assertEquals(.011034, accelerated.fuelUsedLitres, .000_1)
+        assertEquals(62.0 - accelerated.fuelUsedLitres, accelerated.virtualFuelLitres, .000_1)
+        assertTrue(driven.averageConsumption > 6.9)
+        val rangeAtFloor = kotlin.math.round(driven.virtualFuelLitres / 6.9 * 100.0).toInt()
+        assertTrue(driven.estimatedRangeKm < rangeAtFloor)
     }
 
     @Test
@@ -312,9 +355,9 @@ class TelemetryDecoderTest {
 
         assertEquals(.2, secondTick.distanceKm, .000_001)
         assertEquals(20_000L, secondTick.elapsedMs)
-        assertEquals(4.2, firstTick.averageConsumption, .000_001)
+        assertEquals(5.5668576, firstTick.averageConsumption, .000_001)
         assertEquals(firstTick.averageConsumption, secondTick.averageConsumption, .000_001)
-        assertEquals(.0084, secondTick.fuelUsedLitres, .000_001)
+        assertEquals(.011133715, secondTick.fuelUsedLitres, .000_001)
     }
 
     @Test
@@ -329,8 +372,8 @@ class TelemetryDecoderTest {
         }
 
         assertEquals(.1, result.distanceKm, .000_001)
-        assertEquals(.006144444, result.fuelUsedLitres, .000_001)
-        assertEquals(6.144444, result.averageConsumption, .000_001)
+        assertEquals(.007511302, result.fuelUsedLitres, .000_001)
+        assertEquals(7.511302, result.averageConsumption, .000_001)
     }
 
     @Test
@@ -347,7 +390,7 @@ class TelemetryDecoderTest {
         assertEquals(0.0, result.distanceKm, .000_001)
         assertEquals(0.116666, result.fuelUsedLitres, .000_001)
         assertEquals(0.0, result.averageConsumption, .000_001)
-        assertTrue(result.estimatedRangeKm in 664..666)
+        assertTrue(result.estimatedRangeKm in 577..579)
     }
 
     @Test
@@ -360,7 +403,7 @@ class TelemetryDecoderTest {
         val result = session.onTick(602_100)
 
         assertEquals(15.0, result.averageConsumption, .000_001)
-        assertTrue(result.estimatedRangeKm in 664..666)
+        assertTrue(result.estimatedRangeKm in 577..579)
     }
 
     @Test
@@ -376,6 +419,15 @@ class TelemetryDecoderTest {
 
         assertTrue(restored.estimatedRangeKm in 555..556)
         assertEquals(rangeState, session.state().rangeConsumptionState)
+    }
+
+    @Test
+    fun fullTankRangeUsesARealisticVehicleFloor() {
+        val session = TripSessionTracker(TripSessionState(virtualFuelLitres = 62.0))
+
+        val result = session.onTelemetry(0, 0, 62, 1_000)
+
+        assertTrue(result.estimatedRangeKm in 898..900)
     }
 
     @Test
@@ -409,9 +461,19 @@ class TelemetryDecoderTest {
     fun rangeConsumptionGainsRecentInfluenceOnlyWithDrivenDistance() {
         val estimator = RangeConsumptionEstimator()
 
-        assertEquals(6.0, estimator.estimate(15.0, 0.0), .000_001)
-        assertEquals(6.54, estimator.estimate(15.0, 1.0), .000_001)
-        assertEquals(11.4, estimator.estimate(15.0, 10.0), .000_001)
+        assertEquals(6.9, estimator.estimate(15.0, 0.0), .000_001)
+        assertEquals(7.386, estimator.estimate(15.0, 1.0), .000_001)
+        assertEquals(11.76, estimator.estimate(15.0, 10.0), .000_001)
+    }
+
+    @Test
+    fun rangeConsumptionNeverUsesRecentConsumptionBelowTheVehicleFloor() {
+        val estimator = RangeConsumptionEstimator(
+            RangeConsumptionState(learnedConsumption = 3.5),
+        )
+
+        assertEquals(6.9, estimator.estimate(3.5, 20.0), .000_001)
+        assertEquals(6.9, estimator.state().learnedConsumption, .000_001)
     }
 
     @Test
@@ -420,10 +482,10 @@ class TelemetryDecoderTest {
 
         estimator.add(distanceKm = 1.0, fuelLitres = .09)
 
-        assertEquals(6.3, estimator.state().learnedConsumption, .000_001)
-        assertEquals(6.0, estimator.estimate(0.0, 0.0), .000_001)
+        assertEquals(7.11, estimator.state().learnedConsumption, .000_001)
+        assertEquals(6.9, estimator.estimate(0.0, 0.0), .000_001)
         assertEquals(
-            6.3,
+            7.11,
             RangeConsumptionEstimator(estimator.state()).estimate(0.0, 0.0),
             .000_001,
         )
@@ -438,8 +500,8 @@ class TelemetryDecoderTest {
         estimator.add(distanceKm = .002, fuelLitres = .00018)
         val afterBoundary = estimator.estimate(recentConsumption = 9.0, recentDistanceKm = 1.001)
 
-        assertEquals(6.0, estimator.baselineConsumption(), .000_001)
-        assertEquals(6.3, estimator.state().learnedConsumption, .000_001)
+        assertEquals(6.9, estimator.baselineConsumption(), .000_001)
+        assertEquals(7.11, estimator.state().learnedConsumption, .000_001)
         assertTrue(kotlin.math.abs(afterBoundary - beforeBoundary) < .001)
     }
 
@@ -450,10 +512,10 @@ class TelemetryDecoderTest {
         estimator.add(distanceKm = 2.4, fuelLitres = .216)
 
         val state = estimator.state()
-        assertEquals(6.57, state.learnedConsumption, .000_001)
+        assertEquals(7.299, state.learnedConsumption, .000_001)
         assertEquals(.4, state.pendingSegmentDistanceKm, .000_001)
         assertEquals(.036, state.pendingSegmentFuelLitres, .000_001)
-        assertEquals(6.0, estimator.baselineConsumption(), .000_001)
+        assertEquals(6.9, estimator.baselineConsumption(), .000_001)
     }
 
     @Test
@@ -464,7 +526,7 @@ class TelemetryDecoderTest {
         val result = session.onTick(1_100)
 
         assertEquals(.001, result.distanceKm, .000_001)
-        assertEquals(4.2, result.averageConsumption, .000_001)
+        assertEquals(5.5668576, result.averageConsumption, .000_001)
         assertTrue(result.estimatedRangeKm > 0)
     }
 
@@ -876,6 +938,30 @@ class TelemetryDecoderTest {
         assertEquals(5.0, beforeRefuel.observedFuelSpentLitres)
         assertEquals(5.0, afterRefuel.observedFuelSpentLitres)
         assertEquals(6.0, afterAnotherLitre.observedFuelSpentLitres)
+    }
+
+    @Test
+    fun confirmedCanDropCanCorrectALargeUnderestimate() {
+        val session = TripSessionTracker(
+            initialState = TripSessionState(
+                virtualFuelLitres = 40.0,
+                calibrationFactor = 1.0,
+                lastFuelLitres = 40,
+                calibrationAnchorFuelLitres = 40,
+                uncalibratedFuelSinceAnchorLitres = 2.0,
+            ),
+            refuelDetector = null,
+        )
+
+        session.onTelemetryWithFuelDecision(
+            speedKmh = 0,
+            rpm = 0,
+            fuelLitres = 37,
+            elapsedRealtimeMs = 1_000L,
+            fuelDecision = ConfirmedFuelLevelChange.Drop(3),
+        )
+
+        assertEquals(1.25, session.state().calibrationFactor, .000_001)
     }
 
     @Test
