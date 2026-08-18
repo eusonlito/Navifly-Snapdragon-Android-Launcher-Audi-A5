@@ -1,6 +1,7 @@
 package com.lito.a5launcher
 
 import com.lito.a5launcher.model.DoorStatus
+import kotlin.math.pow
 
 internal fun Double.validMetric(): Double = takeIf { isFinite() && this >= 0.0 } ?: 0.0
 internal const val DEFAULT_RANGE_CONSUMPTION_L_PER_100_KM = 6.0
@@ -223,11 +224,36 @@ object TripConsumptionEstimator {
         val speedDrag = if (speed > AERODYNAMIC_SPEED_THRESHOLD_KMH) {
             (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH) * AERODYNAMIC_CONSUMPTION_PER_KMH
         } else 0.0
-        val consumptionLitresPer100Km = BASE_CONSUMPTION_L_PER_100_KM + rpmFactor + speedDrag
+        val provisionalConsumption = BASE_CONSUMPTION_L_PER_100_KM + rpmFactor + speedDrag
+        val consumptionLitresPer100Km = highSpeedReference(speed, rpm)?.let { reference ->
+            val referenceWeight = (
+                (speed - AERODYNAMIC_SPEED_THRESHOLD_KMH).toDouble() / REFERENCE_BLEND_DISTANCE_KMH
+                ).coerceIn(0.0, 1.0) * MAX_REFERENCE_WEIGHT
+            maxOf(
+                provisionalConsumption,
+                provisionalConsumption + (reference - provisionalConsumption) * referenceWeight,
+            )
+        } ?: provisionalConsumption
         return maxOf(
             IDLE_FUEL_FLOW_LPH,
             consumptionLitresPer100Km * speed / 100.0,
         )
+    }
+
+    private fun highSpeedReference(speed: Int, rpm: Int): Double? {
+        if (speed <= AERODYNAMIC_SPEED_THRESHOLD_KMH) return null
+        val boundedSpeed = speed.coerceAtMost(REFERENCE_POINTS.last().speedKmh)
+        val upperIndex = REFERENCE_POINTS.indexOfFirst { boundedSpeed <= it.speedKmh }
+            .coerceAtLeast(1)
+        val lower = REFERENCE_POINTS[upperIndex - 1]
+        val upper = REFERENCE_POINTS[upperIndex]
+        val interpolation = (boundedSpeed - lower.speedKmh).toDouble() /
+            (upper.speedKmh - lower.speedKmh)
+        val baseConsumption = lower.consumptionLitresPer100Km +
+            (upper.consumptionLitresPer100Km - lower.consumptionLitresPer100Km) * interpolation
+        val sixthGearRpm = 1_000.0 * speed / SIXTH_GEAR_KMH_PER_1_000_RPM
+        val regimeRatio = (rpm / sixthGearRpm).coerceIn(MIN_REGIME_RATIO, MAX_REGIME_RATIO)
+        return baseConsumption * regimeRatio.pow(REGIME_EXPONENT)
     }
 
     private const val ENGINE_OFF_RPM = 500
@@ -237,6 +263,31 @@ object TripConsumptionEstimator {
     private const val RPM_REFERENCE = 1_800.0
     private const val AERODYNAMIC_SPEED_THRESHOLD_KMH = 110
     private const val AERODYNAMIC_CONSUMPTION_PER_KMH = .02
+    private const val REFERENCE_BLEND_DISTANCE_KMH = 20.0
+    private const val MAX_REFERENCE_WEIGHT = .35
+    private const val SIXTH_GEAR_KMH_PER_1_000_RPM = 54.798
+    private const val REGIME_EXPONENT = .22
+    private const val MIN_REGIME_RATIO = .75
+    private const val MAX_REGIME_RATIO = 1.6
+    private val REFERENCE_POINTS = arrayOf(
+        ReferencePoint(110, 4.8),
+        ReferencePoint(120, 5.6),
+        ReferencePoint(130, 6.67),
+        ReferencePoint(140, 7.73),
+        ReferencePoint(150, 8.8),
+        ReferencePoint(160, 10.07),
+        ReferencePoint(170, 11.33),
+        ReferencePoint(180, 12.6),
+        ReferencePoint(190, 14.13),
+        ReferencePoint(200, 15.67),
+        ReferencePoint(210, 17.2),
+        ReferencePoint(212, 17.5),
+    )
+
+    private data class ReferencePoint(
+        val speedKmh: Int,
+        val consumptionLitresPer100Km: Double,
+    )
 }
 
 data class FuelDistanceSegment(

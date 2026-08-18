@@ -188,6 +188,29 @@ class TelemetryDecoderTest {
     }
 
     @Test
+    fun consumptionEstimatorBlendsAConservativeHighSpeedReference() {
+        assertEquals(
+            5.7465,
+            TripConsumptionEstimator.fuelFlowLitresPerHour(120, 2_190),
+            .001,
+        )
+        assertEquals(
+            10.0027,
+            TripConsumptionEstimator.fuelFlowLitresPerHour(150, 2_737),
+            .001,
+        )
+    }
+
+    @Test
+    fun consumptionEstimatorKeepsTheExistingModelAtAndBelow110Kmh() {
+        assertEquals(
+            4.7461,
+            TripConsumptionEstimator.fuelFlowLitresPerHour(110, 2_007),
+            .001,
+        )
+    }
+
+    @Test
     fun tripStatisticsExposeFuelSpentFromInitialAndCurrentCanLevels() {
         val session = TripSessionTracker()
 

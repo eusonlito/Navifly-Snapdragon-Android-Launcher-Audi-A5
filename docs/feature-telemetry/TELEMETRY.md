@@ -166,9 +166,15 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    relación RPM/velocidad, porque es la funcionalidad elegida para la interfaz.
 2. **Consumo medio y autonomía:** no existe un bus de consumo acumulado ni una
    autonomía nativa validados. El launcher estima primero un caudal en litros
-   por hora a partir de RPM y velocidad. Mientras circula conserva la heurística
+   por hora a partir de RPM y velocidad. Mientras circula parte de la heurística
    provisional de consumo instantáneo —base 3,2, componente RPM y resistencia
-   adicional por encima de 110 km/h— y la convierte mediante
+   adicional por encima de 110 km/h—. Desde 110 km/h incorpora progresivamente
+   una referencia de crucero específica del vehículo, interpolada por velocidad
+   y corregida suavemente por el régimen respecto a sexta. Esta referencia pesa
+   como máximo un 35 %, alcanzado a 130 km/h, y sólo puede elevar la heurística:
+   evita alterar el comportamiento urbano ya calibrado y corrige la pendiente
+   excesivamente plana del modelo anterior a alta velocidad. Después la convierte
+   mediante
    `caudal = l/100 km × km/h / 100`; con el motor encendido y el coche detenido
    integra `0,7 l/h`. Cada intervalo monotónico añade combustible y distancia,
    y el consumo mostrado es siempre `litros acumulados / kilómetros × 100`
@@ -178,6 +184,12 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    ralentí puede añadir litros con una distancia casi nula y la división dejaría
    de ser representativa. El acumulador interno continúa registrando ese
    combustible para que el consumo posterior y la autonomía no lo ignoren.
+
+   La curva de crucero y su corrección de régimen son referencias de trabajo, no
+   lecturas CAN ni un mapa BSFC del motor. No pueden distinguir pendiente,
+   aceleración, viento, regeneración del filtro o cargas auxiliares. Por eso no
+   sustituyen el factor de calibración aprendido a partir de descensos confirmados
+   del depósito ni se presentan como consumo instantáneo real.
 
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
