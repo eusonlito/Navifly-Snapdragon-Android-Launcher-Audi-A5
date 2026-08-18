@@ -9,7 +9,7 @@ internal const val MAX_DISPLAY_CONSUMPTION = 15.0
 internal const val MAX_IDLE_SPEED_KMH = 1
 
 internal fun validVehicleSpeedKmh(speedKmh: Int): Int? =
-    speedKmh.takeIf { it in 0..MAX_PLAUSIBLE_VEHICLE_SPEED_KMH }
+    speedKmh.takeIf { it in 0..A5_MANUFACTURER_MAX_SPEED_KMH }
 
 internal fun validMaximumSpeedKmh(speedKmh: Int): Int = validVehicleSpeedKmh(speedKmh) ?: 0
 
@@ -307,7 +307,7 @@ object TripConsumptionEstimator {
         ReferencePoint(190, 14.13),
         ReferencePoint(200, 15.67),
         ReferencePoint(210, 17.2),
-        ReferencePoint(212, 17.5),
+        ReferencePoint(A5_MANUFACTURER_MAX_SPEED_KMH, 17.5),
     )
 
     private data class ReferencePoint(
@@ -929,7 +929,7 @@ class TripSessionTracker(
     private companion object {
         const val MAX_INTEGRATION_INTERVAL_MS = 30_000L
         const val TELEMETRY_FRESHNESS_MS = 2_000L
-        const val CALIBRATION_DROP_LITRES = 3
+        const val CALIBRATION_DROP_LITRES = 4
         const val MIN_CALIBRATION_FACTOR = .7
         const val MAX_CALIBRATION_FACTOR = 1.8
         const val MIN_CALIBRATION_ADJUSTMENT_WEIGHT = .08

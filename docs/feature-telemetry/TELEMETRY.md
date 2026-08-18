@@ -32,7 +32,10 @@ Este mensaje es el canal principal de datos físicos del motor y velocidad de de
 * **Velocidad Instantánea (km/h):**
   * **Bytes:** `bArr[11]` (alto) y `bArr[12]` (bajo).
   * **Fórmula:** `int speed = ((bArr[11] & 0xFF) * 256) + (bArr[12] & 0xFF)`
-  * **Rango:** `0` a `300` km/h.
+  * **Rango bruto del protocolo:** `0` a `300` km/h.
+  * **Rango aceptado:** `0` a `212` km/h, la velocidad máxima indicada por
+    Audi para el A5 Sportback 2.0 TDI de 110 kW con cambio manual. Una trama
+    superior se descarta antes de alimentar indicadores y estadísticas.
 
 * **Revoluciones por Minuto (RPM):**
   * **Bytes:** `bArr[13]` (alto) y `bArr[14]` (bajo).
@@ -195,7 +198,7 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    sustituyen el factor de calibración aprendido a partir de descensos confirmados
    del depósito ni se presentan como consumo instantáneo real. Ese factor se
    conserva entre arranques, admite correcciones de hasta 1,8× y se autorregula
-   progresivamente cada tres litros confirmados. Cada ajuste queda limitado al
+   progresivamente cada cuatro litros confirmados. Cada ajuste queda limitado al
    10 % del factor anterior y el peso de nuevas observaciones disminuye conforme
    se acumula evidencia, sin dejar de adaptarse a cambios sostenidos de uso o
    entorno. El aprendizaje sólo acumula datos entre el 5 % y el 95 % de los
@@ -224,7 +227,7 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
-   descenso confirmado de tres litros corrige suavemente el factor del modelo;
+   descenso confirmado de cuatro litros corrige suavemente el factor del modelo;
    un aumento de al menos tres litros reinicializa la referencia como repostaje.
    Para la autonomía se combina un 60 % del consumo de los últimos 20 km y un
    40 % del consumo total del viaje. Si en el futuro el campo nativo de
