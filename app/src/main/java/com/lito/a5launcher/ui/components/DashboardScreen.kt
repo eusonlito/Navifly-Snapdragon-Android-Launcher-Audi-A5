@@ -1568,7 +1568,9 @@ private fun CompactVitals(
                         modifier = if (item == FooterBlockItem.WITNESSES) Modifier.weight(1f) else Modifier,
                     ) {
                         when (item) {
-                        FooterBlockItem.TIME -> FooterBlock {
+                        FooterBlockItem.TIME -> FooterBlock(
+                            modifier = Modifier.clickable(onClick = onTripStatistics),
+                        ) {
                             MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripStatistics.elapsedMs), false, labelSize, valueSize)
                         }
                         FooterBlockItem.TRIP -> FooterBlock(
@@ -1576,7 +1578,9 @@ private fun CompactVitals(
                         ) {
                             MiniValue(stringResource(R.string.dashboard_trip), formatOneDecimal(tripStatistics.distanceKm, locale), false, labelSize, valueSize)
                         }
-                        FooterBlockItem.CONSUMPTION -> FooterBlock {
+                        FooterBlockItem.CONSUMPTION -> FooterBlock(
+                            modifier = Modifier.clickable(onClick = onTripStatistics),
+                        ) {
                             MiniValue(
                                 stringResource(R.string.dashboard_consumption),
                                 if (tripStatistics.calculatedConsumption.isFinite()) {
