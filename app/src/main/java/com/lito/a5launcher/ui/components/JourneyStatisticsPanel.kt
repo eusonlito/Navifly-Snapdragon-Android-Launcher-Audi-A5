@@ -34,6 +34,7 @@ internal fun JourneyStatisticsPanel(
     statistics: JourneyStatisticsSnapshot,
     locale: Locale,
     onClose: () -> Unit,
+    onReset: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -63,15 +64,28 @@ internal fun JourneyStatisticsPanel(
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text = stringResource(R.string.dialog_close),
-                    color = OemCockpitTokens.Cyan,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clickable(onClick = onClose)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    onReset?.let { reset ->
+                        Text(
+                            text = stringResource(R.string.partial_statistics_reset),
+                            color = SettingsPalette.Danger,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(onClick = reset)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.dialog_close),
+                        color = OemCockpitTokens.Cyan,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable(onClick = onClose)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
             }
 
             StatisticsRow(

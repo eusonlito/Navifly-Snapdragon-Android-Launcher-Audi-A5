@@ -7,6 +7,7 @@ internal data class PersistedRefuelState(
     val distanceKm: Double,
     val lastFuelLitres: Int?,
     val statisticsState: DistanceSinceRefuelStatisticsState,
+    val pendingRefuelConfirmation: PendingRefuelConfirmation?,
 )
 
 internal class DistanceSinceRefuelStore(private val preferences: SharedPreferences) {
@@ -18,12 +19,18 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
             statisticsState = if (currentSchema) readStatistics() else {
                 DistanceSinceRefuelStatisticsState()
             },
+            pendingRefuelConfirmation = if (currentSchema) {
+                readPendingRefuelConfirmation()
+            } else null,
         )
     }
 
-    fun write(checkpoint: DistanceSinceRefuelPersistenceSnapshot) {
+    fun write(
+        checkpoint: DistanceSinceRefuelPersistenceSnapshot,
+        synchronously: Boolean = false,
+    ) {
         val statistics = checkpoint.statisticsState
-        preferences.edit {
+        preferences.edit(commit = synchronously) {
             putInt(SCHEMA, CURRENT_SCHEMA)
             putLong(DISTANCE_BITS, checkpoint.distanceKm.toRawBits())
             checkpoint.lastFuelLitres?.let { putInt(LAST_FUEL_LITRES, it) }
@@ -49,6 +56,24 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
             statistics.sourceTripGeneration?.let { putLong(SOURCE_TRIP_GENERATION, it) }
                 ?: remove(SOURCE_TRIP_GENERATION)
             putBoolean(STATISTICS_ACTIVE, statistics.active)
+            checkpoint.pendingRefuelConfirmation?.let { pending ->
+                putInt(PENDING_BASELINE_FUEL_LITRES, pending.baselineFuelLitres)
+                putInt(PENDING_CANDIDATE_FUEL_LITRES, pending.candidateFuelLitres)
+                putInt(PENDING_CONFIRMATION_SAMPLES, pending.confirmationSamples)
+            } ?: run {
+                remove(PENDING_BASELINE_FUEL_LITRES)
+                remove(PENDING_CANDIDATE_FUEL_LITRES)
+                remove(PENDING_CONFIRMATION_SAMPLES)
+            }
+        }
+    }
+
+    private fun readPendingRefuelConfirmation(): PendingRefuelConfirmation? {
+        val baseline = preferences.getInt(PENDING_BASELINE_FUEL_LITRES, 0)
+        val candidate = preferences.getInt(PENDING_CANDIDATE_FUEL_LITRES, 0)
+        val samples = preferences.getInt(PENDING_CONFIRMATION_SAMPLES, 0)
+        return PendingRefuelConfirmation(baseline, candidate, samples).takeIf {
+            baseline > 0 && candidate > baseline && samples > 0
         }
     }
 
@@ -104,5 +129,8 @@ internal class DistanceSinceRefuelStore(private val preferences: SharedPreferenc
             "source_trip_confirmed_can_fuel_used_bits"
         private const val SOURCE_TRIP_GENERATION = "source_trip_generation"
         private const val STATISTICS_ACTIVE = "statistics_active"
+        private const val PENDING_BASELINE_FUEL_LITRES = "pending_baseline_fuel_litres"
+        private const val PENDING_CANDIDATE_FUEL_LITRES = "pending_candidate_fuel_litres"
+        private const val PENDING_CONFIRMATION_SAMPLES = "pending_confirmation_samples"
     }
 }

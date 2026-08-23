@@ -256,4 +256,13 @@
     <string name="functional_logs_context_expected_ratio">Expected Ratio</string>
     <string name="functional_logs_value_true">Yes</string>
     <string name="functional_logs_value_false">No</string>
+    <string name="refuel_confirmation_title">Confirm Refuelling</string>
+    <string name="refuel_confirmation_message">The fuel level changed from %1$d L to %2$d L. Did you refuel?</string>
+    <string name="refuel_confirmation_accept">Yes, Reset Partial</string>
+    <string name="refuel_confirmation_reject">No</string>
+    <string name="partial_statistics_reset">Reset</string>
+    <string name="partial_statistics_reset_title">Reset Partial</string>
+    <string name="partial_statistics_reset_message">Reset all Partial Statistics from the current fuel level?</string>
+    <string name="partial_statistics_reset_confirm">Reset</string>
+    <string name="partial_statistics_reset_cancel">Cancel</string>
 </resources>

@@ -88,6 +88,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _partialStatistics = MutableStateFlow(JourneyStatisticsSnapshot())
     val partialStatistics: StateFlow<JourneyStatisticsSnapshot> = _partialStatistics.asStateFlow()
 
+    private val _pendingRefuelConfirmation = MutableStateFlow<PendingRefuelConfirmation?>(null)
+    val pendingRefuelConfirmation: StateFlow<PendingRefuelConfirmation?> =
+        _pendingRefuelConfirmation.asStateFlow()
+
     private val _navigationLaunchLocked = MutableStateFlow(false)
     val navigationLaunchLocked: StateFlow<Boolean> = _navigationLaunchLocked.asStateFlow()
     private var navigationLaunchJob: Job? = null
@@ -148,6 +152,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 collectionJobs.add(viewModelScope.launch {
                     svc.partialStatisticsFlow.collect { _partialStatistics.value = it }
                 })
+                collectionJobs.add(viewModelScope.launch {
+                    svc.pendingRefuelConfirmationFlow.collect {
+                        _pendingRefuelConfirmation.value = it
+                    }
+                })
                 collectionJobs.add(viewModelScope.launch { svc.outsideTempFlow.collect { _outsideTemp.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.seatbeltFlow.collect { _seatbelt.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.parkingBrakeFlow.collect {
@@ -164,6 +173,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             isBound = false
             telemetryService = null
             _functionalEventLogAccess.value = null
+            _pendingRefuelConfirmation.value = null
             collectionJobs.forEach { it.cancel() }
             collectionJobs.clear()
         }
@@ -230,6 +240,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    fun confirmPendingRefuel() = telemetryService?.confirmPendingRefuel()
+
+    fun rejectPendingRefuel() = telemetryService?.rejectPendingRefuel()
+
+    fun resetPartialStatistics() = telemetryService?.resetPartialStatistics()
 
     fun openAppInfo(packageName: String) {
         viewModelScope.launch(Dispatchers.Main) {

@@ -818,6 +818,7 @@ class TripSessionTracker(
                 lastFuelLitres = fuelLevelChange.fuelLitres
                 changed = true
             }
+            is ConfirmedFuelLevelChange.ConfirmationRequired,
             is ConfirmedFuelLevelChange.Rejected -> Unit
             null -> Unit
         }

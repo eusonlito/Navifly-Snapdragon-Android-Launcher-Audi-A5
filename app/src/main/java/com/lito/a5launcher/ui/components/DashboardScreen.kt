@@ -243,6 +243,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val gear by viewModel.gear.collectAsStateWithLifecycle()
     val tripStatistics by viewModel.tripStatistics.collectAsStateWithLifecycle()
     val partialStatistics by viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val pendingRefuelConfirmation by
+        viewModel.pendingRefuelConfirmation.collectAsStateWithLifecycle()
     val navigationLaunchLocked by viewModel.navigationLaunchLocked.collectAsStateWithLifecycle()
     val seatbelt by viewModel.seatbelt.collectAsStateWithLifecycle()
     val brake by viewModel.parkingBrake.collectAsStateWithLifecycle()
@@ -273,9 +275,14 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var showApps by remember { mutableStateOf(false) }
     var showLauncherSettings by remember { mutableStateOf(false) }
     var statisticsPanel by remember { mutableStateOf<StatisticsPanelScope?>(null) }
+    var showManualPartialResetConfirmation by remember { mutableStateOf(false) }
     var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.MAP) }
     var topCommandOrder by remember {
         mutableStateOf(parseTopCommandOrder(launcherPreferences.getString(TOP_COMMAND_ORDER_KEY, null)))
+    }
+
+    LaunchedEffect(pendingRefuelConfirmation) {
+        if (pendingRefuelConfirmation != null) showManualPartialResetConfirmation = false
     }
     var footerBlockOrder by remember {
         mutableStateOf(parseFooterBlockOrder(launcherPreferences.getString(FOOTER_BLOCK_ORDER_KEY, null)))
@@ -678,6 +685,9 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                             },
                             locale = dashboardLocale,
                             onClose = { statisticsPanel = null },
+                            onReset = if (scope == StatisticsPanelScope.PARTIAL) {
+                                { showManualPartialResetConfirmation = true }
+                            } else null,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -926,6 +936,63 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     },
                     onRequestDeviceReboot = { DeviceRebootAction.request(context) },
                     onClose = { showLauncherSettings = false },
+                )
+            }
+
+            pendingRefuelConfirmation?.let { pending ->
+                AlertDialog(
+                    onDismissRequest = {},
+                    title = { Text(stringResource(R.string.refuel_confirmation_title)) },
+                    text = {
+                        Text(
+                            stringResource(
+                                R.string.refuel_confirmation_message,
+                                pending.baselineFuelLitres,
+                                pending.candidateFuelLitres,
+                            ),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = viewModel::confirmPendingRefuel) {
+                            Text(
+                                stringResource(R.string.refuel_confirmation_accept),
+                                color = OemCockpitTokens.Cyan,
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = viewModel::rejectPendingRefuel) {
+                            Text(stringResource(R.string.refuel_confirmation_reject))
+                        }
+                    },
+                )
+            }
+
+            if (pendingRefuelConfirmation == null && showManualPartialResetConfirmation) {
+                AlertDialog(
+                    onDismissRequest = { showManualPartialResetConfirmation = false },
+                    title = { Text(stringResource(R.string.partial_statistics_reset_title)) },
+                    text = { Text(stringResource(R.string.partial_statistics_reset_message)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showManualPartialResetConfirmation = false
+                                viewModel.resetPartialStatistics()
+                            },
+                        ) {
+                            Text(
+                                stringResource(R.string.partial_statistics_reset_confirm),
+                                color = SettingsPalette.Danger,
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showManualPartialResetConfirmation = false },
+                        ) {
+                            Text(stringResource(R.string.partial_statistics_reset_cancel))
+                        }
+                    },
                 )
             }
 

@@ -221,14 +221,16 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    viaje para no perder el combustible gastado antes del repostaje; el parcial sí
    adopta el nuevo nivel y vuelve a cero.
    `Viaje` se reinicia al comenzar una nueva sesión del coche; `Parcial` conserva
-   sus datos entre arranques y sólo se reinicia con un repostaje confirmado. Todo
+   sus datos entre arranques y sólo se reinicia con un repostaje confirmado o con
+   la acción manual disponible en su propio panel de estadísticas. Todo
    se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a
    recorrer historiales de muestras.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
    descenso confirmado de cuatro litros corrige suavemente el factor del modelo;
-   un aumento de al menos tres litros reinicializa la referencia como repostaje.
+   la detección de repostaje aplica los umbrales porcentuales descritos en el
+   apartado de distancia parcial.
    Para la autonomía se combina un 60 % del consumo de los últimos 20 km y un
    40 % del consumo total del viaje. Si en el futuro el campo nativo de
    autonomía entrega un valor mayor que cero, ese dato tiene prioridad. Todos
@@ -246,10 +248,14 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    el dispositivo.
 4. **Distancia desde el último repostaje:** se integra en segundo plano con la
    misma velocidad CAN y se conserva entre reinicios del dispositivo. El valor
-   vuelve automáticamente a cero cuando dos muestras consecutivas, con el coche
-   detenido, confirman un aumento de al menos tres litros. Este umbral y la
-   confirmación evitan interpretar como repostaje las oscilaciones normales del
-   aforador. Además, mientras el vehículo permanece detenido la referencia no
+   clasifica los aumentos usando la capacidad real de 63 litros. Un cambio menor
+   del 5 % se ignora; entre el 5 % y el 10 % se guarda una confirmación pendiente
+   y se pregunta al conductor antes de reiniciar; desde el 10 % el reinicio es
+   automático tras dos muestras consecutivas con el coche detenido. La
+   confirmación pendiente se guarda de forma síncrona y se conserva entre
+   reinicios del dispositivo. Si se rechaza, el nuevo nivel se adopta como
+   referencia sin reiniciar el parcial.
+   Además, mientras el vehículo permanece detenido la referencia no
    aprende descensos: así, dos lecturas bajas transitorias durante el arranque
    no rebajan la referencia y su posterior recuperación no puede simular un
    repostaje. Los descensos sólo actualizan la referencia una vez que el coche
@@ -257,7 +263,9 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    continúa al iniciar la marcha, porque su recuperación podría cumplir por sí
    sola el umbral de repostaje. Los saltos normales de 1–2 litros sí se confirman
    en movimiento. La referencia de combustible y la distancia se guardan en
-   `distance_since_refuel`, separadas de la sesión del arranque.
+   `distance_since_refuel`, separadas de la sesión del arranque. El panel de
+   Estadísticas Parciales también permite un reinicio manual confirmado, tomando
+   la lectura de combustible actual como origen del nuevo parcial.
 5. **Modo Clima:** No se transmiten bits de dirección de aire ni estado de
    compresor AC en el dashboard. El launcher no muestra ningún bloque de clima.
 6. **Odómetro Total (KM totales):** En este firmware se recibe como entero de

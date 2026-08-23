@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.io.File
 
@@ -287,6 +289,11 @@ class TelemetryService : Service() {
     val partialStatisticsFlow: StateFlow<JourneyStatisticsSnapshot> =
         _partialStatisticsFlow.asStateFlow()
 
+    private val _pendingRefuelConfirmationFlow =
+        MutableStateFlow<PendingRefuelConfirmation?>(null)
+    val pendingRefuelConfirmationFlow: StateFlow<PendingRefuelConfirmation?> =
+        _pendingRefuelConfirmationFlow.asStateFlow()
+
     // Remote IPC Service
     private var mEvtService: IEventService? = null
     private var isBound = false
@@ -297,6 +304,8 @@ class TelemetryService : Service() {
     private lateinit var tripSession: TripSessionTracker
     private lateinit var distanceSinceRefuelTracker: DistanceSinceRefuelTracker
     private lateinit var confirmedRefuelDetector: ConfirmedRefuelDetector
+    private val coreTelemetryMutex = Mutex()
+    private var latestCoreTelemetry: CoreTelemetry? = null
     private val gearTelemetryCoordinator = GearTelemetryCoordinator()
     lateinit var functionalEventJournal: FunctionalEventJournal
         private set
@@ -375,8 +384,9 @@ class TelemetryService : Service() {
             // Process decoding strictly on Dispatchers.Default (Background) to maintain 60 FPS
             scope.launch {
                 when (msg_what) {
-                    90 -> { // Core Telemetry
+                    90 -> coreTelemetryMutex.withLock { // Core Telemetry
                         bArr?.let(TelemetryDecoder::decodeCore)?.let { telemetry ->
+                            latestCoreTelemetry = telemetry
                             rawGearType = try {
                                 mEvtService?.getGearType() ?: rawGearType
                             } catch (e: Exception) {
@@ -393,10 +403,14 @@ class TelemetryService : Service() {
                             )
                             _calculatedGearFlow.value = gearTelemetryCoordinator.update(drivingSample)
                             val now = SystemClock.elapsedRealtime()
-                            val fuelDecision = confirmedRefuelDetector.observeDetailed(
-                                telemetry.speed,
-                                telemetry.fuelLitres,
-                            )
+                            val fuelDecision = if (_pendingRefuelConfirmationFlow.value == null) {
+                                confirmedRefuelDetector.observeDetailed(
+                                    telemetry.speed,
+                                    telemetry.fuelLitres,
+                                )
+                            } else null
+                            (fuelDecision as? ConfirmedFuelLevelChange.ConfirmationRequired)
+                                ?.let { _pendingRefuelConfirmationFlow.value = it.confirmation }
                             val confirmedRefuel = (fuelDecision as? ConfirmedFuelLevelChange.Refuel)
                                 ?.let { decision ->
                                     decision to _partialStatisticsFlow.value.distanceKm
@@ -448,9 +462,13 @@ class TelemetryService : Service() {
                             publishDistanceSinceRefuel(partialUpdate)
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
-                                fuelDecision is ConfirmedFuelLevelChange.Refuel
+                                fuelDecision is ConfirmedFuelLevelChange.Refuel ||
+                                fuelDecision is ConfirmedFuelLevelChange.ConfirmationRequired
                             ) {
-                                persistDistanceSinceRefuel()
+                                persistDistanceSinceRefuel(
+                                    synchronously = fuelDecision is
+                                        ConfirmedFuelLevelChange.ConfirmationRequired,
+                                )
                                 persistTripSession()
                             }
                             telemetry.odometerKm?.takeIf { it > 0 }?.let {
@@ -484,6 +502,55 @@ class TelemetryService : Service() {
         fun getService(): TelemetryService = this@TelemetryService
     }
 
+    fun confirmPendingRefuel() {
+        scope.launch {
+            coreTelemetryMutex.withLock {
+                val pending = _pendingRefuelConfirmationFlow.value ?: return@withLock
+                val decision = confirmedRefuelDetector.confirmPendingRefuel(pending)
+                _pendingRefuelConfirmationFlow.value = null
+                applyResolvedFuelDecision(decision)
+            }
+        }
+    }
+
+    fun rejectPendingRefuel() {
+        scope.launch {
+            coreTelemetryMutex.withLock {
+                val pending = _pendingRefuelConfirmationFlow.value ?: return@withLock
+                confirmedRefuelDetector.rejectPendingRefuel(pending)
+                _pendingRefuelConfirmationFlow.value = null
+                applyResolvedFuelDecision(
+                    decision = ConfirmedFuelLevelChange.Initialized,
+                    fuelLitres = pending.candidateFuelLitres,
+                )
+            }
+        }
+    }
+
+    fun resetPartialStatistics() {
+        scope.launch {
+            coreTelemetryMutex.withLock {
+                val now = SystemClock.elapsedRealtime()
+                val tripMetrics = tripSession.onTick(now)
+                val fuelLitres = _fuelFlow.value.takeIf { it > 0 }
+                fuelLitres?.let(confirmedRefuelDetector::adoptFuelLevel)
+                publishTripMetrics(tripMetrics)
+                publishDistanceSinceRefuel(
+                    distanceSinceRefuelTracker.resetManually(
+                        fuelLitres = fuelLitres,
+                        elapsedRealtimeMs = now,
+                        tripFuelUsage = CumulativeFuelUsage(
+                            tripMetrics.fuelUsedLitres,
+                            tripMetrics.confirmedCanFuelUsedLitres,
+                        ),
+                        tripGeneration = currentTripGeneration,
+                    ),
+                )
+                persistDistanceSinceRefuel(synchronously = true)
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onCreate() {
@@ -492,6 +559,7 @@ class TelemetryService : Service() {
         startAsForegroundService()
         initializeFunctionalEvents()
         val refuelState = refuelStore.read()
+        _pendingRefuelConfirmationFlow.value = refuelState.pendingRefuelConfirmation
         confirmedRefuelDetector = ConfirmedRefuelDetector(refuelState.lastFuelLitres)
         restoreTripSession(refuelState)
         restoreDistanceSinceRefuel(refuelState)
@@ -524,7 +592,7 @@ class TelemetryService : Service() {
         tripMetricsJob = null
         refreshTripAndPartial(SystemClock.elapsedRealtime())
         persistTripSession()
-        persistDistanceSinceRefuel()
+        persistDistanceSinceRefuel(synchronously = true)
         runCatching { contentResolver.unregisterContentObserver(providerObserver) }
         stopTelemetryReplay()
         unbindEventService()
@@ -663,12 +731,14 @@ class TelemetryService : Service() {
             var persistenceTicks = 0
             while (isActive) {
                 delay(1_000L)
-                refreshTripAndPartial(SystemClock.elapsedRealtime())
-                persistenceTicks++
-                if (persistenceTicks >= 10) {
-                    persistTripSession()
-                    persistDistanceSinceRefuel()
-                    persistenceTicks = 0
+                coreTelemetryMutex.withLock {
+                    refreshTripAndPartial(SystemClock.elapsedRealtime())
+                    persistenceTicks++
+                    if (persistenceTicks >= 10) {
+                        persistTripSession()
+                        persistDistanceSinceRefuel()
+                        persistenceTicks = 0
+                    }
                 }
             }
         }
@@ -738,9 +808,68 @@ class TelemetryService : Service() {
         _partialStatisticsFlow.value = snapshot.statistics
     }
 
-    private fun persistDistanceSinceRefuel() {
+    private fun applyResolvedFuelDecision(
+        decision: ConfirmedFuelLevelChange,
+        fuelLitres: Int = (decision as? ConfirmedFuelLevelChange.Refuel)?.fuelLitres
+            ?: _fuelFlow.value,
+    ) {
+        val now = SystemClock.elapsedRealtime()
+        val source = if (replayActive) {
+            FunctionalEventSource.REPLAY
+        } else {
+            FunctionalEventSource.EVENT_CENTER
+        }
+        val telemetry = latestCoreTelemetry?.copy(fuelLitres = fuelLitres) ?: CoreTelemetry(
+            speed = _speedFlow.value,
+            averageSpeed = 0,
+            rpm = _rpmFlow.value,
+            fuelLitres = fuelLitres,
+            unverifiedDistanceKm = 0,
+            odometerKm = _mileageFlow.value.takeIf { it > 0 },
+            outsideTemperatureCelsius = _outsideTempFlow.value,
+        )
+        val partialBeforeKm = _partialStatisticsFlow.value.distanceKm
+        val tripMetrics = tripSession.onTelemetryWithFuelDecision(
+            telemetry.speed,
+            telemetry.rpm,
+            fuelLitres,
+            now,
+            decision,
+        )
+        publishTripMetrics(tripMetrics)
+        val partialUpdate = distanceSinceRefuelTracker.advanceWithFuelDecision(
+            telemetry.speed,
+            fuelLitres,
+            now,
+            decision,
+            CumulativeFuelUsage(
+                tripMetrics.fuelUsedLitres,
+                tripMetrics.confirmedCanFuelUsedLitres,
+            ),
+            currentTripGeneration,
+        )
+        if (decision is ConfirmedFuelLevelChange.Refuel) {
+            functionalEventTelemetryRecorder.recordPartialReset(
+                decision,
+                partialBeforeKm,
+                partialUpdate.distanceKm,
+                telemetry,
+                source,
+            )
+        }
+        publishDistanceSinceRefuel(partialUpdate)
+        persistTripSession()
+        persistDistanceSinceRefuel(synchronously = true)
+    }
+
+    private fun persistDistanceSinceRefuel(synchronously: Boolean = false) {
         if (!::distanceSinceRefuelTracker.isInitialized) return
-        refuelStore.write(distanceSinceRefuelTracker.persistenceSnapshot())
+        refuelStore.write(
+            distanceSinceRefuelTracker.persistenceSnapshot().copy(
+                pendingRefuelConfirmation = _pendingRefuelConfirmationFlow.value,
+            ),
+            synchronously = synchronously,
+        )
     }
 
     private fun persistTripSession() {

@@ -74,6 +74,37 @@ class DistanceSinceRefuelStoreTest {
 
         assertEquals(0, store.read().statisticsState.maximumSpeedKmh)
     }
+
+    @Test
+    fun pendingRefuelConfirmationSurvivesStoreRoundTrip() {
+        val store = DistanceSinceRefuelStore(MemorySharedPreferences())
+        val pending = PendingRefuelConfirmation(
+            baselineFuelLitres = 48,
+            candidateFuelLitres = 52,
+            confirmationSamples = 2,
+        )
+
+        store.write(
+            DistanceSinceRefuelPersistenceSnapshot(
+                distanceKm = 195.5,
+                lastFuelLitres = 48,
+                statisticsState = DistanceSinceRefuelStatisticsState(active = true),
+                pendingRefuelConfirmation = pending,
+            ),
+        )
+
+        assertEquals(pending, store.read().pendingRefuelConfirmation)
+
+        store.write(
+            DistanceSinceRefuelPersistenceSnapshot(
+                distanceKm = 195.5,
+                lastFuelLitres = 52,
+                statisticsState = DistanceSinceRefuelStatisticsState(active = true),
+            ),
+        )
+
+        assertNull(store.read().pendingRefuelConfirmation)
+    }
 }
 
 internal class MemorySharedPreferences : SharedPreferences {

@@ -255,4 +255,13 @@
     <string name="functional_logs_context_expected_ratio">Relación Esperada</string>
     <string name="functional_logs_value_true">Sí</string>
     <string name="functional_logs_value_false">No</string>
+    <string name="refuel_confirmation_title">Confirmar Repostaje</string>
+    <string name="refuel_confirmation_message">El nivel de combustible ha cambiado de %1$d L a %2$d L. ¿Has repostado?</string>
+    <string name="refuel_confirmation_accept">Sí, Reiniciar Parcial</string>
+    <string name="refuel_confirmation_reject">No</string>
+    <string name="partial_statistics_reset">Reiniciar</string>
+    <string name="partial_statistics_reset_title">Reiniciar Parcial</string>
+    <string name="partial_statistics_reset_message">¿Reiniciar todas las Estadísticas Parciales desde el nivel de combustible actual?</string>
+    <string name="partial_statistics_reset_confirm">Reiniciar</string>
+    <string name="partial_statistics_reset_cancel">Cancelar</string>
 </resources>

@@ -36,6 +36,7 @@ data class DistanceSinceRefuelPersistenceSnapshot(
     val distanceKm: Double,
     val lastFuelLitres: Int?,
     val statisticsState: DistanceSinceRefuelStatisticsState,
+    val pendingRefuelConfirmation: PendingRefuelConfirmation? = null,
 )
 
 data class DistanceSinceRefuelSnapshot(
@@ -51,6 +52,12 @@ data class PartialMaximumSpeedChange(
     val currentSpeedKmh: Int,
 )
 
+data class PendingRefuelConfirmation(
+    val baselineFuelLitres: Int,
+    val candidateFuelLitres: Int,
+    val confirmationSamples: Int,
+)
+
 sealed interface ConfirmedFuelLevelChange {
     data object Initialized : ConfirmedFuelLevelChange
     data class Drop(val litres: Int) : ConfirmedFuelLevelChange
@@ -58,6 +65,9 @@ sealed interface ConfirmedFuelLevelChange {
         val fuelLitres: Int,
         val baselineFuelLitres: Int = 0,
         val confirmationSamples: Int = 0,
+    ) : ConfirmedFuelLevelChange
+    data class ConfirmationRequired(
+        val confirmation: PendingRefuelConfirmation,
     ) : ConfirmedFuelLevelChange
     data class Rejected(
         val baselineFuelLitres: Int,
@@ -79,8 +89,9 @@ enum class RefuelRejectionReason(val code: String) {
  * Confirms refuelling from the coarse integer fuel level shared by the trip and
  * distance trackers. The baseline only follows confirmed decreases while moving.
  * A single decrease large enough to look like a later refuel is rejected as an
- * ambiguous startup/sensor jump. Increases must reach three litres while stationary
- * and remain at or above that threshold for two samples.
+ * ambiguous startup/sensor jump. Stationary increases below five percent of tank
+ * capacity are ignored, increases below ten percent require driver confirmation,
+ * and larger increases are accepted automatically after two matching samples.
  */
 class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
@@ -92,6 +103,7 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     fun observe(speedKmh: Int, fuelLitres: Int): ConfirmedFuelLevelChange? =
         observeDetailed(speedKmh, fuelLitres).takeUnless { it is ConfirmedFuelLevelChange.Rejected }
 
+    @Synchronized
     fun observeDetailed(speedKmh: Int, fuelLitres: Int): ConfirmedFuelLevelChange? {
         if (fuelLitres <= 0) {
             val rejection = rejectPending(fuelLitres, RefuelRejectionReason.INVALID_READING)
@@ -109,7 +121,7 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
             val dropLitres = baseline - fuelLitres
             if (
                 speedKmh <= MAX_STATIONARY_SPEED_KMH ||
-                dropLitres >= MIN_REFUEL_LITRES
+                dropLitres >= MIN_SUSPICIOUS_DROP_LITRES
             ) {
                 clearPendingBaseline()
                 return rejection
@@ -128,7 +140,11 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
             return rejection
         }
         clearPendingBaseline()
-        if (speedKmh > MAX_STATIONARY_SPEED_KMH || fuelLitres - baseline < MIN_REFUEL_LITRES) {
+        val increaseLitres = fuelLitres - baseline
+        if (
+            speedKmh > MAX_STATIONARY_SPEED_KMH ||
+            refuelFraction(increaseLitres) < MIN_CONFIRMATION_FRACTION
+        ) {
             val rejection = rejectPending(
                 fuelLitres,
                 if (speedKmh > MAX_STATIONARY_SPEED_KMH) {
@@ -151,13 +167,55 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
         if (pendingSamples < REFUEL_CONFIRMATION_SAMPLES) return null
 
         val confirmationSamples = pendingSamples
+        if (refuelFraction(increaseLitres) < AUTOMATIC_REFUEL_FRACTION) {
+            val confirmation = PendingRefuelConfirmation(
+                baselineFuelLitres = baseline,
+                candidateFuelLitres = fuelLitres,
+                confirmationSamples = confirmationSamples,
+            )
+            clearPending()
+            return ConfirmedFuelLevelChange.ConfirmationRequired(confirmation)
+        }
         baselineFuelLitres = fuelLitres
         clearPending()
         clearPendingBaseline()
         return ConfirmedFuelLevelChange.Refuel(fuelLitres, baseline, confirmationSamples)
     }
 
+    @Synchronized
+    fun confirmPendingRefuel(
+        confirmation: PendingRefuelConfirmation,
+    ): ConfirmedFuelLevelChange.Refuel {
+        baselineFuelLitres = confirmation.candidateFuelLitres
+        clearPending()
+        clearPendingBaseline()
+        return ConfirmedFuelLevelChange.Refuel(
+            fuelLitres = confirmation.candidateFuelLitres,
+            baselineFuelLitres = confirmation.baselineFuelLitres,
+            confirmationSamples = confirmation.confirmationSamples,
+        )
+    }
+
+    @Synchronized
+    fun rejectPendingRefuel(confirmation: PendingRefuelConfirmation) {
+        baselineFuelLitres = confirmation.candidateFuelLitres
+        clearPending()
+        clearPendingBaseline()
+    }
+
+    @Synchronized
+    fun adoptFuelLevel(fuelLitres: Int) {
+        if (fuelLitres <= 0) return
+        baselineFuelLitres = fuelLitres
+        clearPending()
+        clearPendingBaseline()
+    }
+
+    @Synchronized
     fun baselineFuelLitres(): Int? = baselineFuelLitres
+
+    private fun refuelFraction(litres: Int): Double =
+        litres.toDouble() / A5_FUEL_TANK_CAPACITY_LITRES
 
     private fun clearPending() {
         pendingFuelLitres = null
@@ -185,7 +243,9 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     }
 
     private companion object {
-        const val MIN_REFUEL_LITRES = 3
+        const val MIN_CONFIRMATION_FRACTION = .05
+        const val AUTOMATIC_REFUEL_FRACTION = .10
+        const val MIN_SUSPICIOUS_DROP_LITRES = 3
         const val MAX_STATIONARY_SPEED_KMH = 1
         const val REFUEL_CONFIRMATION_SAMPLES = 2
         const val BASELINE_CONFIRMATION_SAMPLES = 2
@@ -194,8 +254,8 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
 
 /**
  * Accumulates travelled distance independently from the UI and resets only after
- * two stationary readings confirm a fuel increase of at least three litres.
- * Requiring confirmation avoids resets caused by normal fuel-level sensor noise.
+ * the shared detector confirms a refuelling event, or after an explicit manual reset.
+ * Ambiguous increases require driver confirmation before this tracker is reset.
  */
 class DistanceSinceRefuelTracker(
     initialDistanceKm: Double = 0.0,
@@ -271,20 +331,19 @@ class DistanceSinceRefuelTracker(
             ConfirmedFuelLevelChange.Initialized -> lastFuelLitres = fuelLitres.takeIf { it > 0 }
             is ConfirmedFuelLevelChange.Drop -> lastFuelLitres = (lastFuelLitres?.minus(fuelDecision.litres))
             is ConfirmedFuelLevelChange.Refuel -> lastFuelLitres = fuelDecision.fuelLitres
-            is ConfirmedFuelLevelChange.Rejected, null -> Unit
+            is ConfirmedFuelLevelChange.ConfirmationRequired,
+            is ConfirmedFuelLevelChange.Rejected,
+            null,
+            -> Unit
         }
         refuelDetector?.baselineFuelLitres()?.let { lastFuelLitres = it }
         val refuelDetected = fuelDecision is ConfirmedFuelLevelChange.Refuel
         if (refuelDetected) {
-            distanceKm = 0.0
-            statisticsElapsedMs = 0L
-            statisticsMovingElapsedMs = 0L
-            maximumSpeedKmh = 0
-            statisticsFuelUsedLitres = 0.0
-            statisticsConfirmedCanFuelUsedLitres = 0.0
-            initialObservedFuelLitres = fuelDecision.fuelLitres
-            currentObservedFuelLitres = fuelDecision.fuelLitres
-            statisticsActive = true
+            resetStatistics(
+                fuelLitres = fuelDecision.fuelLitres,
+                tripFuelUsage = sourceTripFuelUsage,
+                tripGeneration = sourceTripGeneration,
+            )
         }
         return DistanceSinceRefuelSnapshot(
             distanceKm = distanceKm,
@@ -304,6 +363,19 @@ class DistanceSinceRefuelTracker(
                 PartialMaximumSpeedChange(previousMaximumSpeedKmh, maximumSpeedKmh)
             } else null,
         )
+    }
+
+    @Synchronized
+    fun resetManually(
+        fuelLitres: Int?,
+        elapsedRealtimeMs: Long,
+        tripFuelUsage: CumulativeFuelUsage?,
+        tripGeneration: Long?,
+    ): DistanceSinceRefuelSnapshot {
+        advanceTo(elapsedRealtimeMs)
+        resetStatistics(fuelLitres, tripFuelUsage, tripGeneration)
+        fuelLitres?.takeIf { it > 0 }?.let { lastFuelLitres = it }
+        return snapshot(refuelDetected = false)
     }
 
     @Synchronized
@@ -371,6 +443,24 @@ class DistanceSinceRefuelTracker(
             currentObservedFuelLitres = currentObservedFuelLitres,
         ),
     )
+
+    private fun resetStatistics(
+        fuelLitres: Int?,
+        tripFuelUsage: CumulativeFuelUsage?,
+        tripGeneration: Long?,
+    ) {
+        distanceKm = 0.0
+        statisticsElapsedMs = 0L
+        statisticsMovingElapsedMs = 0L
+        maximumSpeedKmh = 0
+        statisticsFuelUsedLitres = 0.0
+        statisticsConfirmedCanFuelUsedLitres = 0.0
+        initialObservedFuelLitres = fuelLitres?.takeIf { it > 0 }
+        currentObservedFuelLitres = initialObservedFuelLitres
+        sourceTripFuelUsage = tripFuelUsage?.normalized()
+        sourceTripGeneration = tripGeneration
+        statisticsActive = true
+    }
 
     private fun observeTripFuelUsage(
         current: CumulativeFuelUsage?,
