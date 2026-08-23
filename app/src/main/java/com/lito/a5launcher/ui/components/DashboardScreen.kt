@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -2689,18 +2690,21 @@ private fun LauncherOverlayHeader(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            stringResource(R.string.launcher_back).uppercase(LocalConfiguration.current.locales[0]),
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
+        Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .size(34.dp)
                 .clickable(onClick = onClose)
-                .background(SettingsPalette.ShellControl)
-                .padding(horizontal = 18.dp, vertical = 7.dp),
-        )
-        Spacer(Modifier.width(22.dp))
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.launcher_back),
+                tint = OemCockpitTokens.Cyan,
+                modifier = Modifier
+                    .size(20.dp)
+                    .align(Alignment.Center),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
         Text(
             title,
             color = Color.White,
