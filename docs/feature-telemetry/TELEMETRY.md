@@ -247,11 +247,12 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    recreación del proceso dentro del mismo arranque y se descartan al reiniciar
    el dispositivo.
 4. **Distancia desde el último repostaje:** se integra en segundo plano con la
-   misma velocidad CAN y se conserva entre reinicios del dispositivo. El valor
-   clasifica los aumentos usando la capacidad real de 63 litros. Un cambio menor
-   del 5 % se ignora; entre el 5 % y el 10 % se guarda una confirmación pendiente
-   y se pregunta al conductor antes de reiniciar; desde el 10 % el reinicio es
-   automático tras dos muestras consecutivas con el coche detenido. La
+   misma velocidad CAN y se conserva entre reinicios del dispositivo. El detector
+   clasifica los aumentos usando la capacidad real de 63 litros. Un cambio de
+   hasta el 5 % se ignora; por encima del 5 % y hasta el 10 % se guarda una
+   confirmación pendiente y se pregunta al conductor antes de reiniciar; por
+   encima del 10 % el reinicio es automático tras dos muestras consecutivas con
+   el coche detenido. La
    confirmación pendiente se guarda de forma síncrona y se conserva entre
    reinicios del dispositivo. Si se rechaza, el nuevo nivel se adopta como
    referencia sin reiniciar el parcial.

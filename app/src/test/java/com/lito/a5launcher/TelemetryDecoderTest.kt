@@ -628,7 +628,7 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun refuelDetectorIgnoresIncreasesBelowFivePercentOfTankCapacity() {
+    fun refuelDetectorIgnoresIncreasesAtOrBelowFivePercentOfTankCapacity() {
         val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
 
         assertNull(detector.observeDetailed(0, 51))
@@ -637,7 +637,7 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun refuelDetectorRequestsConfirmationBetweenFiveAndTenPercent() {
+    fun refuelDetectorRequestsConfirmationAboveFiveAndAtOrBelowTenPercent() {
         val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
 
         assertNull(detector.observeDetailed(0, 52))
@@ -657,7 +657,24 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun refuelDetectorAutomaticallyAcceptsIncreasesOfAtLeastTenPercent() {
+    fun refuelDetectorRequestsConfirmationAtTheUpperIntegerBoundary() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
+
+        assertNull(detector.observeDetailed(0, 54))
+        assertEquals(
+            ConfirmedFuelLevelChange.ConfirmationRequired(
+                PendingRefuelConfirmation(
+                    baselineFuelLitres = 48,
+                    candidateFuelLitres = 54,
+                    confirmationSamples = 2,
+                ),
+            ),
+            detector.observeDetailed(0, 54),
+        )
+    }
+
+    @Test
+    fun refuelDetectorAutomaticallyAcceptsIncreasesAboveTenPercent() {
         val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
 
         assertNull(detector.observeDetailed(0, 55))
