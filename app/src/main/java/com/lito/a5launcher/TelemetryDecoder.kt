@@ -645,6 +645,85 @@ data class TripSessionState(
     val currentObservedFuelLitres: Int? = null,
 )
 
+/**
+ * Keeps short-lived tank movement out of consumption calibration. A different
+ * integer fuel level only becomes trustworthy after it remains unchanged for
+ * both a minimum time and a minimum driven distance. Any rebound restarts the
+ * candidate window, while the last stable level remains the reference.
+ */
+internal class CalibrationFuelLevelStabilizer(
+    initialStableFuelLitres: Int? = null,
+    private val requiredStableMs: Long = REQUIRED_STABLE_MS,
+    private val requiredStableDistanceKm: Double = REQUIRED_STABLE_DISTANCE_KM,
+    private val maximumObservationGapMs: Long = MAXIMUM_OBSERVATION_GAP_MS,
+) {
+    private var stableFuelLitres = initialStableFuelLitres?.takeIf { it > 0 }
+    private var candidateFuelLitres: Int? = null
+    private var candidateStartedAtMs = 0L
+    private var candidateStartedAtDistanceKm = 0.0
+    private var lastObservationAtMs: Long? = null
+
+    fun observe(fuelLitres: Int, elapsedRealtimeMs: Long, distanceKm: Double): Int? {
+        if (fuelLitres <= 0) {
+            invalidateObservation()
+            return stableFuelLitres
+        }
+        val previousObservationAtMs = lastObservationAtMs
+        lastObservationAtMs = elapsedRealtimeMs
+        if (
+            previousObservationAtMs != null &&
+            (elapsedRealtimeMs < previousObservationAtMs ||
+                elapsedRealtimeMs - previousObservationAtMs > maximumObservationGapMs)
+        ) {
+            clearCandidate()
+        }
+        if (fuelLitres == stableFuelLitres) {
+            clearCandidate()
+            return stableFuelLitres
+        }
+        if (
+            candidateFuelLitres != fuelLitres ||
+            elapsedRealtimeMs < candidateStartedAtMs ||
+            distanceKm < candidateStartedAtDistanceKm
+        ) {
+            candidateFuelLitres = fuelLitres
+            candidateStartedAtMs = elapsedRealtimeMs
+            candidateStartedAtDistanceKm = distanceKm
+            return stableFuelLitres
+        }
+        val stableLongEnough = elapsedRealtimeMs - candidateStartedAtMs >= requiredStableMs
+        val stableFarEnough = distanceKm - candidateStartedAtDistanceKm >= requiredStableDistanceKm
+        if (stableLongEnough && stableFarEnough) {
+            stableFuelLitres = fuelLitres
+            clearCandidate()
+        }
+        return stableFuelLitres
+    }
+
+    fun reset(stableFuelLitres: Int? = null) {
+        this.stableFuelLitres = stableFuelLitres?.takeIf { it > 0 }
+        lastObservationAtMs = null
+        clearCandidate()
+    }
+
+    fun invalidateObservation() {
+        lastObservationAtMs = null
+        clearCandidate()
+    }
+
+    private fun clearCandidate() {
+        candidateFuelLitres = null
+        candidateStartedAtMs = 0L
+        candidateStartedAtDistanceKm = 0.0
+    }
+
+    private companion object {
+        const val REQUIRED_STABLE_MS = 120_000L
+        const val REQUIRED_STABLE_DISTANCE_KM = 2.0
+        const val MAXIMUM_OBSERVATION_GAP_MS = 2_000L
+    }
+}
+
 class TripSessionTracker(
     initialState: TripSessionState = TripSessionState(),
     private val refuelDetector: ConfirmedRefuelDetector? =
@@ -665,6 +744,9 @@ class TripSessionTracker(
     private var calibrationAnchorFuelLitres = initialState.calibrationAnchorFuelLitres?.takeIf { it > 0 }
     private var uncalibratedFuelSinceAnchorLitres = initialState.uncalibratedFuelSinceAnchorLitres.validMetric()
     private var calibrationEvidenceLitres = initialState.calibrationEvidenceLitres.validMetric()
+    private val calibrationFuelLevelStabilizer = CalibrationFuelLevelStabilizer(
+        initialState.calibrationAnchorFuelLitres,
+    )
     private val accelerationFuelEstimator = PositiveAccelerationFuelEstimator()
     private val recentConsumption = RecentConsumptionTracker(initialState.recentConsumptionState)
     private val rangeEstimator = RangeConsumptionEstimator(
@@ -715,7 +797,7 @@ class TripSessionTracker(
             startedAtElapsedMs = elapsedRealtimeMs
             persistenceVersion++
         }
-        observeFuelLevel(fuelLitres, fuelDecision)
+        observeFuelLevel(fuelLitres, elapsedRealtimeMs, fuelDecision)
         return snapshot(elapsedRealtimeMs)
     }
 
@@ -777,9 +859,13 @@ class TripSessionTracker(
 
     private fun observeFuelLevel(
         fuelLitres: Int,
+        elapsedRealtimeMs: Long,
         fuelLevelChange: ConfirmedFuelLevelChange?,
     ) {
-        if (fuelLitres <= 0) return
+        if (fuelLitres <= 0) {
+            calibrationFuelLevelStabilizer.invalidateObservation()
+            return
+        }
         var changed = false
         if (initialObservedFuelLitres == null) {
             initialObservedFuelLitres = fuelLitres
@@ -796,6 +882,13 @@ class TripSessionTracker(
         if (calibrationAnchorFuelLitres == null) {
             calibrationAnchorFuelLitres = fuelLitres
             changed = true
+        }
+
+        var stableCalibrationFuelLitres = if (isCalibrationFuelLevel(fuelLitres)) {
+            calibrationFuelLevelStabilizer.observe(fuelLitres, elapsedRealtimeMs, distanceKm)
+        } else {
+            calibrationFuelLevelStabilizer.reset()
+            null
         }
 
         when (fuelLevelChange) {
@@ -816,6 +909,8 @@ class TripSessionTracker(
                 ) ?: fuelLevelChange.fuelLitres
                 virtualFuelLitres = fuelLevelChange.fuelLitres.toDouble()
                 lastFuelLitres = fuelLevelChange.fuelLitres
+                calibrationFuelLevelStabilizer.reset(fuelLevelChange.fuelLitres)
+                stableCalibrationFuelLitres = fuelLevelChange.fuelLitres
                 changed = true
             }
             is ConfirmedFuelLevelChange.ConfirmationRequired,
@@ -823,12 +918,11 @@ class TripSessionTracker(
             null -> Unit
         }
         refuelDetector?.baselineFuelLitres()?.let { lastFuelLitres = it }
-        changed = updateConsumptionCalibration() || changed
+        changed = updateConsumptionCalibration(stableCalibrationFuelLitres) || changed
         if (changed) persistenceVersion++
     }
 
-    private fun updateConsumptionCalibration(): Boolean {
-        val confirmedFuelLitres = lastFuelLitres
+    private fun updateConsumptionCalibration(confirmedFuelLitres: Int?): Boolean {
         if (confirmedFuelLitres == null || !isCalibrationFuelLevel(confirmedFuelLitres)) {
             val changed = calibrationAnchorFuelLitres != null ||
                 uncalibratedFuelSinceAnchorLitres > 0.0

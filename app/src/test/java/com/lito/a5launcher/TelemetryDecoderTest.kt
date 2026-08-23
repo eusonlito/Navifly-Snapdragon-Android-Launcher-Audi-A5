@@ -1049,7 +1049,39 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun confirmedCanDropCanCorrectALargeUnderestimate() {
+    fun calibrationFuelLevelRejectsSloshUntilTimeAndDistanceAreStable() {
+        val stabilizer = CalibrationFuelLevelStabilizer(
+            initialStableFuelLitres = 40,
+            requiredStableMs = 2_000L,
+            requiredStableDistanceKm = 2.0,
+        )
+
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 0L, distanceKm = 0.0))
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 1_000L, distanceKm = 1.0))
+        assertEquals(40, stabilizer.observe(38, elapsedRealtimeMs = 2_000L, distanceKm = 2.0))
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 3_000L, distanceKm = 3.0))
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 4_000L, distanceKm = 4.0))
+        assertEquals(36, stabilizer.observe(36, elapsedRealtimeMs = 5_000L, distanceKm = 5.0))
+    }
+
+    @Test
+    fun calibrationFuelLevelRestartsAfterTelemetryGap() {
+        val stabilizer = CalibrationFuelLevelStabilizer(
+            initialStableFuelLitres = 40,
+            requiredStableMs = 2_000L,
+            requiredStableDistanceKm = 2.0,
+            maximumObservationGapMs = 1_000L,
+        )
+
+        stabilizer.observe(36, elapsedRealtimeMs = 0L, distanceKm = 0.0)
+        stabilizer.observe(36, elapsedRealtimeMs = 1_000L, distanceKm = 1.0)
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 3_000L, distanceKm = 3.0))
+        assertEquals(40, stabilizer.observe(36, elapsedRealtimeMs = 4_000L, distanceKm = 4.0))
+        assertEquals(36, stabilizer.observe(36, elapsedRealtimeMs = 5_000L, distanceKm = 5.0))
+    }
+
+    @Test
+    fun confirmedCanDropOnlyCorrectsAnUnderestimateAfterFuelStabilizes() {
         val session = TripSessionTracker(
             initialState = TripSessionState(
                 virtualFuelLitres = 40.0,
@@ -1069,6 +1101,18 @@ class TelemetryDecoderTest {
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
+        assertEquals(1.0, session.state().calibrationFactor, .000_001)
+
+        (2..123).forEach { second ->
+            session.onTelemetryWithFuelDecision(
+                speedKmh = 60,
+                rpm = 0,
+                fuelLitres = 36,
+                elapsedRealtimeMs = second * 1_000L,
+                fuelDecision = null,
+            )
+        }
+
         assertTrue(session.state().calibrationFactor > 1.0)
         assertTrue(session.state().calibrationFactor <= 1.1)
     }
@@ -1086,23 +1130,22 @@ class TelemetryDecoderTest {
             refuelDetector = null,
         )
 
-        (39 downTo 37).forEachIndexed { index, fuelLitres ->
-            session.onTelemetryWithFuelDecision(
-                speedKmh = 0,
-                rpm = 0,
+        var elapsedRealtimeMs = 0L
+        (39 downTo 37).forEach { fuelLitres ->
+            elapsedRealtimeMs = stabilizeCalibrationFuel(
+                session = session,
                 fuelLitres = fuelLitres,
-                elapsedRealtimeMs = (index + 1) * 1_000L,
+                startedAtMs = elapsedRealtimeMs,
                 fuelDecision = ConfirmedFuelLevelChange.Drop(1),
             )
             assertEquals(1.0, session.state().calibrationFactor, .000_001)
             assertEquals(0.0, session.state().calibrationEvidenceLitres, .000_001)
         }
 
-        session.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = session,
             fuelLitres = 36,
-            elapsedRealtimeMs = 4_000L,
+            startedAtMs = elapsedRealtimeMs,
             fuelDecision = ConfirmedFuelLevelChange.Drop(1),
         )
 
@@ -1123,11 +1166,10 @@ class TelemetryDecoderTest {
             ),
             refuelDetector = null,
         )
-        firstWindow.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = firstWindow,
             fuelLitres = 36,
-            elapsedRealtimeMs = 1_000L,
+            startedAtMs = 0L,
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
@@ -1141,11 +1183,10 @@ class TelemetryDecoderTest {
             ),
             refuelDetector = null,
         )
-        restoredWindow.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = restoredWindow,
             fuelLitres = 32,
-            elapsedRealtimeMs = 2_000L,
+            startedAtMs = 0L,
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
@@ -1163,11 +1204,10 @@ class TelemetryDecoderTest {
             ),
             refuelDetector = null,
         )
-        nearEvidenceCap.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = nearEvidenceCap,
             fuelLitres = 36,
-            elapsedRealtimeMs = 1_000L,
+            startedAtMs = 0L,
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
@@ -1178,11 +1218,10 @@ class TelemetryDecoderTest {
     fun consumptionCalibrationUsesTheExactFivePercentTankBoundaries() {
         fun anchorAfterObserving(fuelLitres: Int): Int? {
             val session = TripSessionTracker(refuelDetector = null)
-            session.onTelemetryWithFuelDecision(
-                speedKmh = 0,
-                rpm = 0,
+            stabilizeCalibrationFuel(
+                session = session,
                 fuelLitres = fuelLitres,
-                elapsedRealtimeMs = 1_000L,
+                startedAtMs = 0L,
                 fuelDecision = ConfirmedFuelLevelChange.Initialized,
             )
             return session.state().calibrationAnchorFuelLitres
@@ -1206,11 +1245,10 @@ class TelemetryDecoderTest {
             ),
             refuelDetector = null,
         )
-        nearlyFull.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = nearlyFull,
             fuelLitres = 59,
-            elapsedRealtimeMs = 1_000L,
+            startedAtMs = 0L,
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
@@ -1224,11 +1262,10 @@ class TelemetryDecoderTest {
             ),
             refuelDetector = null,
         )
-        usefulRange.onTelemetryWithFuelDecision(
-            speedKmh = 0,
-            rpm = 0,
+        stabilizeCalibrationFuel(
+            session = usefulRange,
             fuelLitres = 46,
-            elapsedRealtimeMs = 1_000L,
+            startedAtMs = 0L,
             fuelDecision = ConfirmedFuelLevelChange.Drop(4),
         )
 
@@ -1489,5 +1526,30 @@ class TelemetryDecoderTest {
     private fun put16(target: ByteArray, offset: Int, value: Int) {
         target[offset] = (value ushr 8).toByte()
         target[offset + 1] = value.toByte()
+    }
+
+    private fun stabilizeCalibrationFuel(
+        session: TripSessionTracker,
+        fuelLitres: Int,
+        startedAtMs: Long,
+        fuelDecision: ConfirmedFuelLevelChange?,
+    ): Long {
+        session.onTelemetryWithFuelDecision(
+            speedKmh = 60,
+            rpm = 0,
+            fuelLitres = fuelLitres,
+            elapsedRealtimeMs = startedAtMs,
+            fuelDecision = fuelDecision,
+        )
+        (1..121).forEach { second ->
+            session.onTelemetryWithFuelDecision(
+                speedKmh = 60,
+                rpm = 0,
+                fuelLitres = fuelLitres,
+                elapsedRealtimeMs = startedAtMs + second * 1_000L,
+                fuelDecision = null,
+            )
+        }
+        return startedAtMs + 122_000L
     }
 }

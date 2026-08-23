@@ -203,7 +203,15 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    se acumula evidencia, sin dejar de adaptarse a cambios sostenidos de uso o
    entorno. El aprendizaje sólo acumula datos entre el 5 % y el 95 % de los
    63 litros del depósito: al entrar o salir de esa zona reinicia su ventana para
-   no aprender de las mesetas imprecisas de lleno y reserva.
+   no aprender de las mesetas imprecisas de lleno y reserva. Además, el nivel
+   empleado para calibrar está desacoplado de la detección rápida de repostaje:
+   un nuevo valor entero debe permanecer sin cambios durante al menos dos minutos
+   y dos kilómetros antes de considerarse estable. Cualquier rebote del aforador
+   reinicia esa confirmación, evitando aprender como consumo el balanceo del
+   combustible en pendientes. Una interrupción de telemetría superior a dos
+   segundos también invalida el candidato. La ventana sólo conserva contadores
+   escalares y se descarta al reiniciar el proceso, por lo que no genera
+   historiales ni aumenta el almacenamiento con la duración del viaje.
 
    Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
@@ -230,7 +238,8 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
-   descenso confirmado de cuatro litros corrige suavemente el factor del modelo;
+   descenso estable acumulado de cuatro litros corrige suavemente el factor del
+   modelo;
    la detección de repostaje aplica los umbrales porcentuales descritos en el
    apartado de distancia parcial.
    Para la autonomía se combina un 60 % del consumo de los últimos 20 km y un
