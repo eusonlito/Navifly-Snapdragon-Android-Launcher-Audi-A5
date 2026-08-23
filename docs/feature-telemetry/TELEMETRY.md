@@ -224,7 +224,9 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    sus datos entre arranques y sólo se reinicia con un repostaje confirmado o con
    la acción manual disponible en su propio panel de estadísticas. Todo
    se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a
-   recorrer historiales de muestras.
+   recorrer historiales de muestras. La cabecera usa una `X` para cerrar y,
+   únicamente en Estadísticas Parciales, un icono de reinicio que conserva el
+   diálogo de confirmación antes de borrar los acumuladores.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada

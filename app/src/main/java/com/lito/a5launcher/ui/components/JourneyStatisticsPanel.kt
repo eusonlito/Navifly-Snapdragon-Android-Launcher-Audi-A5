@@ -4,13 +4,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -19,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,24 +73,18 @@ internal fun JourneyStatisticsPanel(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     onReset?.let { reset ->
-                        Text(
-                            text = stringResource(R.string.partial_statistics_reset),
-                            color = SettingsPalette.Danger,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable(onClick = reset)
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        StatisticsIconAction(
+                            icon = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.partial_statistics_reset),
+                            tint = SettingsPalette.Danger,
+                            onClick = reset,
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.dialog_close),
-                        color = OemCockpitTokens.Cyan,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clickable(onClick = onClose)
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    StatisticsIconAction(
+                        icon = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.dialog_close),
+                        tint = OemCockpitTokens.Cyan,
+                        onClick = onClose,
                     )
                 }
             }
@@ -138,6 +139,28 @@ internal fun JourneyStatisticsPanel(
                 } ?: "—",
             )
         }
+    }
+}
+
+@Composable
+private fun StatisticsIconAction(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
