@@ -37,6 +37,7 @@ internal fun JourneyStatisticsPanel(
     title: String,
     statistics: JourneyStatisticsSnapshot,
     locale: Locale,
+    darkModeActive: Boolean,
     onClose: () -> Unit,
     onReset: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -74,6 +75,7 @@ internal fun JourneyStatisticsPanel(
                             icon = Icons.Default.Refresh,
                             contentDescription = stringResource(R.string.partial_statistics_reset),
                             tint = SettingsPalette.Danger,
+                            darkModeActive = darkModeActive,
                             onClick = reset,
                         )
                     }
@@ -81,6 +83,7 @@ internal fun JourneyStatisticsPanel(
                         icon = Icons.Default.Close,
                         contentDescription = stringResource(R.string.dialog_close),
                         tint = OemCockpitTokens.Cyan,
+                        darkModeActive = darkModeActive,
                         onClick = onClose,
                     )
                 }

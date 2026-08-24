@@ -21,6 +21,7 @@ internal fun PanelIconAction(
     icon: ImageVector,
     contentDescription: String,
     tint: Color,
+    darkModeActive: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -28,7 +29,7 @@ internal fun PanelIconAction(
         modifier = modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(tint.copy(alpha = .10f))
+            .background(tint.copy(alpha = panelIconBackgroundAlpha(darkModeActive)))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -42,3 +43,6 @@ internal fun PanelIconAction(
         )
     }
 }
+
+internal fun panelIconBackgroundAlpha(darkModeActive: Boolean): Float =
+    if (darkModeActive) .10f else .24f

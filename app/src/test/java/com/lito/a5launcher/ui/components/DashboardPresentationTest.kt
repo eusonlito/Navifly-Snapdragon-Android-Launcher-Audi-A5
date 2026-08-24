@@ -222,6 +222,12 @@ class DashboardPresentationTest {
     }
 
     @Test
+    fun panelActionsIncreaseBackgroundContrastInLightMode() {
+        assertEquals(.10f, panelIconBackgroundAlpha(darkModeActive = true))
+        assertEquals(.24f, panelIconBackgroundAlpha(darkModeActive = false))
+    }
+
+    @Test
     fun buildDateKeepsLocalizedDateAndAlwaysUses24HourTime() {
         val utc = TimeZone.getTimeZone("UTC")
 

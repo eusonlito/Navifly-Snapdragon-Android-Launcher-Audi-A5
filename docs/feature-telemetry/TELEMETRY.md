@@ -235,8 +235,9 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    recorrer historiales de muestras. La cabecera usa una `X` para cerrar y,
    únicamente en Estadísticas Parciales, un icono de reinicio que conserva el
    diálogo de confirmación antes de borrar los acumuladores. Ambos iconos ocupan
-   28 dp dentro de superficies circulares de 40 dp teñidas al 10 % con su color
-   de acción, manteniendo una zona táctil clara sin comprimir la cabecera.
+   28 dp dentro de superficies circulares de 40 dp teñidas con su color de
+   acción: 10 % en modo oscuro y 24 % en modo claro. Así mantienen una zona
+   táctil clara y legible con luz diurna sin comprimir la cabecera.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
@@ -248,6 +249,10 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    40 % del consumo total del viaje. Si en el futuro el campo nativo de
    autonomía entrega un valor mayor que cero, ese dato tiene prioridad. Todos
    estos resultados siguen siendo estimaciones de interfaz, no datos CAN.
+   Ninguna duración ni media depende de la hora civil: todas se integran con el
+   reloj monotónico de Android. Los cambios de zona horaria, incluido el paso
+   entre España y Portugal, sólo actualizan la hora mostrada y las marcas
+   descriptivas de los registros; no alteran consumos, distancias ni medias.
 3. **Tiempo y distancia de la sesión:** la sesión comienza con la primera muestra
    de velocidad mayor que cero. Su duración es la diferencia entre ese instante
    y `SystemClock.elapsedRealtime()`, un reloj monotónico que no se altera cuando

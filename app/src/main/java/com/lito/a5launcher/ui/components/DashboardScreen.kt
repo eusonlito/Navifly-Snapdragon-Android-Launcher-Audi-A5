@@ -685,6 +685,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                                 partialStatistics
                             },
                             locale = dashboardLocale,
+                            darkModeActive = darkModeActive,
                             onClose = { statisticsPanel = null },
                             onReset = if (scope == StatisticsPanelScope.PARTIAL) {
                                 { showManualPartialResetConfirmation = true }
@@ -790,6 +791,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 AppsOverlay(
                     apps = apps,
                     headerHeight = commandBarHeight,
+                    darkModeActive = darkModeActive,
                     onClose = { showApps = false },
                     onLaunch = {
                         viewModel.launchApp(it)
@@ -807,6 +809,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             ) {
                 LauncherSettingsOverlay(
                     headerHeight = commandBarHeight,
+                    darkModeActive = darkModeActive,
                     selectedTab = launcherSettingsTab,
                     onSelectedTabChanged = { launcherSettingsTab = it },
                     diagnostics = mapDiagnostics,
@@ -1930,6 +1933,7 @@ private fun MiniValue(
 @Composable
 private fun LauncherSettingsOverlay(
     headerHeight: androidx.compose.ui.unit.Dp,
+    darkModeActive: Boolean,
     selectedTab: LauncherSettingsTab,
     onSelectedTabChanged: (LauncherSettingsTab) -> Unit,
     diagnostics: MapDiagnostics,
@@ -2027,7 +2031,12 @@ private fun LauncherSettingsOverlay(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        LauncherOverlayHeader(stringResource(R.string.launcher_settings_title), headerHeight, onClose)
+        LauncherOverlayHeader(
+            title = stringResource(R.string.launcher_settings_title),
+            headerHeight = headerHeight,
+            darkModeActive = darkModeActive,
+            onClose = onClose,
+        )
 
         Column(
             Modifier
@@ -2638,6 +2647,7 @@ internal fun formatBuildDate(
 private fun AppsOverlay(
     apps: List<AppInfo>,
     headerHeight: androidx.compose.ui.unit.Dp,
+    darkModeActive: Boolean,
     onClose: () -> Unit,
     onLaunch: (String) -> Unit,
     onAppInfo: (String) -> Unit,
@@ -2647,7 +2657,12 @@ private fun AppsOverlay(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        LauncherOverlayHeader(stringResource(R.string.launcher_apps_title), headerHeight, onClose)
+        LauncherOverlayHeader(
+            title = stringResource(R.string.launcher_apps_title),
+            headerHeight = headerHeight,
+            darkModeActive = darkModeActive,
+            onClose = onClose,
+        )
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -2679,6 +2694,7 @@ private fun AppsOverlay(
 private fun LauncherOverlayHeader(
     title: String,
     headerHeight: androidx.compose.ui.unit.Dp,
+    darkModeActive: Boolean,
     onClose: () -> Unit,
 ) {
     Row(
@@ -2694,6 +2710,7 @@ private fun LauncherOverlayHeader(
             icon = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = stringResource(R.string.launcher_back),
             tint = OemCockpitTokens.Cyan,
+            darkModeActive = darkModeActive,
             onClick = onClose,
         )
         Spacer(Modifier.width(14.dp))

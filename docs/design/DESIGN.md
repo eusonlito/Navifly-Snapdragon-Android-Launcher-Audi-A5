@@ -333,8 +333,9 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
 * Los ajustes reutilizan la misma cabecera, altura e icono de retorno del panel
   de Aplicaciones. Ambos paneles secundarios usan fondo negro absoluto, incluida
   su cabecera, sin contorno ni matiz metálico, que integra el retorno y el título.
-  El icono ocupa 28 dp dentro de una zona táctil circular de 40 dp; la superficie
-  usa el propio cian al 10 % para hacerlo reconocible sin competir con el título.
+  El icono ocupa 28 dp dentro de una zona táctil circular de 40 dp. La superficie
+  usa el propio cian al 10 % en modo oscuro y al 24 % en modo claro, aumentando
+  su presencia con luz diurna sin competir con el título durante la noche.
   Su contenido también comienza inmediatamente bajo la cabecera para conservar
   la misma retícula vertical al alternar entre dashboard, Aplicaciones y
   Ajustes.
