@@ -234,7 +234,9 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    se mantiene mediante acumuladores escalares O(1), sin guardar ni volver a
    recorrer historiales de muestras. La cabecera usa una `X` para cerrar y,
    únicamente en Estadísticas Parciales, un icono de reinicio que conserva el
-   diálogo de confirmación antes de borrar los acumuladores.
+   diálogo de confirmación antes de borrar los acumuladores. Ambos iconos ocupan
+   28 dp dentro de superficies circulares de 40 dp teñidas al 10 % con su color
+   de acción, manteniendo una zona táctil clara sin comprimir la cabecera.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada

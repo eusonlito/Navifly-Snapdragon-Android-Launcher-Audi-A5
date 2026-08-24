@@ -330,9 +330,11 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   línea con la hora mediante un punto medio pequeño y atenuado. La hora conserva
   el tamaño principal; la fecha utiliza el 62 % y menor peso para caber dentro
   del tercio izquierdo. Todo el bloque queda centrado verticalmente.
-* Los ajustes reutilizan la misma cabecera, altura y botón `VOLVER` del panel de
-  Aplicaciones. Ambos paneles secundarios usan fondo negro absoluto, incluida
-  su cabecera, sin contorno ni matiz metálico, que integra `VOLVER` y el título.
+* Los ajustes reutilizan la misma cabecera, altura e icono de retorno del panel
+  de Aplicaciones. Ambos paneles secundarios usan fondo negro absoluto, incluida
+  su cabecera, sin contorno ni matiz metálico, que integra el retorno y el título.
+  El icono ocupa 28 dp dentro de una zona táctil circular de 40 dp; la superficie
+  usa el propio cian al 10 % para hacerlo reconocible sin competir con el título.
   Su contenido también comienza inmediatamente bajo la cabecera para conservar
   la misma retícula vertical al alternar entre dashboard, Aplicaciones y
   Ajustes.

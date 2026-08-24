@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -25,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,14 +70,14 @@ internal fun JourneyStatisticsPanel(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     onReset?.let { reset ->
-                        StatisticsIconAction(
+                        PanelIconAction(
                             icon = Icons.Default.Refresh,
                             contentDescription = stringResource(R.string.partial_statistics_reset),
                             tint = SettingsPalette.Danger,
                             onClick = reset,
                         )
                     }
-                    StatisticsIconAction(
+                    PanelIconAction(
                         icon = Icons.Default.Close,
                         contentDescription = stringResource(R.string.dialog_close),
                         tint = OemCockpitTokens.Cyan,
@@ -139,28 +136,6 @@ internal fun JourneyStatisticsPanel(
                 } ?: "—",
             )
         }
-    }
-}
-
-@Composable
-private fun StatisticsIconAction(
-    icon: ImageVector,
-    contentDescription: String,
-    tint: Color,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(20.dp),
-        )
     }
 }
 

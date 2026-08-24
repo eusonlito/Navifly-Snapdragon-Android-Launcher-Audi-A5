@@ -2690,20 +2690,12 @@ private fun LauncherOverlayHeader(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clickable(onClick = onClose)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.launcher_back),
-                tint = OemCockpitTokens.Cyan,
-                modifier = Modifier
-                    .size(20.dp)
-                    .align(Alignment.Center),
-            )
-        }
+        PanelIconAction(
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(R.string.launcher_back),
+            tint = OemCockpitTokens.Cyan,
+            onClick = onClose,
+        )
         Spacer(Modifier.width(14.dp))
         Text(
             title,
