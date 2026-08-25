@@ -92,6 +92,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val pendingRefuelConfirmation: StateFlow<PendingRefuelConfirmation?> =
         _pendingRefuelConfirmation.asStateFlow()
 
+    private val _journeyHistory = MutableStateFlow(JourneyHistorySnapshot())
+    val journeyHistory: StateFlow<JourneyHistorySnapshot> = _journeyHistory.asStateFlow()
+
     private val _navigationLaunchLocked = MutableStateFlow(false)
     val navigationLaunchLocked: StateFlow<Boolean> = _navigationLaunchLocked.asStateFlow()
     private var navigationLaunchJob: Job? = null
@@ -156,6 +159,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     svc.pendingRefuelConfirmationFlow.collect {
                         _pendingRefuelConfirmation.value = it
                     }
+                })
+                collectionJobs.add(viewModelScope.launch {
+                    svc.journeyHistoryFlow.collect { _journeyHistory.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch { svc.outsideTempFlow.collect { _outsideTemp.value = it } })
                 collectionJobs.add(viewModelScope.launch { svc.seatbeltFlow.collect { _seatbelt.value = it } })
@@ -246,6 +252,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun rejectPendingRefuel() = telemetryService?.rejectPendingRefuel()
 
     fun resetPartialStatistics() = telemetryService?.resetPartialStatistics()
+
+    fun setJourneyHistoryEnabled(enabled: Boolean) =
+        telemetryService?.setJourneyHistoryEnabled(enabled)
+
+    fun deleteJourneyHistoryRecord(id: String) =
+        telemetryService?.deleteJourneyHistoryRecord(id)
+
+    fun clearJourneyHistory() = telemetryService?.clearJourneyHistory()
 
     fun openAppInfo(packageName: String) {
         viewModelScope.launch(Dispatchers.Main) {

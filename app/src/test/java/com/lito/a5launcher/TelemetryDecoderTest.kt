@@ -674,15 +674,21 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun refuelDetectorAutomaticallyAcceptsIncreasesAboveTenPercent() {
+    fun refuelDetectorRequestsConfirmationAboveTenPercent() {
         val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
 
         assertNull(detector.observeDetailed(0, 55))
         assertEquals(
-            ConfirmedFuelLevelChange.Refuel(55, 48, 2),
+            ConfirmedFuelLevelChange.ConfirmationRequired(
+                PendingRefuelConfirmation(
+                    baselineFuelLitres = 48,
+                    candidateFuelLitres = 55,
+                    confirmationSamples = 2,
+                ),
+            ),
             detector.observeDetailed(0, 55),
         )
-        assertEquals(55, detector.baselineFuelLitres())
+        assertEquals(48, detector.baselineFuelLitres())
     }
 
     @Test
@@ -798,11 +804,22 @@ class TelemetryDecoderTest {
         session.onTelemetry(100, 1_800, 39, 360_000L)
         session.onTelemetry(100, 1_800, 39, 360_000L)
 
-        val restored = TripSessionTracker(session.state())
-        restored.onTelemetry(0, 800, 46, 360_000L)
-        restored.onTelemetry(0, 800, 46, 360_000L)
-        restored.onTelemetry(30, 1_500, 45, 360_000L)
-        val result = restored.onTelemetry(30, 1_500, 45, 360_000L)
+        val restored = TripSessionTracker(session.state(), refuelDetector = null)
+        restored.onTelemetryWithFuelDecision(
+            0,
+            800,
+            46,
+            360_000L,
+            ConfirmedFuelLevelChange.Refuel(46, 39, 2),
+        )
+        restored.onTelemetryWithFuelDecision(30, 1_500, 45, 360_000L, null)
+        val result = restored.onTelemetryWithFuelDecision(
+            30,
+            1_500,
+            45,
+            360_000L,
+            ConfirmedFuelLevelChange.Drop(1),
+        )
 
         assertEquals(2.0, result.confirmedCanFuelUsedLitres, .000_001)
         assertEquals(20.0, result.observedCanConsumption, .000_001)
@@ -861,17 +878,17 @@ class TelemetryDecoderTest {
     }
 
     @Test
-    fun distanceSinceRefuelResetsAfterConfirmedStationaryFuelIncrease() {
+    fun distanceSinceRefuelWaitsForConfirmationAfterLargeStationaryFuelIncrease() {
         val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 35)
 
         val first = tracker.advance(0, 50, 1_000)
-        val confirmed = tracker.advance(0, 50, 2_000)
+        val pending = tracker.advance(0, 50, 2_000)
 
         assertEquals(25.0, first.distanceKm, .000_001)
         assertFalse(first.refuelDetected)
-        assertEquals(0.0, confirmed.distanceKm, .000_001)
-        assertTrue(confirmed.refuelDetected)
-        assertEquals(50, confirmed.lastFuelLitres)
+        assertEquals(25.0, pending.distanceKm, .000_001)
+        assertFalse(pending.refuelDetected)
+        assertEquals(35, pending.lastFuelLitres)
     }
 
     @Test
@@ -885,8 +902,8 @@ class TelemetryDecoderTest {
 
         assertTrue(moving.distanceKm > 25.0)
         assertFalse(moving.refuelDetected)
-        assertTrue(stoppedAndConfirmed.refuelDetected)
-        assertEquals(0.0, stoppedAndConfirmed.distanceKm, .000_001)
+        assertFalse(stoppedAndConfirmed.refuelDetected)
+        assertTrue(stoppedAndConfirmed.distanceKm > 25.0)
     }
 
     @Test
@@ -905,11 +922,12 @@ class TelemetryDecoderTest {
         val candidate = detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
         trip.onTelemetryWithFuelDecision(0, 800, 42, 1_000, candidate)
         partial.advanceWithFuelDecision(0, 42, 1_000, candidate)
-        val confirmed = detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
+        val confirmation = detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
+            as ConfirmedFuelLevelChange.ConfirmationRequired
+        val confirmed = detector.confirmPendingRefuel(confirmation.confirmation)
         val tripResult = trip.onTelemetryWithFuelDecision(0, 800, 42, 2_000, confirmed)
         val partialResult = partial.advanceWithFuelDecision(0, 42, 2_000, confirmed)
 
-        assertTrue(confirmed is ConfirmedFuelLevelChange.Refuel)
         assertEquals(42.0, tripResult.virtualFuelLitres, .000_001)
         assertEquals(0.0, partialResult.distanceKm, .000_001)
         assertEquals(42, detector.baselineFuelLitres())

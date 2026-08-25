@@ -77,6 +77,7 @@ import com.lito.a5launcher.R
 import com.lito.a5launcher.AppLanguage
 import com.lito.a5launcher.AppLanguageManager
 import com.lito.a5launcher.BuildConfig
+import com.lito.a5launcher.JourneyHistorySnapshot
 import com.lito.a5launcher.JourneyStatisticsSnapshot
 import com.lito.a5launcher.functional.FunctionalEventLogAccess
 import com.lito.a5launcher.DeviceRebootAction
@@ -244,6 +245,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val gear by viewModel.gear.collectAsStateWithLifecycle()
     val tripStatistics by viewModel.tripStatistics.collectAsStateWithLifecycle()
     val partialStatistics by viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val journeyHistory by viewModel.journeyHistory.collectAsStateWithLifecycle()
     val pendingRefuelConfirmation by
         viewModel.pendingRefuelConfirmation.collectAsStateWithLifecycle()
     val navigationLaunchLocked by viewModel.navigationLaunchLocked.collectAsStateWithLifecycle()
@@ -277,7 +279,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var showLauncherSettings by remember { mutableStateOf(false) }
     var statisticsPanel by remember { mutableStateOf<StatisticsPanelScope?>(null) }
     var showManualPartialResetConfirmation by remember { mutableStateOf(false) }
-    var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.MAP) }
+    var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.TRIPS) }
     var topCommandOrder by remember {
         mutableStateOf(parseTopCommandOrder(launcherPreferences.getString(TOP_COMMAND_ORDER_KEY, null)))
     }
@@ -604,7 +606,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     onMmi = viewModel::launchOriginalMMI,
                     onSettings = viewModel::launchSettings,
                     onLauncherSettings = {
-                        launcherSettingsTab = LauncherSettingsTab.MAP
+                        launcherSettingsTab = LauncherSettingsTab.TRIPS
                         showLauncherSettings = true
                     },
                     commandOrder = topCommandOrder,
@@ -934,6 +936,10 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     onClearAssistantErrorLogs = assistantController::clearErrorLogs,
                     onAssistantSaved = assistantController::refreshSettings,
                     functionalEventLogAccess = functionalEventLogAccess,
+                    journeyHistory = journeyHistory,
+                    onJourneyHistoryEnabledChanged = viewModel::setJourneyHistoryEnabled,
+                    onDeleteJourneyHistoryRecord = viewModel::deleteJourneyHistoryRecord,
+                    onClearJourneyHistory = viewModel::clearJourneyHistory,
                     updateState = updateState,
                     onSelectUpdateApk = {
                         updateApkPicker.launch(arrayOf(LauncherUpdateInstaller.APK_MIME_TYPE))
@@ -943,19 +949,11 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 )
             }
 
-            pendingRefuelConfirmation?.let { pending ->
+            pendingRefuelConfirmation?.let {
                 AlertDialog(
                     onDismissRequest = {},
                     title = { Text(stringResource(R.string.refuel_confirmation_title)) },
-                    text = {
-                        Text(
-                            stringResource(
-                                R.string.refuel_confirmation_message,
-                                pending.baselineFuelLitres,
-                                pending.candidateFuelLitres,
-                            ),
-                        )
-                    },
+                    text = { Text(stringResource(R.string.refuel_confirmation_message)) },
                     confirmButton = {
                         TextButton(onClick = viewModel::confirmPendingRefuel) {
                             Text(
@@ -1966,6 +1964,10 @@ private fun LauncherSettingsOverlay(
     onClearAssistantErrorLogs: ((Int) -> Unit) -> Unit,
     onAssistantSaved: () -> Unit,
     functionalEventLogAccess: FunctionalEventLogAccess?,
+    journeyHistory: JourneyHistorySnapshot,
+    onJourneyHistoryEnabledChanged: (Boolean) -> Unit,
+    onDeleteJourneyHistoryRecord: (String) -> Unit,
+    onClearJourneyHistory: () -> Unit,
     updateState: LauncherUpdateState,
     onSelectUpdateApk: () -> Unit,
     onRequestDeviceReboot: () -> Result<Unit>,
@@ -2077,6 +2079,13 @@ private fun LauncherSettingsOverlay(
                     .padding(16.dp),
             ) {
                 when (selectedTab) {
+        LauncherSettingsTab.TRIPS -> JourneyHistoryPanel(
+            snapshot = journeyHistory,
+            onEnabledChanged = onJourneyHistoryEnabledChanged,
+            onDeleteRecord = onDeleteJourneyHistoryRecord,
+            onClearAll = onClearJourneyHistory,
+            modifier = Modifier.fillMaxSize(),
+        )
         LauncherSettingsTab.MAP -> Row(
             Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -2502,6 +2511,7 @@ private fun PoiItemRow(label: String, onDelete: () -> Unit) {
 }
 
 internal enum class LauncherSettingsTab(val labelRes: Int) {
+    TRIPS(R.string.launcher_settings_tab_trips),
     MAP(R.string.launcher_settings_tab_map),
     ASSISTANT(R.string.launcher_settings_tab_assistant),
     LOGS(R.string.launcher_settings_tab_logs),

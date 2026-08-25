@@ -109,19 +109,19 @@ internal fun JourneyStatisticsPanel(
             )
             StatisticsRow(
                 firstLabel = stringResource(R.string.statistics_average_speed),
-                firstValue = speedValue(statistics.averageSpeedKmh, locale),
+                firstValue = statisticsSpeedValue(statistics.averageSpeedKmh, locale),
                 secondLabel = stringResource(R.string.statistics_moving_average_speed),
-                secondValue = speedValue(statistics.movingAverageSpeedKmh, locale),
+                secondValue = statisticsSpeedValue(statistics.movingAverageSpeedKmh, locale),
             )
             StatisticsRow(
                 firstLabel = stringResource(R.string.consumption_calculated),
-                firstValue = consumptionValue(
+                firstValue = statisticsConsumptionValue(
                     statistics.calculatedConsumption,
                     statistics.distanceKm > 0.0,
                     locale,
                 ),
                 secondLabel = stringResource(R.string.consumption_simple),
-                secondValue = consumptionValue(
+                secondValue = statisticsConsumptionValue(
                     statistics.observedCanConsumption,
                     statistics.confirmedCanFuelUsedLitres > 0.0 && statistics.distanceKm > 0.0,
                     locale,
@@ -129,7 +129,7 @@ internal fun JourneyStatisticsPanel(
             )
             StatisticsRow(
                 firstLabel = stringResource(R.string.statistics_maximum_speed),
-                firstValue = speedValue(statistics.maximumSpeedKmh.toDouble(), locale),
+                firstValue = statisticsSpeedValue(statistics.maximumSpeedKmh.toDouble(), locale),
                 secondLabel = stringResource(R.string.statistics_fuel_spent),
                 secondValue = statistics.observedFuelSpentLitres?.let { fuelSpent ->
                     stringResource(
@@ -192,7 +192,11 @@ private fun StatisticsValue(label: String, value: String, modifier: Modifier = M
 }
 
 @Composable
-private fun consumptionValue(value: Double, available: Boolean, locale: Locale): String =
+internal fun statisticsConsumptionValue(
+    value: Double,
+    available: Boolean,
+    locale: Locale,
+): String =
     if (available && value.isFinite()) {
         stringResource(R.string.consumption_value_format, formatOneDecimal(value, locale))
     } else {
@@ -200,7 +204,7 @@ private fun consumptionValue(value: Double, available: Boolean, locale: Locale):
     }
 
 @Composable
-private fun speedValue(value: Double, locale: Locale): String = stringResource(
+internal fun statisticsSpeedValue(value: Double, locale: Locale): String = stringResource(
     R.string.statistics_speed_value,
     formatOneDecimal(value, locale),
 )

@@ -339,9 +339,14 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   Su contenido también comienza inmediatamente bajo la cabecera para conservar
   la misma retícula vertical al alternar entre dashboard, Aplicaciones y
   Ajustes.
-  Ajustes distribuye el contenido en tres paneles visualmente uniformes.
+  Ajustes abre por defecto la pestaña `Viajes`, seguida de `Mapa`, `Asistente IA`,
+  `Registros` y `Sistema`. `Viajes` reserva un tercio para activar el historial y
+  aplicar filtros de tipo o fecha, y dos tercios para una lista compacta y
+  desplazable con las estadísticas de Viajes y Parciales finalizados. El resto
+  de pestañas conserva sus distribuciones específicas; Mapa distribuye el
+  contenido en paneles visualmente uniformes.
   Los paneles no necesitan títulos propios ni desplazamiento vertical. El
-  primero reúne color, estilo, límite de caché y diagnóstico. Los cinco límites
+  El primero reúne color, estilo, límite de caché y diagnóstico. Los cinco límites
   de caché comparten una única fila.
   Todas las opciones de cada ajuste reparten por igual el ancho disponible y
   centran su texto. Los selectores segmentados usan una cápsula interior que se

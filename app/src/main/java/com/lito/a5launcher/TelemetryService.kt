@@ -54,7 +54,7 @@ import java.io.File
 
 private fun JSONObject.longOrNull(key: String): Long? = (opt(key) as? Number)?.toLong()
 
-private const val CURRENT_TRIP_SCHEMA = 5
+private const val CURRENT_TRIP_SCHEMA = 6
 private const val CURRENT_CONSUMPTION_CALIBRATION_SCHEMA = 2
 
 internal fun isCompatibleTripSchema(schema: Int): Boolean =
@@ -218,6 +218,9 @@ class TelemetryService : Service() {
         private const val TRIP_BOOT_COUNT = "boot_count"
         private const val TRIP_GENERATION = "generation"
         private const val TRIP_STARTED_AT = "started_at_elapsed_ms"
+        private const val TRIP_STARTED_AT_EPOCH_MS = "started_at_epoch_ms"
+        private const val TRIP_UPDATED_AT_EPOCH_MS = "updated_at_epoch_ms"
+        private const val TRIP_ELAPSED_MS = "elapsed_ms"
         private const val TRIP_DISTANCE_BITS = "distance_bits"
         private const val TRIP_FUEL_USED_BITS = "fuel_used_bits"
         private const val TRIP_CONFIRMED_CAN_FUEL_USED_BITS = "confirmed_can_fuel_used_bits"
@@ -294,6 +297,9 @@ class TelemetryService : Service() {
     val pendingRefuelConfirmationFlow: StateFlow<PendingRefuelConfirmation?> =
         _pendingRefuelConfirmationFlow.asStateFlow()
 
+    private val _journeyHistoryFlow = MutableStateFlow(JourneyHistorySnapshot())
+    val journeyHistoryFlow: StateFlow<JourneyHistorySnapshot> = _journeyHistoryFlow.asStateFlow()
+
     // Remote IPC Service
     private var mEvtService: IEventService? = null
     private var isBound = false
@@ -329,9 +335,15 @@ class TelemetryService : Service() {
             getSharedPreferences(CONSUMPTION_CALIBRATION_PREFS, Context.MODE_PRIVATE),
         )
     }
+    private val journeyHistoryManager by lazy {
+        JourneyHistoryManager(
+            JourneyHistoryStore(File(filesDir, JourneyHistoryStore.DIRECTORY_NAME)),
+            getSharedPreferences(JourneyHistoryManager.PREFERENCES_NAME, Context.MODE_PRIVATE),
+        )
+    }
     private var currentBootCount = -1
     private var currentTripGeneration = 0L
-    private var lastPersistedTripVersion = 0L
+    private var tripStartedAtEpochMs = 0L
     private var lastPersistedRangeState: RangeConsumptionState? = null
     private var lastPersistedCalibrationState = ConsumptionCalibrationState()
     @Volatile private var shuttingDown = false
@@ -531,6 +543,7 @@ class TelemetryService : Service() {
         scope.launch {
             coreTelemetryMutex.withLock {
                 val now = SystemClock.elapsedRealtime()
+                closeCurrentPartial(System.currentTimeMillis())
                 val tripMetrics = tripSession.onTick(now)
                 val fuelLitres = _fuelFlow.value.takeIf { it > 0 }
                 fuelLitres?.let(confirmedRefuelDetector::adoptFuelLevel)
@@ -551,6 +564,24 @@ class TelemetryService : Service() {
         }
     }
 
+    fun setJourneyHistoryEnabled(enabled: Boolean) {
+        scope.launch(Dispatchers.IO) {
+            _journeyHistoryFlow.value = journeyHistoryManager.setEnabled(enabled)
+        }
+    }
+
+    fun deleteJourneyHistoryRecord(id: String) {
+        scope.launch(Dispatchers.IO) {
+            _journeyHistoryFlow.value = journeyHistoryManager.delete(id)
+        }
+    }
+
+    fun clearJourneyHistory() {
+        scope.launch(Dispatchers.IO) {
+            _journeyHistoryFlow.value = journeyHistoryManager.deleteAll()
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onCreate() {
@@ -558,11 +589,17 @@ class TelemetryService : Service() {
         Log.i(TAG, "Creating TelemetryService...")
         startAsForegroundService()
         initializeFunctionalEvents()
+        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
         val refuelState = refuelStore.read()
         _pendingRefuelConfirmationFlow.value = refuelState.pendingRefuelConfirmation
         confirmedRefuelDetector = ConfirmedRefuelDetector(refuelState.lastFuelLitres)
         restoreTripSession(refuelState)
         restoreDistanceSinceRefuel(refuelState)
+        journeyHistoryManager.initializePartial(
+            System.currentTimeMillis() - refuelState.statisticsState.elapsedMs.coerceAtLeast(0L),
+        )
+        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+        persistTripSession()
         startTripMetrics()
         runCatching {
             contentResolver.registerContentObserver(
@@ -654,10 +691,21 @@ class TelemetryService : Service() {
             Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT)
         }.getOrDefault(-1)
         val now = SystemClock.elapsedRealtime()
+        val epochNow = System.currentTimeMillis()
         val storedSchema = tripPreferences.getInt(TRIP_SCHEMA, 0)
+        val storedBootCount = tripPreferences.getInt(TRIP_BOOT_COUNT, -1)
+        val storedGeneration = tripPreferences.getLong(TRIP_GENERATION, 0L)
+        if (
+            currentBootCount >= 0 &&
+            storedBootCount >= 0 &&
+            currentBootCount != storedBootCount &&
+            isCompatibleTripSchema(storedSchema)
+        ) {
+            closeStoredTrip(storedGeneration)
+        }
         val restoreDecision = decideTripRestoration(
             currentBootCount = currentBootCount,
-            storedBootCount = tripPreferences.getInt(TRIP_BOOT_COUNT, -1),
+            storedBootCount = storedBootCount,
             storedSchema = storedSchema,
             startedAtElapsedMs = tripPreferences.getLong(TRIP_STARTED_AT, -1L),
             nowElapsedMs = now,
@@ -666,9 +714,12 @@ class TelemetryService : Service() {
         val sameBoot = restoreDecision.restoreTripAccumulators
         val calibrationState = consumptionCalibrationStore.read()
         lastPersistedCalibrationState = calibrationState
-        val storedGeneration = tripPreferences.getLong(TRIP_GENERATION, 0L)
         currentTripGeneration = storedGeneration.takeIf { sameBoot && it > 0L }
-            ?: nextTripGeneration(storedGeneration, System.currentTimeMillis(), now)
+            ?: nextTripGeneration(storedGeneration, epochNow, now)
+        tripStartedAtEpochMs = if (sameBoot) {
+            tripPreferences.getLong(TRIP_STARTED_AT_EPOCH_MS, 0L).takeIf { it > 0L }
+                ?: epochNow
+        } else epochNow
         fun restoredDouble(key: String, fallback: Double = 0.0): Double =
             if (sameBoot) tripPreferences.getNonNegativeDoubleBits(key, fallback) else fallback
         val rangeConsumptionState = restoreRangeConsumptionState()
@@ -829,6 +880,9 @@ class TelemetryService : Service() {
             outsideTemperatureCelsius = _outsideTempFlow.value,
         )
         val partialBeforeKm = _partialStatisticsFlow.value.distanceKm
+        if (decision is ConfirmedFuelLevelChange.Refuel) {
+            closeCurrentPartial(System.currentTimeMillis())
+        }
         val tripMetrics = tripSession.onTelemetryWithFuelDecision(
             telemetry.speed,
             telemetry.rpm,
@@ -874,15 +928,17 @@ class TelemetryService : Service() {
 
     private fun persistTripSession() {
         if (!::tripSession.isInitialized) return
-        val version = tripSession.persistenceVersion()
-        if (version == lastPersistedTripVersion) return
         val state = tripSession.state()
         if (currentBootCount >= 0) {
+            val statistics = _tripStatisticsFlow.value
             tripPreferences.edit {
                 putInt(TRIP_SCHEMA, CURRENT_TRIP_SCHEMA)
                 putInt(TRIP_BOOT_COUNT, currentBootCount)
                 putLong(TRIP_GENERATION, currentTripGeneration)
                 putLong(TRIP_STARTED_AT, state.startedAtElapsedMs ?: -1L)
+                putLong(TRIP_STARTED_AT_EPOCH_MS, tripStartedAtEpochMs)
+                putLong(TRIP_UPDATED_AT_EPOCH_MS, System.currentTimeMillis())
+                putLong(TRIP_ELAPSED_MS, statistics.elapsedMs)
                 putLong(TRIP_DISTANCE_BITS, state.distanceKm.toRawBits())
                 putLong(TRIP_FUEL_USED_BITS, state.fuelUsedLitres.toRawBits())
                 putLong(
@@ -921,7 +977,38 @@ class TelemetryService : Service() {
             consumptionCalibrationStore.write(calibrationState)
             lastPersistedCalibrationState = calibrationState
         }
-        lastPersistedTripVersion = version
+    }
+
+    private fun closeStoredTrip(generation: Long) {
+        val startedAt = tripPreferences.getLong(TRIP_STARTED_AT_EPOCH_MS, 0L)
+        val endedAt = tripPreferences.getLong(TRIP_UPDATED_AT_EPOCH_MS, 0L)
+        if (startedAt <= 0L || endedAt < startedAt) return
+        val statistics = journeyStatistics(
+            elapsedMs = tripPreferences.getLong(TRIP_ELAPSED_MS, 0L),
+            movingElapsedMs = tripPreferences.getLong(TRIP_MOVING_ELAPSED_MS, 0L),
+            distanceKm = tripPreferences.getNonNegativeDoubleBits(TRIP_DISTANCE_BITS, 0.0),
+            maximumSpeedKmh = tripPreferences.getInt(TRIP_MAXIMUM_SPEED_KMH, 0),
+            fuelUsedLitres = tripPreferences.getNonNegativeDoubleBits(TRIP_FUEL_USED_BITS, 0.0),
+            confirmedCanFuelUsedLitres = tripPreferences.getNonNegativeDoubleBits(
+                TRIP_CONFIRMED_CAN_FUEL_USED_BITS,
+                0.0,
+            ),
+            initialObservedFuelLitres = tripPreferences.getInt(
+                TRIP_INITIAL_OBSERVED_FUEL_LITRES,
+                0,
+            ).takeIf { it > 0 },
+            currentObservedFuelLitres = tripPreferences.getInt(
+                TRIP_CURRENT_OBSERVED_FUEL_LITRES,
+                0,
+            ).takeIf { it > 0 },
+        )
+        journeyHistoryManager.closeTrip(generation, startedAt, endedAt, statistics)
+        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+    }
+
+    private fun closeCurrentPartial(endedAtEpochMs: Long) {
+        journeyHistoryManager.closePartial(_partialStatisticsFlow.value, endedAtEpochMs)
+        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
     }
 
     private fun restoreRangeConsumptionState(): RangeConsumptionState {

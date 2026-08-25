@@ -239,6 +239,17 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    acción: 10 % en modo oscuro y 24 % en modo claro. Así mantienen una zona
    táctil clara y legible con luz diurna sin comprimir la cabecera.
 
+   La pestaña `Viajes`, situada en primera posición en Ajustes, conserva una
+   fotografía de estas mismas estadísticas al finalizar cada sesión de encendido
+   y cada periodo Parcial. Los viajes se cierran al detectar el siguiente
+   `BOOT_COUNT`; los parciales, justo antes de un reinicio manual o de un
+   repostaje confirmado. Cada registro incluye las fechas de inicio y fin como
+   instantes Unix, por lo que los cambios de zona horaria sólo modifican su
+   representación en pantalla. El historial puede desactivarse sin eliminar lo
+   ya guardado, filtrarse por tipo y rango de fechas, y eliminarse por entrada o
+   por completo. Cada registro es un JSON independiente en almacenamiento
+   privado para que una escritura incompleta no comprometa el resto del historial.
+
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
    descenso estable acumulado de cuatro litros corrige suavemente el factor del
@@ -267,10 +278,11 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
 4. **Distancia desde el último repostaje:** se integra en segundo plano con la
    misma velocidad CAN y se conserva entre reinicios del dispositivo. El detector
    clasifica los aumentos usando la capacidad real de 63 litros. Un cambio de
-   hasta el 5 % se ignora; por encima del 5 % y hasta el 10 % se guarda una
-   confirmación pendiente y se pregunta al conductor antes de reiniciar; por
-   encima del 10 % el reinicio es automático tras dos muestras consecutivas con
-   el coche detenido. La
+   hasta el 5 % se ignora; cualquier aumento superior requiere dos muestras
+   consecutivas con el coche detenido y la confirmación del conductor. No existe
+   reinicio automático por repostaje, independientemente del tamaño del cambio.
+   El aviso es deliberadamente genérico y no expone las lecturas enteras del
+   aforador. La
    confirmación pendiente se guarda de forma síncrona y se conserva entre
    reinicios del dispositivo. Si se rechaza, el nuevo nivel se adopta como
    referencia sin reiniciar el parcial.

@@ -90,8 +90,8 @@ enum class RefuelRejectionReason(val code: String) {
  * distance trackers. The baseline only follows confirmed decreases while moving.
  * A single decrease large enough to look like a later refuel is rejected as an
  * ambiguous startup/sensor jump. Stationary increases up to five percent of tank
- * capacity are ignored, increases up to ten percent require driver confirmation,
- * and larger increases are accepted automatically after two matching samples.
+ * capacity are ignored; every larger increase requires driver confirmation after
+ * two matching samples, regardless of its size.
  */
 class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
@@ -167,19 +167,13 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
         if (pendingSamples < REFUEL_CONFIRMATION_SAMPLES) return null
 
         val confirmationSamples = pendingSamples
-        if (refuelFraction(increaseLitres) <= MAX_CONFIRMATION_REFUEL_FRACTION) {
-            val confirmation = PendingRefuelConfirmation(
-                baselineFuelLitres = baseline,
-                candidateFuelLitres = fuelLitres,
-                confirmationSamples = confirmationSamples,
-            )
-            clearPending()
-            return ConfirmedFuelLevelChange.ConfirmationRequired(confirmation)
-        }
-        baselineFuelLitres = fuelLitres
+        val confirmation = PendingRefuelConfirmation(
+            baselineFuelLitres = baseline,
+            candidateFuelLitres = fuelLitres,
+            confirmationSamples = confirmationSamples,
+        )
         clearPending()
-        clearPendingBaseline()
-        return ConfirmedFuelLevelChange.Refuel(fuelLitres, baseline, confirmationSamples)
+        return ConfirmedFuelLevelChange.ConfirmationRequired(confirmation)
     }
 
     @Synchronized
@@ -244,7 +238,6 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
 
     private companion object {
         const val MAX_IGNORED_REFUEL_FRACTION = .05
-        const val MAX_CONFIRMATION_REFUEL_FRACTION = .10
         const val MIN_SUSPICIOUS_DROP_LITRES = 3
         const val MAX_STATIONARY_SPEED_KMH = 1
         const val REFUEL_CONFIRMATION_SAMPLES = 2

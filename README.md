@@ -45,6 +45,8 @@ Do not install this build expecting compatibility with:
 - Speed, engine RPM, estimated gear and vehicle warning indicators.
 - Time, trip, estimated consumption, distance since refuelling, range, fuel and
   odometer values.
+- Persistent, optional Trip and Partial history with statistics and date/type
+  filters.
 - MapLibre vector map with light/dark modes, local cache, following, rotation
   and touch controls.
 - Importable GeoJSON points of interest with configurable categories, icons and

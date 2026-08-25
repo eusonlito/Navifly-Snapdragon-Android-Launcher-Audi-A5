@@ -39,6 +39,7 @@ class DashboardPresentationTest {
     fun functionalLogsTabIsImmediatelyBeforeSystem() {
         assertEquals(
             listOf(
+                LauncherSettingsTab.TRIPS,
                 LauncherSettingsTab.MAP,
                 LauncherSettingsTab.ASSISTANT,
                 LauncherSettingsTab.LOGS,

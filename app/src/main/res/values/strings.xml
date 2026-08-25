@@ -65,6 +65,7 @@
     <string name="assistant_destination_not_found">No matching nearby destination was found.</string>
     <string name="assistant_destination_search_failed">The nearby destination search failed.</string>
     <string name="assistant_destination_location_unavailable">A current location is required to search for the nearest destination.</string>
+    <string name="launcher_settings_tab_trips">Trips</string>
     <string name="launcher_settings_tab_map">Map</string>
     <string name="launcher_settings_tab_assistant">AI Assistant</string>
     <string name="launcher_settings_tab_logs">Logs</string>
@@ -257,7 +258,7 @@
     <string name="functional_logs_value_true">Yes</string>
     <string name="functional_logs_value_false">No</string>
     <string name="refuel_confirmation_title">Confirm Refuelling</string>
-    <string name="refuel_confirmation_message">The fuel level changed from %1$d L to %2$d L. Did you refuel?</string>
+    <string name="refuel_confirmation_message">A possible refuelling has been detected. Do you want to reset the Partial statistics?</string>
     <string name="refuel_confirmation_accept">Yes, Reset Partial</string>
     <string name="refuel_confirmation_reject">No</string>
     <string name="partial_statistics_reset">Reset</string>
@@ -265,4 +266,28 @@
     <string name="partial_statistics_reset_message">Reset all Partial Statistics from the current fuel level?</string>
     <string name="partial_statistics_reset_confirm">Reset</string>
     <string name="partial_statistics_reset_cancel">Cancel</string>
+    <string name="journey_history_title">Recorded Trips</string>
+    <string name="journey_history_recording">History Recording</string>
+    <string name="journey_history_enabled">Enabled</string>
+    <string name="journey_history_disabled">Disabled</string>
+    <string name="journey_history_filter_type">Record Type</string>
+    <string name="journey_history_filter_all">All</string>
+    <string name="journey_history_filter_trips">Trips</string>
+    <string name="journey_history_filter_partials">Partials</string>
+    <string name="journey_history_filter_dates">Date Range</string>
+    <string name="journey_history_from">From</string>
+    <string name="journey_history_to">To</string>
+    <string name="journey_history_from_value">From %1$s</string>
+    <string name="journey_history_to_value">To %1$s</string>
+    <string name="journey_history_clear_dates">Clear Dates</string>
+    <string name="journey_history_results">%1$d of %2$d records</string>
+    <string name="journey_history_empty">No completed records match the selected filters.</string>
+    <string name="journey_history_trip">Trip</string>
+    <string name="journey_history_partial">Partial</string>
+    <string name="journey_history_period">%1$s — %2$s</string>
+    <string name="journey_history_delete">Delete Record</string>
+    <string name="journey_history_clear_all">Delete All</string>
+    <string name="journey_history_clear_title">Delete Trip History</string>
+    <string name="journey_history_clear_message">All completed Trip and Partial records will be deleted.</string>
+    <string name="journey_history_cancel">Cancel</string>
 </resources>
