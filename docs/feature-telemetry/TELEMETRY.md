@@ -249,6 +249,10 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    ya guardado, filtrarse por tipo y rango de fechas, y eliminarse por entrada o
    por completo. Cada registro es un JSON independiente en almacenamiento
    privado para que una escritura incompleta no comprometa el resto del historial.
+   La lista añade el Viaje y el Parcial todavía activos como elementos abiertos,
+   sin persistirlos ni ofrecer su eliminación. Todas las filas se presentan
+   resumidas en una sola línea y admiten expansión independiente, por lo que
+   varias estadísticas completas pueden permanecer abiertas para compararlas.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada

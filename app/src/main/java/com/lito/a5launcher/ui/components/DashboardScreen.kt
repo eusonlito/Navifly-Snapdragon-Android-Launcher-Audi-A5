@@ -937,6 +937,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     onAssistantSaved = assistantController::refreshSettings,
                     functionalEventLogAccess = functionalEventLogAccess,
                     journeyHistory = journeyHistory,
+                    tripStatistics = tripStatistics,
+                    partialStatistics = partialStatistics,
                     onJourneyHistoryEnabledChanged = viewModel::setJourneyHistoryEnabled,
                     onDeleteJourneyHistoryRecord = viewModel::deleteJourneyHistoryRecord,
                     onClearJourneyHistory = viewModel::clearJourneyHistory,
@@ -1965,6 +1967,8 @@ private fun LauncherSettingsOverlay(
     onAssistantSaved: () -> Unit,
     functionalEventLogAccess: FunctionalEventLogAccess?,
     journeyHistory: JourneyHistorySnapshot,
+    tripStatistics: JourneyStatisticsSnapshot,
+    partialStatistics: JourneyStatisticsSnapshot,
     onJourneyHistoryEnabledChanged: (Boolean) -> Unit,
     onDeleteJourneyHistoryRecord: (String) -> Unit,
     onClearJourneyHistory: () -> Unit,
@@ -2081,6 +2085,8 @@ private fun LauncherSettingsOverlay(
                 when (selectedTab) {
         LauncherSettingsTab.TRIPS -> JourneyHistoryPanel(
             snapshot = journeyHistory,
+            tripStatistics = tripStatistics,
+            partialStatistics = partialStatistics,
             onEnabledChanged = onJourneyHistoryEnabledChanged,
             onDeleteRecord = onDeleteJourneyHistoryRecord,
             onClearAll = onClearJourneyHistory,

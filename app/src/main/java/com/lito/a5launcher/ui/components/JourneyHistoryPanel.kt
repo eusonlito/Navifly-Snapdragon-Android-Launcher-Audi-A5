@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.lito.a5launcher.JourneyHistoryKind
 import com.lito.a5launcher.JourneyHistoryRecord
 import com.lito.a5launcher.JourneyHistorySnapshot
+import com.lito.a5launcher.JourneyStatisticsSnapshot
 import com.lito.a5launcher.R
 import java.time.Instant
 import java.time.LocalDate
@@ -49,25 +54,88 @@ internal enum class JourneyHistoryTypeFilter {
     PARTIALS,
 }
 
-internal fun filterJourneyHistory(
+internal const val CURRENT_TRIP_ID = "current-trip"
+internal const val CURRENT_PARTIAL_ID = "current-partial"
+
+internal data class JourneyHistoryItem(
+    val id: String,
+    val kind: JourneyHistoryKind,
+    val startedAtEpochMs: Long,
+    val endedAtEpochMs: Long?,
+    val statistics: JourneyStatisticsSnapshot,
+) {
+    constructor(record: JourneyHistoryRecord) : this(
+        id = record.id,
+        kind = record.kind,
+        startedAtEpochMs = record.startedAtEpochMs,
+        endedAtEpochMs = record.endedAtEpochMs,
+        statistics = record.statistics,
+    )
+
+    val isOpen: Boolean get() = endedAtEpochMs == null
+}
+
+internal fun buildJourneyHistoryItems(
     records: List<JourneyHistoryRecord>,
+    tripStatistics: JourneyStatisticsSnapshot,
+    partialStatistics: JourneyStatisticsSnapshot,
+    nowEpochMs: Long,
+): List<JourneyHistoryItem> = listOf(
+    currentJourneyHistoryItem(
+        id = CURRENT_TRIP_ID,
+        kind = JourneyHistoryKind.TRIP,
+        statistics = tripStatistics,
+        nowEpochMs = nowEpochMs,
+    ),
+    currentJourneyHistoryItem(
+        id = CURRENT_PARTIAL_ID,
+        kind = JourneyHistoryKind.PARTIAL,
+        statistics = partialStatistics,
+        nowEpochMs = nowEpochMs,
+    ),
+) + records.map(::JourneyHistoryItem)
+
+private fun currentJourneyHistoryItem(
+    id: String,
+    kind: JourneyHistoryKind,
+    statistics: JourneyStatisticsSnapshot,
+    nowEpochMs: Long,
+) = JourneyHistoryItem(
+    id = id,
+    kind = kind,
+    startedAtEpochMs = (nowEpochMs - statistics.elapsedMs.coerceAtLeast(0L))
+        .coerceIn(1L, nowEpochMs.coerceAtLeast(1L)),
+    endedAtEpochMs = null,
+    statistics = statistics,
+)
+
+internal fun toggleJourneyHistoryExpansion(
+    expandedIds: Set<String>,
+    id: String,
+): Set<String> = if (id in expandedIds) expandedIds - id else expandedIds + id
+
+internal fun filterJourneyHistory(
+    records: List<JourneyHistoryItem>,
     type: JourneyHistoryTypeFilter,
     fromEpochMs: Long?,
     untilEpochMs: Long?,
-): List<JourneyHistoryRecord> = records.filter { record ->
+    nowEpochMs: Long,
+): List<JourneyHistoryItem> = records.filter { record ->
     val typeMatches = when (type) {
         JourneyHistoryTypeFilter.ALL -> true
         JourneyHistoryTypeFilter.TRIPS -> record.kind == JourneyHistoryKind.TRIP
         JourneyHistoryTypeFilter.PARTIALS -> record.kind == JourneyHistoryKind.PARTIAL
     }
     typeMatches &&
-        (fromEpochMs == null || record.endedAtEpochMs >= fromEpochMs) &&
+        (fromEpochMs == null || (record.endedAtEpochMs ?: nowEpochMs) >= fromEpochMs) &&
         (untilEpochMs == null || record.startedAtEpochMs < untilEpochMs)
 }
 
 @Composable
 internal fun JourneyHistoryPanel(
     snapshot: JourneyHistorySnapshot,
+    tripStatistics: JourneyStatisticsSnapshot,
+    partialStatistics: JourneyStatisticsSnapshot,
     onEnabledChanged: (Boolean) -> Unit,
     onDeleteRecord: (String) -> Unit,
     onClearAll: () -> Unit,
@@ -80,6 +148,8 @@ internal fun JourneyHistoryPanel(
     var fromEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var toEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
+    var expandedIds by remember { mutableStateOf(emptySet<String>()) }
+    val nowEpochMs = System.currentTimeMillis()
 
     val fromEpochMs = fromEpochDay?.let { epochDay ->
         LocalDate.ofEpochDay(epochDay).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -87,8 +157,16 @@ internal fun JourneyHistoryPanel(
     val untilEpochMs = toEpochDay?.let { epochDay ->
         LocalDate.ofEpochDay(epochDay).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
     }
-    val filtered = remember(snapshot.records, typeFilter, fromEpochMs, untilEpochMs) {
-        filterJourneyHistory(snapshot.records, typeFilter, fromEpochMs, untilEpochMs)
+    val allItems = remember(snapshot.records, tripStatistics, partialStatistics, nowEpochMs) {
+        buildJourneyHistoryItems(
+            records = snapshot.records,
+            tripStatistics = tripStatistics,
+            partialStatistics = partialStatistics,
+            nowEpochMs = nowEpochMs,
+        )
+    }
+    val filtered = remember(allItems, typeFilter, fromEpochMs, untilEpochMs, nowEpochMs) {
+        filterJourneyHistory(allItems, typeFilter, fromEpochMs, untilEpochMs, nowEpochMs)
     }
     val dateFormatter = remember(locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale)
@@ -230,7 +308,7 @@ internal fun JourneyHistoryPanel(
                 text = stringResource(
                     R.string.journey_history_results,
                     filtered.size,
-                    snapshot.records.size,
+                    allItems.size,
                 ),
                 color = SettingsPalette.MutedText,
                 fontSize = 10.sp,
@@ -278,8 +356,18 @@ internal fun JourneyHistoryPanel(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
-                    items(filtered, key = JourneyHistoryRecord::id) { record ->
-                        JourneyHistoryRecordRow(record, locale) { onDeleteRecord(record.id) }
+                    items(filtered, key = JourneyHistoryItem::id) { record ->
+                        JourneyHistoryRecordRow(
+                            record = record,
+                            locale = locale,
+                            expanded = record.id in expandedIds,
+                            onToggleExpanded = {
+                                expandedIds = toggleJourneyHistoryExpansion(expandedIds, record.id)
+                            },
+                            onDelete = record.endedAtEpochMs?.let {
+                                { onDeleteRecord(record.id) }
+                            },
+                        )
                     }
                 }
             }
@@ -289,9 +377,11 @@ internal fun JourneyHistoryPanel(
 
 @Composable
 private fun JourneyHistoryRecordRow(
-    record: JourneyHistoryRecord,
+    record: JourneyHistoryItem,
     locale: Locale,
-    onDelete: () -> Unit,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onDelete: (() -> Unit)?,
 ) {
     val statistics = record.statistics
     val dateTimeFormatter = remember(locale) {
@@ -300,31 +390,45 @@ private fun JourneyHistoryRecordRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SettingsPalette.Control, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .background(
+                SettingsPalette.Control,
+                androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            ),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleExpanded)
+                .padding(horizontal = 12.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(
-                    if (record.kind == JourneyHistoryKind.TRIP) {
-                        R.string.journey_history_trip
-                    } else {
-                        R.string.journey_history_partial
-                    },
+                    when {
+                        record.isOpen && record.kind == JourneyHistoryKind.TRIP ->
+                            R.string.journey_history_current_trip
+                        record.isOpen -> R.string.journey_history_current_partial
+                        record.kind == JourneyHistoryKind.TRIP -> R.string.journey_history_trip
+                        else -> R.string.journey_history_partial
+                    }
                 ),
                 color = SettingsPalette.Accent,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
             )
             Text(
-                text = stringResource(
+                text = record.endedAtEpochMs?.let { endedAt ->
+                    stringResource(
+                        R.string.journey_history_period,
+                        formatRecordDate(record.startedAtEpochMs, dateTimeFormatter),
+                        formatRecordDate(endedAt, dateTimeFormatter),
+                    )
+                } ?: stringResource(
                     R.string.journey_history_period,
                     formatRecordDate(record.startedAtEpochMs, dateTimeFormatter),
-                    formatRecordDate(record.endedAtEpochMs, dateTimeFormatter),
+                    stringResource(R.string.journey_history_in_progress),
                 ),
                 color = SettingsPalette.MutedText,
                 fontSize = 9.sp,
@@ -332,11 +436,61 @@ private fun JourneyHistoryRecordRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 10.dp).weight(1f),
             )
-            SettingsDeleteIconButton(
-                contentDescription = stringResource(R.string.journey_history_delete),
-                onClick = onDelete,
+            Text(
+                text = stringResource(
+                    R.string.statistics_distance_value,
+                    formatOneDecimal(statistics.distanceKm, locale),
+                ),
+                color = SettingsPalette.Text,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+            Text(
+                text = formatTripDuration(statistics.elapsedMs),
+                color = SettingsPalette.Text,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 12.dp),
+            )
+            onDelete?.let {
+                SettingsDeleteIconButton(
+                    contentDescription = stringResource(R.string.journey_history_delete),
+                    modifier = Modifier.padding(start = 5.dp),
+                    onClick = it,
+                )
+            }
+            Icon(
+                imageVector = if (expanded) {
+                    Icons.Default.KeyboardArrowUp
+                } else {
+                    Icons.Default.KeyboardArrowDown
+                },
+                contentDescription = stringResource(
+                    if (expanded) {
+                        R.string.journey_history_collapse
+                    } else {
+                        R.string.journey_history_expand
+                    },
+                ),
+                tint = SettingsPalette.Accent,
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
+        if (expanded) JourneyHistoryDetails(statistics, locale)
+    }
+}
+
+@Composable
+private fun JourneyHistoryDetails(
+    statistics: JourneyStatisticsSnapshot,
+    locale: Locale,
+) {
+    Column(
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             HistoryMetric(
                 stringResource(R.string.statistics_distance),

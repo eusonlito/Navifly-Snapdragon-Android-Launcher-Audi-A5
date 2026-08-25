@@ -265,7 +265,7 @@
     <string name="partial_statistics_reset_message">¿Reiniciar todas las Estadísticas Parciales desde el nivel de combustible actual?</string>
     <string name="partial_statistics_reset_confirm">Reiniciar</string>
     <string name="partial_statistics_reset_cancel">Cancelar</string>
-    <string name="journey_history_title">Viajes Registrados</string>
+    <string name="journey_history_title">Viajes y Parciales</string>
     <string name="journey_history_recording">Registro de Viajes</string>
     <string name="journey_history_enabled">Activo</string>
     <string name="journey_history_disabled">Inactivo</string>
@@ -279,11 +279,16 @@
     <string name="journey_history_from_value">Desde %1$s</string>
     <string name="journey_history_to_value">Hasta %1$s</string>
     <string name="journey_history_clear_dates">Quitar Fechas</string>
-    <string name="journey_history_results">%1$d de %2$d registros</string>
+    <string name="journey_history_results">%1$d de %2$d</string>
     <string name="journey_history_empty">No hay registros finalizados que coincidan con los filtros.</string>
     <string name="journey_history_trip">Viaje</string>
     <string name="journey_history_partial">Parcial</string>
+    <string name="journey_history_current_trip">Viaje Actual</string>
+    <string name="journey_history_current_partial">Parcial Actual</string>
+    <string name="journey_history_in_progress">En Curso</string>
     <string name="journey_history_period">%1$s — %2$s</string>
+    <string name="journey_history_expand">Mostrar Detalle</string>
+    <string name="journey_history_collapse">Ocultar Detalle</string>
     <string name="journey_history_delete">Eliminar Registro</string>
     <string name="journey_history_clear_all">Eliminar Todo</string>
     <string name="journey_history_clear_title">Eliminar Historial de Viajes</string>
