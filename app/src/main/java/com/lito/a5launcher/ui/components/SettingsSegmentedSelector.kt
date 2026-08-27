@@ -108,8 +108,7 @@ internal fun <T> SettingsSegmentedSelector(
             .height(controlHeight)
             .alpha(if (enabled) 1f else .45f)
             .clip(shape)
-            .background(SettingsPalette.Control)
-            .border(1.dp, SettingsPalette.Border, shape),
+            .background(SettingsPalette.Control),
     ) {
         val segmentWidth = maxWidth / options.size
         val indicatorOffset by animateDpAsState(
