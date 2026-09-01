@@ -109,7 +109,7 @@ internal class JourneyHistoryCodec {
         .put("kind", record.kind.name)
         .put("startedAtEpochMs", record.startedAtEpochMs)
         .put("endedAtEpochMs", record.endedAtEpochMs)
-        .put("statistics", encodeStatistics(record.statistics))
+        .put("statistics", encodeJourneyStatistics(record.statistics))
         .toString()
 
     fun decode(value: String): JourneyHistoryRecord {
@@ -141,19 +141,6 @@ internal class JourneyHistoryCodec {
         )
     }
 
-    private fun encodeStatistics(statistics: JourneyStatisticsSnapshot) = JSONObject()
-        .put("elapsedMs", statistics.elapsedMs)
-        .put("movingElapsedMs", statistics.movingElapsedMs)
-        .put("distanceKm", statistics.distanceKm)
-        .put("maximumSpeedKmh", statistics.maximumSpeedKmh)
-        .put("averageSpeedKmh", statistics.averageSpeedKmh)
-        .put("movingAverageSpeedKmh", statistics.movingAverageSpeedKmh)
-        .put("calculatedConsumption", statistics.calculatedConsumption)
-        .put("observedCanConsumption", statistics.observedCanConsumption)
-        .put("fuelUsedLitres", statistics.fuelUsedLitres)
-        .put("confirmedCanFuelUsedLitres", statistics.confirmedCanFuelUsedLitres)
-        .put("observedFuelSpentLitres", statistics.observedFuelSpentLitres ?: JSONObject.NULL)
-
     private fun JSONObject.nonNegativeDouble(key: String): Double = optDouble(key)
         .takeIf { it.isFinite() && it >= 0.0 }
         ?: 0.0
@@ -167,6 +154,19 @@ internal class JourneyHistoryCodec {
         const val SCHEMA = 1
     }
 }
+
+internal fun encodeJourneyStatistics(statistics: JourneyStatisticsSnapshot) = JSONObject()
+    .put("elapsedMs", statistics.elapsedMs)
+    .put("movingElapsedMs", statistics.movingElapsedMs)
+    .put("distanceKm", statistics.distanceKm)
+    .put("maximumSpeedKmh", statistics.maximumSpeedKmh)
+    .put("averageSpeedKmh", statistics.averageSpeedKmh)
+    .put("movingAverageSpeedKmh", statistics.movingAverageSpeedKmh)
+    .put("calculatedConsumption", statistics.calculatedConsumption)
+    .put("observedCanConsumption", statistics.observedCanConsumption)
+    .put("fuelUsedLitres", statistics.fuelUsedLitres)
+    .put("confirmedCanFuelUsedLitres", statistics.confirmedCanFuelUsedLitres)
+    .put("observedFuelSpentLitres", statistics.observedFuelSpentLitres ?: JSONObject.NULL)
 
 internal fun JourneyHistoryRecord.isValid(): Boolean =
     id.isNotBlank() &&

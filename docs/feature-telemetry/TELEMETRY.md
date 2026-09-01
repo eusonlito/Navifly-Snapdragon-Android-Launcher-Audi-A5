@@ -253,6 +253,11 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    sin persistirlos ni ofrecer su eliminación. Todas las filas se presentan
    resumidas en una sola línea y admiten expansión independiente, por lo que
    varias estadísticas completas pueden permanecer abiertas para compararlas.
+   La descarga JSON usa el selector SAF y exporta únicamente los elementos que
+   cumplen los filtros de tipo y fechas activos; sin filtros incluye todo el
+   historial y los dos elementos abiertos. El documento conserva instantes Unix,
+   estado abierto/cerrado y todos los acumuladores estadísticos sin aplicar
+   formatos dependientes del idioma o la zona horaria.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada

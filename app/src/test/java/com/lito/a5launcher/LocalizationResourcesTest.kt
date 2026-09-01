@@ -40,6 +40,10 @@ class LocalizationResourcesTest {
             "functional_logs_category_gear_estimation",
             "functional_logs_summary_refuel_confirmed",
             "functional_logs_summary_gear_inconsistency",
+            "journey_history_export",
+            "journey_history_exported",
+            "journey_history_export_failed",
+            "journey_history_export_file",
         )
         assertTrue(stringNames(File("src/main/res/values/strings.xml")).containsAll(required))
         assertTrue(stringNames(File("src/main/res/values-es/strings.xml")).containsAll(required))

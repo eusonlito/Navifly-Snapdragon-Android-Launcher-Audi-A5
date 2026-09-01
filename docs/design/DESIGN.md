@@ -346,7 +346,9 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   periodo, distancia y duración, y puede desplegarse de forma independiente para
   comparar simultáneamente el detalle de varios registros. Las primeras filas
   muestran el Viaje y el Parcial actuales en tiempo real, identificados como
-  abiertos y sin fecha de fin. El resto
+  abiertos y sin fecha de fin. El bloque de filtros permite descargar mediante
+  el selector de archivos un JSON con exactamente las filas visibles; sin filtro
+  activo se incluyen todos los Viajes y Parciales. El resto
   de pestañas conserva sus distribuciones específicas; Mapa distribuye el
   contenido en paneles visualmente uniformes.
   Los paneles no necesitan títulos propios ni desplazamiento vertical. El
