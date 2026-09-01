@@ -291,7 +291,7 @@
     <string name="journey_history_expand">Show Details</string>
     <string name="journey_history_collapse">Hide Details</string>
     <string name="journey_history_delete">Delete Record</string>
-    <string name="journey_history_export">Download JSON</string>
+    <string name="journey_history_export">Download</string>
     <string name="journey_history_exported">Trips downloaded successfully</string>
     <string name="journey_history_export_failed">Trips could not be downloaded</string>
     <string name="journey_history_export_file">a5-journeys-%1$s.json</string>

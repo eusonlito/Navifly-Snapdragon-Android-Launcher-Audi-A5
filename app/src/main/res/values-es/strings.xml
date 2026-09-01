@@ -290,7 +290,7 @@
     <string name="journey_history_expand">Mostrar Detalle</string>
     <string name="journey_history_collapse">Ocultar Detalle</string>
     <string name="journey_history_delete">Eliminar Registro</string>
-    <string name="journey_history_export">Descargar JSON</string>
+    <string name="journey_history_export">Descargar</string>
     <string name="journey_history_exported">Viajes descargados correctamente</string>
     <string name="journey_history_export_failed">No se han podido descargar los viajes</string>
     <string name="journey_history_export_file">a5-journeys-%1$s.json</string>
