@@ -514,26 +514,19 @@ class TelemetryService : Service() {
         fun getService(): TelemetryService = this@TelemetryService
     }
 
-    fun confirmPendingRefuel() {
+    fun confirmPendingRefuel() = resolvePendingRefuel(resetPartialStatistics = true)
+
+    fun keepPartialAfterRefuel() = resolvePendingRefuel(resetPartialStatistics = false)
+
+    private fun resolvePendingRefuel(resetPartialStatistics: Boolean) {
         scope.launch {
             coreTelemetryMutex.withLock {
                 val pending = _pendingRefuelConfirmationFlow.value ?: return@withLock
                 val decision = confirmedRefuelDetector.confirmPendingRefuel(pending)
                 _pendingRefuelConfirmationFlow.value = null
-                applyResolvedFuelDecision(decision)
-            }
-        }
-    }
-
-    fun rejectPendingRefuel() {
-        scope.launch {
-            coreTelemetryMutex.withLock {
-                val pending = _pendingRefuelConfirmationFlow.value ?: return@withLock
-                confirmedRefuelDetector.rejectPendingRefuel(pending)
-                _pendingRefuelConfirmationFlow.value = null
                 applyResolvedFuelDecision(
-                    decision = ConfirmedFuelLevelChange.Initialized,
-                    fuelLitres = pending.candidateFuelLitres,
+                    decision = decision,
+                    resetPartialStatistics = resetPartialStatistics,
                 )
             }
         }
@@ -863,6 +856,7 @@ class TelemetryService : Service() {
         decision: ConfirmedFuelLevelChange,
         fuelLitres: Int = (decision as? ConfirmedFuelLevelChange.Refuel)?.fuelLitres
             ?: _fuelFlow.value,
+        resetPartialStatistics: Boolean = true,
     ) {
         val now = SystemClock.elapsedRealtime()
         val source = if (replayActive) {
@@ -880,7 +874,7 @@ class TelemetryService : Service() {
             outsideTemperatureCelsius = _outsideTempFlow.value,
         )
         val partialBeforeKm = _partialStatisticsFlow.value.distanceKm
-        if (decision is ConfirmedFuelLevelChange.Refuel) {
+        if (decision is ConfirmedFuelLevelChange.Refuel && resetPartialStatistics) {
             closeCurrentPartial(System.currentTimeMillis())
         }
         val tripMetrics = tripSession.onTelemetryWithFuelDecision(
@@ -901,8 +895,9 @@ class TelemetryService : Service() {
                 tripMetrics.confirmedCanFuelUsedLitres,
             ),
             currentTripGeneration,
+            resetStatisticsOnRefuel = resetPartialStatistics,
         )
-        if (decision is ConfirmedFuelLevelChange.Refuel) {
+        if (decision is ConfirmedFuelLevelChange.Refuel && resetPartialStatistics) {
             functionalEventTelemetryRecorder.recordPartialReset(
                 decision,
                 partialBeforeKm,

@@ -222,12 +222,15 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    el modelo de caudal; `Consumo CAN` divide entre la distancia los descensos
    de litros enteros confirmados por CAN. El segundo valor no se limita a 15
    L/100 km y avanza por escalones, porque el vehículo no entrega decimales.
-   `Combustible Gastado` resta directamente la lectura CAN actual de la inicial;
+   `Combustible Gastado` acumula los descensos enteros confirmados del nivel CAN;
    por eso puede permanecer en cero durante bastantes kilómetros con el depósito
-   lleno y se muestra separado de `Combustible Estimado`. Si se reposta durante
-   el mismo viaje, el incremento del depósito se incorpora a la referencia del
-   viaje para no perder el combustible gastado antes del repostaje; el parcial sí
-   adopta el nuevo nivel y vuelve a cero.
+   lleno y se muestra separado de `Combustible Estimado`. La diferencia directa
+   entre la lectura inicial y la actual se conserva como respaldo, pero nunca
+   puede reducir el acumulado confirmado. Si se reposta, el nuevo nivel se adopta
+   para la autonomía y la siguiente ventana de consumo. Las estadísticas del
+   parcial sólo vuelven a cero si el conductor acepta el reinicio; si elige
+   conservarlas, tanto los litros anteriores como los posteriores al repostaje
+   permanecen acumulados.
    `Viaje` se reinicia al comenzar una nueva sesión del coche; `Parcial` conserva
    sus datos entre arranques y sólo se reinicia con un repostaje confirmado o con
    la acción manual disponible en su propio panel de estadísticas. Todo

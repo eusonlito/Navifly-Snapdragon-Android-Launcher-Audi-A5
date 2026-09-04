@@ -965,7 +965,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = viewModel::rejectPendingRefuel) {
+                        TextButton(onClick = viewModel::keepPartialAfterRefuel) {
                             Text(stringResource(R.string.refuel_confirmation_reject))
                         }
                     },

@@ -42,7 +42,7 @@ data class DistanceSinceRefuelPersistenceSnapshot(
 data class DistanceSinceRefuelSnapshot(
     val distanceKm: Double,
     val lastFuelLitres: Int?,
-    val refuelDetected: Boolean,
+    val statisticsReset: Boolean,
     val statistics: JourneyStatisticsSnapshot = JourneyStatisticsSnapshot(distanceKm = distanceKm),
     val maximumSpeedChange: PartialMaximumSpeedChange? = null,
 )
@@ -304,6 +304,7 @@ class DistanceSinceRefuelTracker(
         fuelDecision: ConfirmedFuelLevelChange?,
         tripFuelUsage: CumulativeFuelUsage? = null,
         tripGeneration: Long? = null,
+        resetStatisticsOnRefuel: Boolean = true,
     ): DistanceSinceRefuelSnapshot {
         advanceTo(elapsedRealtimeMs)
         val safeSpeed = validVehicleSpeedKmh(speedKmh) ?: 0
@@ -315,6 +316,7 @@ class DistanceSinceRefuelTracker(
         val fuelDelta = observeTripFuelUsage(tripFuelUsage, tripGeneration)
         statisticsFuelUsedLitres += fuelDelta.estimatedLitres
         statisticsConfirmedCanFuelUsedLitres += fuelDelta.confirmedCanLitres
+        val observedFuelBaselineBeforeUpdate = initialObservedFuelLitres
         fuelLitres.takeIf { it > 0 }?.let { observed ->
             if (initialObservedFuelLitres == null) initialObservedFuelLitres = observed
             currentObservedFuelLitres = observed
@@ -330,18 +332,26 @@ class DistanceSinceRefuelTracker(
             -> Unit
         }
         refuelDetector?.baselineFuelLitres()?.let { lastFuelLitres = it }
-        val refuelDetected = fuelDecision is ConfirmedFuelLevelChange.Refuel
-        if (refuelDetected) {
-            resetStatistics(
-                fuelLitres = fuelDecision.fuelLitres,
-                tripFuelUsage = sourceTripFuelUsage,
-                tripGeneration = sourceTripGeneration,
-            )
+        val confirmedRefuel = fuelDecision as? ConfirmedFuelLevelChange.Refuel
+        val statisticsReset = confirmedRefuel != null && resetStatisticsOnRefuel
+        if (confirmedRefuel != null) {
+            if (resetStatisticsOnRefuel) {
+                resetStatistics(
+                    fuelLitres = confirmedRefuel.fuelLitres,
+                    tripFuelUsage = sourceTripFuelUsage,
+                    tripGeneration = sourceTripGeneration,
+                )
+            } else {
+                preserveObservedFuelAcrossRefuel(
+                    observedFuelBaselineBeforeUpdate,
+                    confirmedRefuel,
+                )
+            }
         }
         return DistanceSinceRefuelSnapshot(
             distanceKm = distanceKm,
             lastFuelLitres = lastFuelLitres,
-            refuelDetected = refuelDetected,
+            statisticsReset = statisticsReset,
             statistics = journeyStatistics(
                 elapsedMs = statisticsElapsedMs,
                 movingElapsedMs = statisticsMovingElapsedMs,
@@ -352,7 +362,7 @@ class DistanceSinceRefuelTracker(
                 initialObservedFuelLitres = initialObservedFuelLitres,
                 currentObservedFuelLitres = currentObservedFuelLitres,
             ),
-            maximumSpeedChange = if (!refuelDetected && maximumSpeedKmh > previousMaximumSpeedKmh) {
+            maximumSpeedChange = if (!statisticsReset && maximumSpeedKmh > previousMaximumSpeedKmh) {
                 PartialMaximumSpeedChange(previousMaximumSpeedKmh, maximumSpeedKmh)
             } else null,
         )
@@ -368,7 +378,7 @@ class DistanceSinceRefuelTracker(
         advanceTo(elapsedRealtimeMs)
         resetStatistics(fuelLitres, tripFuelUsage, tripGeneration)
         fuelLitres?.takeIf { it > 0 }?.let { lastFuelLitres = it }
-        return snapshot(refuelDetected = false)
+        return snapshot(statisticsReset = false)
     }
 
     @Synchronized
@@ -381,7 +391,7 @@ class DistanceSinceRefuelTracker(
         val fuelDelta = observeTripFuelUsage(tripFuelUsage, tripGeneration)
         statisticsFuelUsedLitres += fuelDelta.estimatedLitres
         statisticsConfirmedCanFuelUsedLitres += fuelDelta.confirmedCanLitres
-        return snapshot(refuelDetected = false)
+        return snapshot(statisticsReset = false)
     }
 
     @Synchronized
@@ -421,10 +431,10 @@ class DistanceSinceRefuelTracker(
         }
     }
 
-    private fun snapshot(refuelDetected: Boolean) = DistanceSinceRefuelSnapshot(
+    private fun snapshot(statisticsReset: Boolean) = DistanceSinceRefuelSnapshot(
         distanceKm = distanceKm,
         lastFuelLitres = lastFuelLitres,
-        refuelDetected = refuelDetected,
+        statisticsReset = statisticsReset,
         statistics = journeyStatistics(
             elapsedMs = statisticsElapsedMs,
             movingElapsedMs = statisticsMovingElapsedMs,
@@ -453,6 +463,14 @@ class DistanceSinceRefuelTracker(
         sourceTripFuelUsage = tripFuelUsage?.normalized()
         sourceTripGeneration = tripGeneration
         statisticsActive = true
+    }
+
+    private fun preserveObservedFuelAcrossRefuel(
+        previousInitialFuelLitres: Int?,
+        refuel: ConfirmedFuelLevelChange.Refuel,
+    ) {
+        initialObservedFuelLitres = preservedObservedFuelBaseline(previousInitialFuelLitres, refuel)
+        currentObservedFuelLitres = refuel.fuelLitres
     }
 
     private fun observeTripFuelUsage(

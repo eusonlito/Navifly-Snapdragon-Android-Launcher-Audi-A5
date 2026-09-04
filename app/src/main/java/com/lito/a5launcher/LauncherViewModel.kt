@@ -249,7 +249,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun confirmPendingRefuel() = telemetryService?.confirmPendingRefuel()
 
-    fun rejectPendingRefuel() = telemetryService?.rejectPendingRefuel()
+    fun keepPartialAfterRefuel() = telemetryService?.keepPartialAfterRefuel()
 
     fun resetPartialStatistics() = telemetryService?.resetPartialStatistics()
 

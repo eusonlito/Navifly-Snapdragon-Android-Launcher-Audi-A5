@@ -866,6 +866,7 @@ class TripSessionTracker(
             calibrationFuelLevelStabilizer.invalidateObservation()
             return
         }
+        val observedFuelBaselineBeforeUpdate = initialObservedFuelLitres
         var changed = false
         if (initialObservedFuelLitres == null) {
             initialObservedFuelLitres = fuelLitres
@@ -904,9 +905,10 @@ class TripSessionTracker(
             is ConfirmedFuelLevelChange.Refuel -> {
                 // Keep the raw Trip fuel accounting continuous across refuelling.
                 // Partial statistics reset separately to the new tank level.
-                initialObservedFuelLitres = initialObservedFuelLitres?.plus(
-                    fuelLevelChange.fuelLitres - fuelLevelChange.baselineFuelLitres,
-                ) ?: fuelLevelChange.fuelLitres
+                initialObservedFuelLitres = preservedObservedFuelBaseline(
+                    observedFuelBaselineBeforeUpdate,
+                    fuelLevelChange,
+                )
                 virtualFuelLitres = fuelLevelChange.fuelLitres.toDouble()
                 lastFuelLitres = fuelLevelChange.fuelLitres
                 calibrationFuelLevelStabilizer.reset(fuelLevelChange.fuelLitres)
@@ -1071,12 +1073,29 @@ internal fun journeyStatistics(
         observedFuelSpentLitres = observedFuelSpent(
             initialObservedFuelLitres,
             currentObservedFuelLitres,
+            confirmedCanFuelUsedLitres,
         ),
     )
 }
 
-internal fun observedFuelSpent(initialFuelLitres: Int?, currentFuelLitres: Int?): Double? {
-    val initial = initialFuelLitres?.takeIf { it > 0 } ?: return null
-    val current = currentFuelLitres?.takeIf { it > 0 } ?: return null
-    return (initial - current).coerceAtLeast(0).toDouble()
+internal fun observedFuelSpent(
+    initialFuelLitres: Int?,
+    currentFuelLitres: Int?,
+    confirmedCanFuelUsedLitres: Double = 0.0,
+): Double? {
+    val directDifference = initialFuelLitres?.takeIf { it > 0 }?.let { initial ->
+        currentFuelLitres?.takeIf { it > 0 }?.let { current ->
+            (initial - current).coerceAtLeast(0).toDouble()
+        }
+    }
+    val confirmedConsumption = confirmedCanFuelUsedLitres.validMetric()
+    if (directDifference == null && confirmedConsumption == 0.0) return null
+    return maxOf(directDifference ?: 0.0, confirmedConsumption)
 }
+
+internal fun preservedObservedFuelBaseline(
+    initialFuelLitres: Int?,
+    refuel: ConfirmedFuelLevelChange.Refuel,
+): Int = initialFuelLitres?.plus(
+    (refuel.fuelLitres - refuel.baselineFuelLitres).coerceAtLeast(0),
+) ?: refuel.fuelLitres
