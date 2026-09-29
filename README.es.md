@@ -46,8 +46,17 @@ No instales esta versión esperando compatibilidad con:
 - Velocidad, revoluciones, marcha estimada y testigos del vehículo.
 - Tiempo, viaje, consumo estimado, distancia desde el último repostaje,
   autonomía, combustible y odómetro.
+- Estadísticas acumuladas de todos los viajes, accesibles al pulsar el
+  odómetro, además de las de cada viaje y parcial entre repostajes. Se puede
+  navegar entre periodos con un gesto lateral; al volver a abrir el panel se
+  muestra el más reciente.
+- El viaje o parcial actual muestra la fecha de inicio y una fecha de fin que
+  se actualiza en tiempo real.
 - Mapa vectorial MapLibre con modo claro/oscuro, caché local, seguimiento,
   rotación y controles táctiles.
+- El marcador GPS permanece visible y en su posición correcta al mover o ampliar
+  el mapa. Se reduce hasta un tamaño mínimo y recupera el tamaño normal al
+  centrar el mapa.
 - Puntos de interés GeoJSON importables, con categorías, iconos y pulsos
   configurables.
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
@@ -57,21 +66,57 @@ No instales esta versión esperando compatibilidad con:
   búsquedas cercanas y navegación mediante Waze.
 - Actualización del propio APK desde el selector de documentos de Android.
 - Herramientas de diagnóstico y exportación de logs del mapa y del Asistente IA.
+- Inicio progresivo: primero aparecen los relojes y después el resto del
+  dashboard, sin mostrar antes la interfaz completa durante un instante.
 
 El consumo, la autonomía y la marcha son estimaciones construidas con los datos
 disponibles del firmware. No sustituyen los indicadores originales del coche.
 
 ## Capturas
 
-![Dashboard de A5 Launcher](docs/screenshots/dashboard.png)
+### Dashboard
 
-| Aplicaciones | Ajustes de Mapa y POI |
-|---|---|
-| ![Aplicaciones](docs/screenshots/applications.png) | ![Ajustes de Mapa y POI](docs/screenshots/settings-map.png) |
+![Dashboard de A5 Cockpit con mapa](docs/screenshots/es/dashboard.png)
 
-| Ajustes del Asistente IA | Ajustes del Sistema |
-|---|---|
-| ![Ajustes del Asistente IA](docs/screenshots/settings-ai.png) | ![Ajustes del Sistema](docs/screenshots/settings-system.png) |
+### Estadísticas de viajes
+
+**Viaje**
+
+![Panel de estadísticas del viaje](docs/screenshots/es/statistics-trip-panel.png)
+
+**Parcial**
+
+![Panel de estadísticas del parcial](docs/screenshots/es/statistics-partial-panel.png)
+
+**Total acumulado**
+
+![Panel de estadísticas totales](docs/screenshots/es/statistics-total-panel.png)
+
+### Aplicaciones
+
+![Pantalla de aplicaciones](docs/screenshots/es/applications.png)
+
+### Ajustes del Launcher
+
+**Viajes**
+
+![Ajustes de viajes](docs/screenshots/es/settings-trips.png)
+
+**Mapa**
+
+![Ajustes del mapa](docs/screenshots/es/settings-map.png)
+
+**Asistente IA**
+
+![Ajustes del Asistente IA](docs/screenshots/es/settings-ai.png)
+
+**Registros**
+
+![Ajustes de registros](docs/screenshots/es/settings-logs.png)
+
+**Sistema**
+
+![Ajustes del sistema](docs/screenshots/es/settings-system.png)
 
 ## Instalación Para Usuarios
 
@@ -260,9 +305,9 @@ aplicaciones del firmware para forzar el arranque.
 
 Requisitos para desarrolladores:
 
-- JDK 21;
+- JDK 25 (entorno de compilación verificado);
 - Android SDK Platform 37;
-- Android SDK Build Tools compatible con Android Gradle Plugin 9.3.1;
+- Android SDK Build Tools compatible con Android Gradle Plugin 9.4.1;
 - sistema de compilación de 64 bits.
 
 El wrapper de Gradle está incluido:

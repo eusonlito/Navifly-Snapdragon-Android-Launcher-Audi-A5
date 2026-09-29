@@ -47,8 +47,15 @@ Do not install this build expecting compatibility with:
   odometer values.
 - Persistent, optional Trip and Partial history with statistics and date/type
   filters.
+- Lifetime statistics opened by tapping the odometer, alongside trip and
+  refuelling-to-refuelling statistics. Swipe sideways through the available
+  periods; reopening the panel returns to the newest one.
+- The current trip or partial shows its start time and a live end time.
 - MapLibre vector map with light/dark modes, local cache, following, rotation
   and touch controls.
+- The GPS marker stays visible in the correct map position while panning and
+  zooming. It scales down only to a minimum size, and recentering restores its
+  normal size.
 - Importable GeoJSON points of interest with configurable categories, icons and
   pulses.
 - Speed-camera POI markers supplied through the user's local files.
@@ -58,21 +65,57 @@ Do not install this build expecting compatibility with:
   and Waze navigation.
 - In-app APK update through Android's document picker.
 - Map and AI Assistant diagnostic log export.
+- A progressive startup reveal that brings in the gauges before the rest of the
+  dashboard, without briefly flashing the complete interface first.
 
 Consumption, range and gear are estimates built from the data exposed by the
 firmware. They do not replace the vehicle's original instruments.
 
 ## Screenshots
 
-![A5 Launcher dashboard](docs/screenshots/dashboard.png)
+### Dashboard
 
-| Applications | Map and POI Settings |
-|---|---|
-| ![Applications](docs/screenshots/applications.png) | ![Map and POI Settings](docs/screenshots/settings-map.png) |
+![A5 Cockpit dashboard with map](docs/screenshots/dashboard.png)
 
-| AI Assistant Settings | System Settings |
-|---|---|
-| ![AI Assistant Settings](docs/screenshots/settings-ai.png) | ![System Settings](docs/screenshots/settings-system.png) |
+### Trip Statistics
+
+**Trip**
+
+![Trip statistics panel](docs/screenshots/statistics-trip-panel.png)
+
+**Partial**
+
+![Partial statistics panel](docs/screenshots/statistics-partial-panel.png)
+
+**Lifetime total**
+
+![Lifetime total statistics panel](docs/screenshots/statistics-total-panel.png)
+
+### Applications
+
+![Applications screen](docs/screenshots/applications.png)
+
+### Launcher Settings
+
+**Trips**
+
+![Trips settings](docs/screenshots/settings-trips.png)
+
+**Map**
+
+![Map settings](docs/screenshots/settings-map.png)
+
+**AI Assistant**
+
+![AI Assistant settings](docs/screenshots/settings-ai.png)
+
+**Logs**
+
+![Logs settings](docs/screenshots/settings-logs.png)
+
+**System**
+
+![System settings](docs/screenshots/settings-system.png)
 
 ## Installation for Users
 
@@ -258,9 +301,9 @@ applications to force startup.
 
 Developer requirements:
 
-- JDK 21;
+- JDK 25 (verified build environment);
 - Android SDK Platform 37;
-- Android SDK Build Tools compatible with Android Gradle Plugin 9.3.1;
+- Android SDK Build Tools compatible with Android Gradle Plugin 9.4.1;
 - a 64-bit build system.
 
 The Gradle wrapper is included:
