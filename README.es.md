@@ -320,11 +320,20 @@ El wrapper de Gradle está incluido:
 `scripts/compile.sh` ejecuta pruebas, Lint y la compilación release optimizada.
 Guarda el APK, su SHA-256 y el mapping de R8 —si existe— en `out/`.
 
-GitHub Actions publica el APK y su checksum SHA-256 al subir una etiqueta
-`vMAYOR.MENOR.PARCHE` y si pasan todas las comprobaciones de CI. Antes de crearla,
-actualiza `versionName` y `versionCode` en `app/build.gradle.kts`: la etiqueta
-debe coincidir con `versionName` y `versionCode` debe aumentar respecto a la
-publicación anterior.
+Cada commit integrado en `master` genera automáticamente su APK firmado, checksum
+SHA-256 y GitHub Release cuando pasan sus pruebas, Lint y compilación. GitHub
+Actions crea la etiqueta de versión; basta con subir el commit de código. Si un
+push contiene varios commits, se publica cada uno por separado. Los reintentos
+conservan las publicaciones ya completadas.
+
+Gradle calcula las versiones desde el historial Git con `scripts/release-version.py`.
+Cada commit de la línea principal posterior al inicio de la publicación automática
+incrementa la versión patch y el `versionCode` de Android:
+`1.3.0`/4 → `1.3.1`/5 → `1.3.2`/6. Las compilaciones locales usan la misma versión
+que CI. La minor sólo cambia cuando lo indique el propietario del repositorio.
+Se necesitan Python 3 y el historial Git completo; si el clon es superficial,
+ejecuta `git fetch --unshallow`. Puedes consultar la versión con
+`python3 scripts/release-version.py version`.
 
 Los APK de Release usan la identidad de firma estable de las instalaciones
 actuales. El keystore está fuera del repositorio y se guarda como secreto de

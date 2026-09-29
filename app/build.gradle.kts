@@ -4,6 +4,10 @@ plugins {
 }
 
 val buildTimeEpochMillis = System.currentTimeMillis()
+val releaseVersion = providers.exec {
+    workingDir(rootProject.projectDir)
+    commandLine("python3", "scripts/release-version.py", "version")
+}.standardOutput.asText.get().trim().split(" ")
 val releaseKeystorePath = providers.environmentVariable("A5_RELEASE_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("A5_RELEASE_STORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("A5_RELEASE_KEY_ALIAS").orNull
@@ -36,8 +40,8 @@ android {
         // and storage contracts without legacy compatibility branches.
         minSdk = 34
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = releaseVersion[1].toInt()
+        versionName = releaseVersion[0]
         buildConfigField("long", "BUILD_TIME_EPOCH_MS", "${buildTimeEpochMillis}L")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

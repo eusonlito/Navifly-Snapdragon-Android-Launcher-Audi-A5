@@ -2,19 +2,42 @@ name: Android CI
 
 on:
   push:
+    branches:
+      - master
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  plan-releases:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
+    outputs:
+      releases: ${{ steps.releases.outputs.matrix }}
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Plan a release for every pushed commit
+        id: releases
+        env:
+          BEFORE_COMMIT: ${{ github.event.before }}
+          HEAD_COMMIT: ${{ github.sha }}
+        run: |
+          matrix=$(python3 scripts/release-version.py commits "$BEFORE_COMMIT" "$HEAD_COMMIT")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
 
       - name: Check public repository policy
         run: |
@@ -22,6 +45,7 @@ jobs:
           ./scripts/test-check-public-repo.sh
           ./scripts/test-prepare-replay-apk.sh
           python3 ./scripts/test-replay-emulator-gps.py
+          python3 ./scripts/test-release-version.py
 
       - name: Set up JDK 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
@@ -52,25 +76,31 @@ jobs:
 
       - name: Test, lint and build
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            ./gradlew --no-daemon testDebugUnitTest lintRelease assembleDebug
-          else
-            ./gradlew --no-daemon testDebugUnitTest lintRelease assembleDebug assembleRelease
-          fi
+          ./gradlew --no-daemon testDebugUnitTest lintRelease assembleDebug assembleRelease
 
   publish-release:
-    needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: plan-releases
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan-releases.outputs.releases) }}
+    concurrency:
+      group: release-${{ matrix.commit }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ matrix.tag }}
+      RELEASE_COMMIT: ${{ matrix.commit }}
 
     steps:
       - name: Check out repository and tags
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+          ref: ${{ matrix.commit }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
@@ -89,45 +119,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
-      - name: Validate tag and Android version
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Validate automatic version and source commit
         run: |
-          python3 - <<'PY'
-          import re
-          import subprocess
-          import os
-          from pathlib import Path
-
-          def versions(source):
-              name = re.search(r'^\s*versionName\s*=\s*"([^"]+)"', source, re.MULTILINE)
-              code = re.search(r'^\s*versionCode\s*=\s*(\d+)', source, re.MULTILINE)
-              if not name or not code:
-                  raise SystemExit("Could not read versionName/versionCode from app/build.gradle.kts")
-              return name.group(1), int(code.group(1))
-
-          tag = os.environ["RELEASE_TAG"]
-          if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
-              raise SystemExit("Release tags must use vMAJOR.MINOR.PATCH, for example v1.3.1")
-
-          current_name, current_code = versions(Path("app/build.gradle.kts").read_text())
-          if tag.removeprefix("v") != current_name:
-              raise SystemExit(f"Tag {tag} must match app versionName {current_name}")
-
-          previous_tags = subprocess.check_output(
-              ["git", "tag", "--list", "v*", "--sort=-version:refname"], text=True
-          ).splitlines()
-          previous = next((value for value in previous_tags if value != tag), None)
-          if previous:
-              previous_source = subprocess.check_output(
-                  ["git", "show", f"{previous}:app/build.gradle.kts"], text=True
-              )
-              _, previous_code = versions(previous_source)
-              if current_code <= previous_code:
-                  raise SystemExit(
-                      f"versionCode {current_code} must exceed {previous} versionCode {previous_code}"
-                  )
-          PY
+          version_info=$(python3 scripts/release-version.py version)
+          read -r version code <<< "$version_info"
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          echo "Publishing $RELEASE_TAG (Android versionCode $code) from $RELEASE_COMMIT"
 
       - name: Restore release signing key
         env:
@@ -144,7 +142,7 @@ jobs:
           A5_RELEASE_KEY_ALIAS: ${{ secrets.A5_RELEASE_KEY_ALIAS }}
           A5_RELEASE_KEY_PASSWORD: ${{ secrets.A5_RELEASE_KEY_PASSWORD }}
           A5_REQUIRE_RELEASE_SIGNING: "true"
-        run: ./gradlew --no-daemon :app:assembleRelease
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
 
       - name: Prepare release assets
         run: |
@@ -155,10 +153,29 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          dist/A5Cockpit.apk dist/A5Cockpit.apk.sha256
-          --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
+          else
+            git tag "$RELEASE_TAG" "$RELEASE_COMMIT"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
+
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > release.json 2> release-error.txt; then
+            complete=$(jq -r '.draft == false and ([.assets[] | select(.state == "uploaded" and .size > 0) | .name] | contains(["A5Cockpit.apk", "A5Cockpit.apk.sha256"]))' release.json)
+            if [[ "$complete" == true ]]; then
+              echo "$RELEASE_TAG is already published; keeping its APK."
+              exit 0
+            fi
+            gh release upload "$RELEASE_TAG" dist/A5Cockpit.apk dist/A5Cockpit.apk.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/A5Cockpit.apk dist/A5Cockpit.apk.sha256 \
+              --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
+          fi
+
+          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.id')
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F draft=false -f make_latest=legacy > /dev/null
 
       - name: Remove temporary signing key
         if: always()
