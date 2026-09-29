@@ -40,9 +40,10 @@ El núcleo de seguimiento activo incluye:
 * validación de precisión y rechazo de saltos GPS imposibles;
 * contenedor tolerante a fallos: un error al crear el mapa deja operativo el
   launcher y se publica como `ERROR MAPA`.
-* exploración manual con arrastre: pausa únicamente el seguimiento de cámara,
-  oculta el marcador fijo para no representar una posición falsa y presenta
-  un botón de recentrado; GPS, POI, telemetría y teselas siguen activos.
+* exploración manual con arrastre, zoom y giro con dos dedos: pausa únicamente
+  el seguimiento de cámara y presenta un botón de recentrado; el marcador
+  conserva su posición GPS sobre el mapa y los POI, telemetría y teselas siguen
+  activos. El recentrado restaura el rumbo del vehículo y la inclinación habitual.
 
 Quedan como evoluciones posteriores la fusión con sensores de orientación a
 velocidad muy baja y las métricas avanzadas de FPS/latencia. La posición,
@@ -94,10 +95,12 @@ Es el modo normal:
 
 Para ofrecer un comportamiento comparable al de otros mapas:
 
-* un arrastre con un dedo desacopla temporalmente la cámara del vehículo;
-* el marcador fijo se oculta durante la exploración para no sugerir que el
-  centro del mapa sigue siendo la posición real;
-* aparece un botón grande para volver a centrar;
+* un arrastre, pellizco de zoom o giro con dos dedos desacopla temporalmente la
+  cámara del vehículo;
+* el marcador sigue visible en su posición GPS y su orientación se adapta al
+  ángulo del mapa;
+* aparece un botón grande para volver a centrar y restaurar el rumbo del vehículo
+  y la inclinación habitual, también con el vehículo parado;
 * el seguimiento sólo se recupera mediante una acción explícita sobre ese
   botón, nunca por un temporizador mientras el usuario consulta otra zona;
 * el pellizco continúa modificando el zoom y conserva el nivel seleccionado.

@@ -51,8 +51,9 @@ Do not install this build expecting compatibility with:
   refuelling-to-refuelling statistics. Swipe sideways through the available
   periods; reopening the panel returns to the newest one.
 - The current trip or partial shows its start time and a live end time.
-- MapLibre vector map with light/dark modes, local cache, following, rotation
-  and touch controls.
+- MapLibre vector map with light/dark modes, local cache, following and touch
+  controls. Rotate with two fingers; recentering restores the vehicle heading
+  and the usual map tilt.
 - The GPS marker stays visible in the correct map position while panning and
   zooming. It scales down only to a minimum size, and recentering restores its
   normal size.
@@ -275,7 +276,7 @@ GIF and PNG previews.
 ### The Map Does Not Follow the Position
 
 - Grant precise location and enable the device's GPS/location service.
-- Press the recenter button after panning or zooming the map.
+- Press the recenter button after panning, zooming or rotating the map.
 - Without Internet, previously cached areas remain available; an area that has
   never been loaded requires connectivity.
 

@@ -745,7 +745,7 @@ private fun CockpitMapView(
                                         isCompassEnabled = false
                                         isLogoEnabled = false
                                         isAttributionEnabled = false
-                                        isRotateGesturesEnabled = false
+                                        isRotateGesturesEnabled = true
                                         isTiltGesturesEnabled = false
                                         isScrollGesturesEnabled = true
                                         isZoomGesturesEnabled = true

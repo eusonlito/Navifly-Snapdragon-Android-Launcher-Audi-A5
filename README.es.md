@@ -52,8 +52,9 @@ No instales esta versión esperando compatibilidad con:
   muestra el más reciente.
 - El viaje o parcial actual muestra la fecha de inicio y una fecha de fin que
   se actualiza en tiempo real.
-- Mapa vectorial MapLibre con modo claro/oscuro, caché local, seguimiento,
-  rotación y controles táctiles.
+- Mapa vectorial MapLibre con modo claro/oscuro, caché local, seguimiento y
+  controles táctiles. Gira con dos dedos; al centrar se restauran el rumbo del
+  vehículo y la inclinación habitual del mapa.
 - El marcador GPS permanece visible y en su posición correcta al mover o ampliar
   el mapa. Se reduce hasta un tamaño mínimo y recupera el tamaño normal al
   centrar el mapa.
@@ -279,7 +280,7 @@ previsualización.
 ### El Mapa No Sigue la Posición
 
 - Concede ubicación precisa y activa la ubicación/GPS del dispositivo.
-- Pulsa el botón de centrar después de mover o ampliar el mapa.
+- Pulsa el botón de centrar después de mover, ampliar o girar el mapa.
 - Sin Internet se mostrarán los datos ya presentes en la caché; una zona nunca
   cargada necesita conexión.
 
