@@ -93,8 +93,16 @@ enum class RefuelRejectionReason(val code: String) {
  * capacity are ignored; every larger increase requires driver confirmation after
  * two matching samples, regardless of its size.
  */
-class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
+class ConfirmedRefuelDetector(
+    initialFuelLitres: Int? = null,
+    initialPendingConfirmation: PendingRefuelConfirmation? = null,
+) {
     private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
+    var pendingConfirmation: PendingRefuelConfirmation? = initialPendingConfirmation
+        private set
+    private var confirmationValidated = false
+    val readyConfirmation: PendingRefuelConfirmation?
+        get() = pendingConfirmation.takeIf { confirmationValidated }
     private var pendingFuelLitres: Int? = null
     private var pendingSamples = 0
     private var pendingBaselineFuelLitres: Int? = null
@@ -106,6 +114,7 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     @Synchronized
     fun observeDetailed(speedKmh: Int, fuelLitres: Int): ConfirmedFuelLevelChange? {
         if (fuelLitres <= 0) {
+            confirmationValidated = false
             val rejection = rejectPending(fuelLitres, RefuelRejectionReason.INVALID_READING)
             clearPending()
             return rejection
@@ -114,6 +123,19 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
         if (baseline == null) {
             baselineFuelLitres = fuelLitres
             return ConfirmedFuelLevelChange.Initialized
+        }
+        val pending = pendingConfirmation
+        if (pending != null) {
+            if (refuelFraction(fuelLitres - baseline) <= MAX_IGNORED_REFUEL_FRACTION) {
+                pendingConfirmation = null
+                confirmationValidated = false
+            } else if (confirmationValidated) {
+                if (pending.candidateFuelLitres == fuelLitres) return null
+                val updated = pending.copy(candidateFuelLitres = fuelLitres)
+                pendingConfirmation = updated
+                return ConfirmedFuelLevelChange.ConfirmationRequired(updated)
+            }
+            // A restored prompt needs fresh CAN samples, even if driving has begun.
         }
         if (fuelLitres < baseline) {
             val rejection = rejectPending(fuelLitres, RefuelRejectionReason.LEVEL_DROPPED)
@@ -142,7 +164,7 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
         clearPendingBaseline()
         val increaseLitres = fuelLitres - baseline
         if (
-            speedKmh > MAX_STATIONARY_SPEED_KMH ||
+            (speedKmh > MAX_STATIONARY_SPEED_KMH && pendingConfirmation == null) ||
             refuelFraction(increaseLitres) <= MAX_IGNORED_REFUEL_FRACTION
         ) {
             val rejection = rejectPending(
@@ -172,17 +194,16 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
             candidateFuelLitres = fuelLitres,
             confirmationSamples = confirmationSamples,
         )
+        pendingConfirmation = confirmation
+        confirmationValidated = true
         clearPending()
         return ConfirmedFuelLevelChange.ConfirmationRequired(confirmation)
     }
 
     @Synchronized
-    fun confirmPendingRefuel(
-        confirmation: PendingRefuelConfirmation,
-    ): ConfirmedFuelLevelChange.Refuel {
-        baselineFuelLitres = confirmation.candidateFuelLitres
-        clearPending()
-        clearPendingBaseline()
+    fun confirmPendingRefuel(): ConfirmedFuelLevelChange.Refuel? {
+        val confirmation = readyConfirmation ?: return null
+        adoptFuelLevel(confirmation.candidateFuelLitres)
         return ConfirmedFuelLevelChange.Refuel(
             fuelLitres = confirmation.candidateFuelLitres,
             baselineFuelLitres = confirmation.baselineFuelLitres,
@@ -191,16 +212,16 @@ class ConfirmedRefuelDetector(initialFuelLitres: Int? = null) {
     }
 
     @Synchronized
-    fun rejectPendingRefuel(confirmation: PendingRefuelConfirmation) {
-        baselineFuelLitres = confirmation.candidateFuelLitres
-        clearPending()
-        clearPendingBaseline()
+    fun rejectPendingRefuel() {
+        confirmPendingRefuel()
     }
 
     @Synchronized
     fun adoptFuelLevel(fuelLitres: Int) {
         if (fuelLitres <= 0) return
         baselineFuelLitres = fuelLitres
+        pendingConfirmation = null
+        confirmationValidated = false
         clearPending()
         clearPendingBaseline()
     }

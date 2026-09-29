@@ -713,15 +713,59 @@ class TelemetryDecoderTest {
     fun confirmedAndRejectedPendingRefuelsAdoptTheObservedLevel() {
         val acceptedDetector = ConfirmedRefuelDetector(initialFuelLitres = 48)
         val accepted = PendingRefuelConfirmation(48, 52, 2)
+        acceptedDetector.observeDetailed(0, 52)
+        acceptedDetector.observeDetailed(0, 52)
         assertEquals(
             ConfirmedFuelLevelChange.Refuel(52, 48, 2),
-            acceptedDetector.confirmPendingRefuel(accepted),
+            acceptedDetector.confirmPendingRefuel(),
         )
         assertEquals(52, acceptedDetector.baselineFuelLitres())
 
         val rejectedDetector = ConfirmedRefuelDetector(initialFuelLitres = 48)
-        rejectedDetector.rejectPendingRefuel(accepted)
+        rejectedDetector.observeDetailed(0, 52)
+        rejectedDetector.observeDetailed(0, 52)
+        assertEquals(accepted, rejectedDetector.readyConfirmation)
+        rejectedDetector.rejectPendingRefuel()
         assertEquals(52, rejectedDetector.baselineFuelLitres())
+    }
+
+    @Test
+    fun answeringARefuelPromptUsesTheLatestFuelAndDoesNotPromptAgain() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
+        detector.observeDetailed(0, 52)
+        detector.observeDetailed(0, 52)
+
+        detector.observeDetailed(0, 58)
+        detector.observeDetailed(0, 58)
+        val accepted = detector.confirmPendingRefuel()!!
+
+        assertEquals(58, accepted.fuelLitres)
+        assertEquals(58, detector.baselineFuelLitres())
+        assertNull(detector.observeDetailed(0, 58))
+        assertNull(detector.observeDetailed(0, 58))
+    }
+
+    @Test
+    fun invalidFuelHidesAPendingPromptAndRecoveredBaselineCancelsIt() {
+        val detector = ConfirmedRefuelDetector(initialFuelLitres = 48)
+        detector.observeDetailed(0, 52)
+        detector.observeDetailed(0, 52)
+        val pending = detector.readyConfirmation
+
+        detector.observeDetailed(0, 0)
+        assertEquals(pending, detector.pendingConfirmation)
+        assertNull(detector.readyConfirmation)
+        assertNull(detector.confirmPendingRefuel())
+        detector.observeDetailed(0, 58)
+        assertNull(detector.readyConfirmation)
+        detector.observeDetailed(0, 58)
+        assertEquals(58, detector.readyConfirmation?.candidateFuelLitres)
+
+        detector.observeDetailed(0, 48)
+        assertNull(detector.pendingConfirmation)
+        assertNull(detector.readyConfirmation)
+        assertNull(detector.confirmPendingRefuel())
+        assertEquals(48, detector.baselineFuelLitres())
     }
 
     @Test
@@ -940,9 +984,8 @@ class TelemetryDecoderTest {
         val candidate = detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
         trip.onTelemetryWithFuelDecision(0, 800, 42, 1_000, candidate)
         partial.advanceWithFuelDecision(0, 42, 1_000, candidate)
-        val confirmation = detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
-            as ConfirmedFuelLevelChange.ConfirmationRequired
-        val confirmed = detector.confirmPendingRefuel(confirmation.confirmation)
+        detector.observeDetailed(speedKmh = 0, fuelLitres = 42)
+        val confirmed = detector.confirmPendingRefuel()!!
         val tripResult = trip.onTelemetryWithFuelDecision(0, 800, 42, 2_000, confirmed)
         val partialResult = partial.advanceWithFuelDecision(0, 42, 2_000, confirmed)
 

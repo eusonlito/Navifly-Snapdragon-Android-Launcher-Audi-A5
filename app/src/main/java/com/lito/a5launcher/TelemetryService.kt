@@ -415,6 +415,7 @@ class TelemetryService : Service() {
 
                             _speedFlow.value = telemetry.speed
                             _rpmFlow.value = telemetry.rpm
+                            _fuelFlow.value = telemetry.fuelLitres
                             val drivingSample = DrivingSample(
                                 speed = telemetry.speed,
                                 rpm = telemetry.rpm,
@@ -422,14 +423,13 @@ class TelemetryService : Service() {
                             )
                             _calculatedGearFlow.value = gearTelemetryCoordinator.update(drivingSample)
                             val now = SystemClock.elapsedRealtime()
-                            val fuelDecision = if (_pendingRefuelConfirmationFlow.value == null) {
-                                confirmedRefuelDetector.observeDetailed(
-                                    telemetry.speed,
-                                    telemetry.fuelLitres,
-                                )
-                            } else null
-                            (fuelDecision as? ConfirmedFuelLevelChange.ConfirmationRequired)
-                                ?.let { _pendingRefuelConfirmationFlow.value = it.confirmation }
+                            val pendingBefore = confirmedRefuelDetector.pendingConfirmation
+                            val fuelDecision = confirmedRefuelDetector.observeDetailed(
+                                telemetry.speed,
+                                telemetry.fuelLitres,
+                            )
+                            _pendingRefuelConfirmationFlow.value =
+                                confirmedRefuelDetector.readyConfirmation
                             val confirmedRefuel = (fuelDecision as? ConfirmedFuelLevelChange.Refuel)
                                 ?.let { decision ->
                                     decision to _partialStatisticsFlow.value.distanceKm
@@ -481,21 +481,22 @@ class TelemetryService : Service() {
                             }
                             publishDistanceSinceRefuel(partialUpdate)
                             advanceTotalStatistics(telemetry, now, fuelDecision)
-                            if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
+                            val pendingChanged = pendingBefore !=
+                                confirmedRefuelDetector.pendingConfirmation
+                            if (pendingChanged ||
+                                fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel ||
                                 fuelDecision is ConfirmedFuelLevelChange.ConfirmationRequired
                             ) {
                                 persistDistanceSinceRefuel(
-                                    synchronously = fuelDecision is
-                                        ConfirmedFuelLevelChange.ConfirmationRequired,
+                                    synchronously = pendingChanged,
                                 )
                                 persistTripSession()
                             }
                             telemetry.odometerKm?.takeIf { it > 0 }?.let {
                                 _mileageFlow.value = it
                             }
-                            _fuelFlow.value = telemetry.fuelLitres
                             _outsideTempFlow.value = telemetry.outsideTemperatureCelsius
                         }
                     }
@@ -530,8 +531,7 @@ class TelemetryService : Service() {
     private fun resolvePendingRefuel(resetPartialStatistics: Boolean) {
         scope.launch {
             coreTelemetryMutex.withLock {
-                val pending = _pendingRefuelConfirmationFlow.value ?: return@withLock
-                val decision = confirmedRefuelDetector.confirmPendingRefuel(pending)
+                val decision = confirmedRefuelDetector.confirmPendingRefuel() ?: return@withLock
                 _pendingRefuelConfirmationFlow.value = null
                 applyResolvedFuelDecision(
                     decision = decision,
@@ -600,8 +600,10 @@ class TelemetryService : Service() {
         initializeFunctionalEvents()
         publishJourneyHistory()
         val refuelState = refuelStore.read()
-        _pendingRefuelConfirmationFlow.value = refuelState.pendingRefuelConfirmation
-        confirmedRefuelDetector = ConfirmedRefuelDetector(refuelState.lastFuelLitres)
+        confirmedRefuelDetector = ConfirmedRefuelDetector(
+            refuelState.lastFuelLitres,
+            refuelState.pendingRefuelConfirmation,
+        )
         restoreTripSession(refuelState)
         restoreDistanceSinceRefuel(refuelState)
         val totalState = totalStatisticsStore.read()
@@ -967,7 +969,7 @@ class TelemetryService : Service() {
         if (!::distanceSinceRefuelTracker.isInitialized) return
         refuelStore.write(
             distanceSinceRefuelTracker.persistenceSnapshot().copy(
-                pendingRefuelConfirmation = _pendingRefuelConfirmationFlow.value,
+                pendingRefuelConfirmation = confirmedRefuelDetector.pendingConfirmation,
             ),
             synchronously = synchronously,
         )

@@ -158,6 +158,59 @@ class DistanceSinceRefuelStoreTest {
 
         assertNull(store.read().pendingRefuelConfirmation)
     }
+
+    @Test
+    fun restoredRefuelWaitsForCurrentCanFuelAndResetsOnlyOnce() {
+        val store = DistanceSinceRefuelStore(MemorySharedPreferences())
+        val savedPrompt = PendingRefuelConfirmation(48, 52, 2)
+        store.write(DistanceSinceRefuelPersistenceSnapshot(
+            195.5, 48, DistanceSinceRefuelStatisticsState(), savedPrompt,
+        ))
+        val state = store.read()
+        val detector = ConfirmedRefuelDetector(state.lastFuelLitres, state.pendingRefuelConfirmation)
+        val partial = DistanceSinceRefuelTracker(
+            state.distanceKm, state.lastFuelLitres, state.statisticsState, refuelDetector = null,
+        )
+
+        // No CAN event has arrived; neither restored state nor zero enables a reset.
+        assertNull(detector.readyConfirmation)
+        assertNull(detector.confirmPendingRefuel())
+        detector.observeDetailed(0, 0)
+        assertNull(detector.readyConfirmation)
+        assertNull(detector.confirmPendingRefuel())
+        assertEquals(195.5, partial.onTick(0L).distanceKm, .000_001)
+        store.write(partial.persistenceSnapshot().copy(
+            pendingRefuelConfirmation = detector.pendingConfirmation,
+        ))
+        assertEquals(savedPrompt, store.read().pendingRefuelConfirmation)
+
+        // The stored prompt was confirmed while stopped; revalidate it even if moving now.
+        assertNull(detector.observeDetailed(10, 58))
+        assertNull(detector.readyConfirmation)
+        val decision = detector.observeDetailed(10, 58)
+        assertEquals(
+            ConfirmedFuelLevelChange.ConfirmationRequired(PendingRefuelConfirmation(48, 58, 2)),
+            decision,
+        )
+        val waiting = partial.advanceWithFuelDecision(0, 58, 1_000L, decision)
+        assertFalse(waiting.statisticsReset)
+        assertEquals(195.5, waiting.distanceKm, .000_001)
+
+        val confirmed = detector.confirmPendingRefuel()!!
+        val reset = partial.advanceWithFuelDecision(0, 58, 2_000L, confirmed)
+        assertEquals(0.0, reset.distanceKm, .000_001)
+        assertNull(detector.confirmPendingRefuel())
+        store.write(partial.persistenceSnapshot().copy(
+            pendingRefuelConfirmation = detector.pendingConfirmation,
+        ))
+        val nextBoot = store.read()
+        val restored = ConfirmedRefuelDetector(nextBoot.lastFuelLitres, nextBoot.pendingRefuelConfirmation)
+        assertEquals(58, nextBoot.lastFuelLitres)
+        assertNull(nextBoot.pendingRefuelConfirmation)
+        assertNull(restored.observeDetailed(0, 58))
+        assertNull(restored.observeDetailed(0, 58))
+        assertNull(restored.readyConfirmation)
+    }
 }
 
 internal class MemorySharedPreferences : SharedPreferences {

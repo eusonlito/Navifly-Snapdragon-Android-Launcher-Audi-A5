@@ -318,9 +318,16 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    consecutivas con el coche detenido y la confirmación del conductor. No existe
    reinicio automático por repostaje, independientemente del tamaño del cambio.
    El aviso es deliberadamente genérico y no expone las lecturas enteras del
-   aforador. La
-   confirmación pendiente se guarda de forma síncrona y se conserva entre
-   reinicios del dispositivo. Si se rechaza, el nuevo nivel se adopta como
+   aforador. La confirmación pendiente se guarda de forma síncrona y se conserva
+   entre reinicios del dispositivo. Al restaurarla, el aviso permanece oculto
+   hasta recibir dos muestras CAN válidas que confirmen el aumento actual; el
+   cero inicial o la ausencia de eventos no permiten confirmar ni reiniciar el
+   parcial. Un aviso ya confirmado en parado puede revalidarse aunque el coche
+   haya empezado a circular. Mientras espera respuesta, el candidato se actualiza
+   con el combustible recibido para no adoptar un nivel antiguo y pedir otra
+   confirmación por el mismo repostaje. Una lectura cero oculta el aviso hasta
+   revalidarlo; una lectura válida sin el aumento requerido lo cancela.
+   Si se rechaza, el nuevo nivel se adopta como
    referencia sin reiniciar el parcial.
    Además, mientras el vehículo permanece detenido la referencia no
    aprende descensos: así, dos lecturas bajas transitorias durante el arranque
