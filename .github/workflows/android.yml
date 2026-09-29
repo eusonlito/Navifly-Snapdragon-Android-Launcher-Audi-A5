@@ -161,8 +161,8 @@ jobs:
             git push origin "refs/tags/$RELEASE_TAG"
           fi
 
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > release.json 2> release-error.txt; then
-            complete=$(jq -r '.draft == false and ([.assets[] | select(.state == "uploaded" and .size > 0) | .name] | contains(["A5Cockpit.apk", "A5Cockpit.apk.sha256"]))' release.json)
+          if gh release view "$RELEASE_TAG" --json isDraft,assets > release.json 2> release-error.txt; then
+            complete=$(jq -r '.isDraft == false and ([.assets[] | select(.state == "uploaded" and .size > 0) | .name] | contains(["A5Cockpit.apk", "A5Cockpit.apk.sha256"]))' release.json)
             if [[ "$complete" == true ]]; then
               echo "$RELEASE_TAG is already published; keeping its APK."
               exit 0
@@ -173,7 +173,7 @@ jobs:
               --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
           fi
 
-          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.id')
+          release_id=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
             -F draft=false -f make_latest=legacy > /dev/null
 

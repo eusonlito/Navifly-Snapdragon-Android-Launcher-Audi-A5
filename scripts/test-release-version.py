@@ -78,9 +78,15 @@ from pathlib import Path
 args = sys.argv[1:]
 p = Path("state.json")
 state = json.loads(p.read_text()) if p.exists() else None
-if args[0] == "api" and "--method" not in args:
+if args[:2] == ["release", "view"]:
     if state is None: sys.exit(1)
-    print(state["id"] if "--jq" in args else json.dumps(state))
+    print(state["id"] if "--jq" in args else json.dumps(
+        {"databaseId": state["id"], "isDraft": state["draft"], "assets": state["assets"]}))
+    sys.exit(0)
+if args[0] == "api" and "--method" not in args:
+    # GitHub's tag endpoint cannot find draft releases.
+    if state is None or state["draft"]: sys.exit(1)
+    print(json.dumps(state))
     sys.exit(0)
 if args[:2] == ["release", "create"]:
     assert state is None and "--draft" in args and "--verify-tag" in args
