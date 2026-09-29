@@ -176,4 +176,25 @@ class MapMotionSmootherTest {
         assertEquals(true, shouldStartMapExploration(pointerCount = 1))
         assertEquals(false, shouldStartMapExploration(pointerCount = 2))
     }
+
+    @Test
+    fun `zooming out shrinks the vehicle marker without making it disappear`() {
+        assertEquals(1f, mapVehicleMarkerScale(16.0, 16.0, false), 0f)
+        assertEquals(.7071f, mapVehicleMarkerScale(15.0, 16.0, false), .0001f)
+        assertEquals(.5f, mapVehicleMarkerScale(14.0, 16.0, false), 0f)
+        assertEquals(.5f, mapVehicleMarkerScale(MAP_MINIMUM_ZOOM, 16.0, false), 0f)
+        assertEquals(1f, mapVehicleMarkerScale(MAP_MAXIMUM_ZOOM, 16.0, false), 0f)
+    }
+
+    @Test
+    fun `recenter restores full marker size even at minimum zoom`() {
+        val tracking = MapCameraTrackingState()
+        tracking.startExploration()
+        assertEquals(.5f, mapVehicleMarkerScale(0.0, 16.0, tracking.isFollowing), 0f)
+
+        tracking.recenter()
+
+        assertEquals(1f, mapVehicleMarkerScale(0.0, 16.0, tracking.isFollowing), 0f)
+        assertEquals(.5f, mapVehicleMarkerScale(7.0, 9.0, false), 0f)
+    }
 }

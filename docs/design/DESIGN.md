@@ -95,6 +95,12 @@ Ubicado en la zona inferior central:
 
 ### Dirección OEM Futuristic
 
+La entrada progresiva del launcher dura 2.200 ms y se reproduce una vez por
+proceso: primero aparecen las esferas y después el resto del contenido. El
+estado inicial ya es el fotograma oculto, antes de ejecutar el efecto Compose,
+para evitar mostrar el cuadro completo y volver a negro al arrancar. Al volver
+al launcher dentro del mismo proceso se muestra directamente el cuadro.
+
 La referencia aprobada es `design-concepts/oem-futuristic-final-2400x896.png`.
 Su implementación conserva el mapa claro y sustituye los degradados decorativos
 por superficies planas de grafito, anillos concéntricos, bordes de titanio y
@@ -222,10 +228,15 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   y el mapa admite zoom mediante pellizco con dos dedos.
 * El marcador de posición es una flecha de navegación compacta dentro de un
   aro transparente reducido, sin relleno negro ni halo exterior. La
-  flecha conserva el rumbo vertical exacto y gana volumen mediante una base
+  flecha conserva el rumbo vertical exacto durante el seguimiento y gana volumen mediante una base
   inferior oscura y una arista iluminada, sin inclinar el eje direccional. Es cian en
   estado normal, amarillo cuando falta señal GPS y rojo cuando no hay red. La
   ausencia de red tiene prioridad si coinciden ambos estados.
+  Al arrastrar o hacer zoom, el marcador continúa ligado a la coordenada GPS
+  y muestra el rumbo respecto a la cámara. Al alejar, se reduce progresivamente
+  desde 38 dp hasta un mínimo de 19 dp. «Volver a la Posición Actual» restaura
+  los 38 dp y el seguimiento, conservando el zoom elegido. El marcador sigue
+  actualizando su posición mientras se explora el mapa.
 * Las escalas máximas del vehículo real son 280 km/h y 6.000 rpm.
 * La zona roja del tacómetro comienza exactamente en 4.500 rpm y continúa sin
   interrupciones hasta el final de la escala, en 6.000 rpm.

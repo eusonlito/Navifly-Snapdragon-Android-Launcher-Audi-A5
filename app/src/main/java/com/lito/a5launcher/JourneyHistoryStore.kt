@@ -23,6 +23,8 @@ data class JourneyHistoryRecord(
 data class JourneyHistorySnapshot(
     val enabled: Boolean = true,
     val records: List<JourneyHistoryRecord> = emptyList(),
+    val tripStartedAtEpochMs: Long? = null,
+    val partialStartedAtEpochMs: Long? = null,
 )
 
 internal class JourneyHistoryStore(

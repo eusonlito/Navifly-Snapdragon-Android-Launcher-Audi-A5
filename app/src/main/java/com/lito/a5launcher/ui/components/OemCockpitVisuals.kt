@@ -97,7 +97,9 @@ private val processOemStartupGate = AtomicBoolean(false)
 
 @Composable
 internal fun rememberOemStartupProgress(): State<Float?> {
-    val progress = remember { mutableStateOf<Float?>(null) }
+    val progress = remember {
+        mutableStateOf<Float?>(if (processOemStartupGate.get()) null else 0f)
+    }
     LaunchedEffect(Unit) {
         if (processOemStartupGate.compareAndSet(false, true)) {
             val animation = Animatable(0f)
@@ -115,6 +117,8 @@ internal fun rememberOemStartupProgress(): State<Float?> {
                 progress.value = null
                 if (!completed) processOemStartupGate.set(false)
             }
+        } else {
+            progress.value = null
         }
     }
     return progress

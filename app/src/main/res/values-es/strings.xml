@@ -81,6 +81,9 @@
     <string name="dialog_close">Cerrar</string>
     <string name="trip_statistics_title">Estadísticas Viaje</string>
     <string name="partial_statistics_title">Estadísticas Parciales</string>
+    <string name="total_statistics_title">Estadísticas Totales</string>
+    <string name="statistics_newer_record">Registro más reciente</string>
+    <string name="statistics_older_record">Registro anterior</string>
     <string name="statistics_distance">Distancia</string>
     <string name="statistics_elapsed_time">Tiempo Total</string>
     <string name="statistics_moving_time">En Movimiento</string>

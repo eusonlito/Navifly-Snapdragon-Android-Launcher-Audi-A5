@@ -8,6 +8,59 @@ import org.junit.Test
 
 class DistanceSinceRefuelStoreTest {
     @Test
+    fun totalStatisticsSurviveRefuelsPartialResetsProcessRestorationAndNewTrips() {
+        val store = DistanceSinceRefuelStore(MemorySharedPreferences())
+        val total = DistanceSinceRefuelTracker(refuelDetector = null)
+        val partial = DistanceSinceRefuelTracker(refuelDetector = null)
+        listOf(total, partial).forEach { tracker ->
+            tracker.advanceWithFuelDecision(
+                60, 40, 0L, ConfirmedFuelLevelChange.Initialized,
+                CumulativeFuelUsage(0.0, 0.0), 7L,
+            )
+        }
+        total.advanceWithFuelDecision(
+            60, 39, 1_000L, ConfirmedFuelLevelChange.Drop(1),
+            CumulativeFuelUsage(.1, 1.0), 7L,
+        )
+        partial.resetManually(39, 1_000L, CumulativeFuelUsage(.1, 1.0), 7L)
+        val refuelled = total.advanceWithFuelDecision(
+            0, 45, 2_000L, ConfirmedFuelLevelChange.Refuel(45, 39, 2),
+            CumulativeFuelUsage(.2, 1.0), 7L, resetStatisticsOnRefuel = false,
+        ).statistics
+        assertEquals(2_000L, refuelled.elapsedMs)
+        assertEquals(60, refuelled.maximumSpeedKmh)
+        assertEquals(.2, refuelled.fuelUsedLitres, .000_001)
+        assertEquals(1.0, refuelled.observedFuelSpentLitres)
+        assertEquals(0.0, partial.onTick(1_000L).statistics.distanceKm, .000_001)
+
+        store.write(total.persistenceSnapshot())
+        val state = store.read()
+        val restored = DistanceSinceRefuelTracker(
+            state.distanceKm, state.lastFuelLitres, state.statisticsState, refuelDetector = null,
+        )
+        assertEquals(refuelled, restored.onTick(3_000L, CumulativeFuelUsage(.2, 1.0), 7L).statistics)
+        assertEquals(refuelled, restored.onTick(3_000L, CumulativeFuelUsage(.2, 1.0), 7L).statistics)
+
+        // A new boot has its own fuel counters and monotonic clock.
+        val rebooted = DistanceSinceRefuelTracker(
+            state.distanceKm, state.lastFuelLitres, state.statisticsState, refuelDetector = null,
+        )
+        rebooted.onTick(0L, CumulativeFuelUsage(0.0, 0.0), 8L)
+        rebooted.advanceWithFuelDecision(30, 45, 0L, null, CumulativeFuelUsage(0.0, 0.0), 8L)
+        val nextTrip = rebooted.advanceWithFuelDecision(
+            30, 44, 1_000L, ConfirmedFuelLevelChange.Drop(1), CumulativeFuelUsage(.1, 1.0), 8L,
+        ).statistics
+        assertEquals(3_000L, nextTrip.elapsedMs)
+        assertEquals(3_000L, nextTrip.movingElapsedMs)
+        assertEquals(60, nextTrip.maximumSpeedKmh)
+        assertEquals(refuelled.distanceKm + 30.0 / 3_600, nextTrip.distanceKm, .000_001)
+        assertEquals(.3, nextTrip.fuelUsedLitres, .000_001)
+        assertEquals(2.0, nextTrip.confirmedCanFuelUsedLitres, .000_001)
+        assertEquals(2.0, nextTrip.observedFuelSpentLitres)
+        assertEquals(nextTrip.distanceKm / (3_000.0 / 3_600_000), nextTrip.averageSpeedKmh, .000_001)
+    }
+
+    @Test
     fun observedCanFuelLevelsSurviveStoreRoundTrip() {
         val store = DistanceSinceRefuelStore(MemorySharedPreferences())
         val statistics = DistanceSinceRefuelStatisticsState(

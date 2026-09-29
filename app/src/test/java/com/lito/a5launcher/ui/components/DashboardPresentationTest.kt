@@ -2,10 +2,27 @@ package com.lito.a5launcher.ui.components
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.lito.a5launcher.JourneyHistoryKind
+import com.lito.a5launcher.JourneyHistoryRecord
+import com.lito.a5launcher.JourneyStatisticsSnapshot
 import java.util.Locale
 import java.util.TimeZone
 
 class DashboardPresentationTest {
+    @Test
+    fun statisticsHistoryKeepsOnlyItsScopeAndOrdersNewestFirst() {
+        val older = JourneyHistoryRecord("old", JourneyHistoryKind.TRIP, 1L, 2L, JourneyStatisticsSnapshot())
+        val newer = older.copy(id = "new", startedAtEpochMs = 3L, endedAtEpochMs = 4L)
+        val partial = newer.copy(id = "partial", kind = JourneyHistoryKind.PARTIAL)
+        val records = listOf(older, partial, newer)
+
+        assertEquals(listOf(newer, older), statisticsPanelHistory(records, StatisticsPanelScope.TRIP))
+        assertEquals(listOf(partial), statisticsPanelHistory(records, StatisticsPanelScope.PARTIAL))
+        assertEquals(emptyList<JourneyHistoryRecord>(), statisticsPanelHistory(records, StatisticsPanelScope.TOTAL))
+        assertEquals(StatisticsPanelScope.TOTAL, toggleStatisticsPanel(null, StatisticsPanelScope.TOTAL))
+        assertEquals(null, toggleStatisticsPanel(StatisticsPanelScope.TOTAL, StatisticsPanelScope.TOTAL))
+    }
+
     @Test
     fun statisticsPanelOnlyClosesWhenItsActiveFooterBlockIsPressedAgain() {
         assertEquals(

@@ -292,6 +292,9 @@ class TelemetryService : Service() {
     val partialStatisticsFlow: StateFlow<JourneyStatisticsSnapshot> =
         _partialStatisticsFlow.asStateFlow()
 
+    private val _totalStatisticsFlow = MutableStateFlow(JourneyStatisticsSnapshot())
+    val totalStatisticsFlow: StateFlow<JourneyStatisticsSnapshot> = _totalStatisticsFlow.asStateFlow()
+
     private val _pendingRefuelConfirmationFlow =
         MutableStateFlow<PendingRefuelConfirmation?>(null)
     val pendingRefuelConfirmationFlow: StateFlow<PendingRefuelConfirmation?> =
@@ -309,6 +312,7 @@ class TelemetryService : Service() {
     private var tripMetricsJob: Job? = null
     private lateinit var tripSession: TripSessionTracker
     private lateinit var distanceSinceRefuelTracker: DistanceSinceRefuelTracker
+    private lateinit var totalStatisticsTracker: DistanceSinceRefuelTracker
     private lateinit var confirmedRefuelDetector: ConfirmedRefuelDetector
     private val coreTelemetryMutex = Mutex()
     private var latestCoreTelemetry: CoreTelemetry? = null
@@ -329,6 +333,9 @@ class TelemetryService : Service() {
     }
     private val rangePreferences by lazy {
         getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE)
+    }
+    private val totalStatisticsStore by lazy {
+        DistanceSinceRefuelStore(getSharedPreferences("total_statistics", Context.MODE_PRIVATE))
     }
     private val consumptionCalibrationStore by lazy {
         ConsumptionCalibrationStore(
@@ -436,6 +443,7 @@ class TelemetryService : Service() {
                             )
                             publishTripMetrics(
                                 tripMetrics,
+                                now,
                             )
                             val partialUpdate = applyFuelDecisionAndRecordPartialReset(
                                 confirmedRefuel = confirmedRefuel,
@@ -472,6 +480,7 @@ class TelemetryService : Service() {
                                 )
                             }
                             publishDistanceSinceRefuel(partialUpdate)
+                            advanceTotalStatistics(telemetry, now, fuelDecision)
                             if (fuelDecision is ConfirmedFuelLevelChange.Initialized ||
                                 fuelDecision is ConfirmedFuelLevelChange.Drop ||
                                 fuelDecision is ConfirmedFuelLevelChange.Refuel ||
@@ -540,7 +549,7 @@ class TelemetryService : Service() {
                 val tripMetrics = tripSession.onTick(now)
                 val fuelLitres = _fuelFlow.value.takeIf { it > 0 }
                 fuelLitres?.let(confirmedRefuelDetector::adoptFuelLevel)
-                publishTripMetrics(tripMetrics)
+                publishTripMetrics(tripMetrics, now)
                 publishDistanceSinceRefuel(
                     distanceSinceRefuelTracker.resetManually(
                         fuelLitres = fuelLitres,
@@ -559,20 +568,27 @@ class TelemetryService : Service() {
 
     fun setJourneyHistoryEnabled(enabled: Boolean) {
         scope.launch(Dispatchers.IO) {
-            _journeyHistoryFlow.value = journeyHistoryManager.setEnabled(enabled)
+            publishJourneyHistory(journeyHistoryManager.setEnabled(enabled))
         }
     }
 
     fun deleteJourneyHistoryRecord(id: String) {
         scope.launch(Dispatchers.IO) {
-            _journeyHistoryFlow.value = journeyHistoryManager.delete(id)
+            publishJourneyHistory(journeyHistoryManager.delete(id))
         }
     }
 
     fun clearJourneyHistory() {
         scope.launch(Dispatchers.IO) {
-            _journeyHistoryFlow.value = journeyHistoryManager.deleteAll()
+            publishJourneyHistory(journeyHistoryManager.deleteAll())
         }
+    }
+
+    private fun publishJourneyHistory(snapshot: JourneyHistorySnapshot = journeyHistoryManager.snapshot()) {
+        _journeyHistoryFlow.value = snapshot.copy(
+            tripStartedAtEpochMs = tripStartedAtEpochMs.takeIf { it > 0L },
+            partialStartedAtEpochMs = journeyHistoryManager.partialStartedAtEpochMs(),
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -582,16 +598,24 @@ class TelemetryService : Service() {
         Log.i(TAG, "Creating TelemetryService...")
         startAsForegroundService()
         initializeFunctionalEvents()
-        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+        publishJourneyHistory()
         val refuelState = refuelStore.read()
         _pendingRefuelConfirmationFlow.value = refuelState.pendingRefuelConfirmation
         confirmedRefuelDetector = ConfirmedRefuelDetector(refuelState.lastFuelLitres)
         restoreTripSession(refuelState)
         restoreDistanceSinceRefuel(refuelState)
+        val totalState = totalStatisticsStore.read()
+        totalStatisticsTracker = DistanceSinceRefuelTracker(
+            totalState.distanceKm,
+            totalState.lastFuelLitres,
+            totalState.statisticsState,
+            refuelDetector = null,
+        )
+        publishTripMetrics(tripSession.onTick(SystemClock.elapsedRealtime()))
         journeyHistoryManager.initializePartial(
             System.currentTimeMillis() - refuelState.statisticsState.elapsedMs.coerceAtLeast(0L),
         )
-        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+        publishJourneyHistory()
         persistTripSession()
         startTripMetrics()
         runCatching {
@@ -788,15 +812,42 @@ class TelemetryService : Service() {
         }
     }
 
-    private fun publishTripMetrics(metrics: TripMetricsSnapshot) {
+    private fun publishTripMetrics(
+        metrics: TripMetricsSnapshot,
+        now: Long = SystemClock.elapsedRealtime(),
+    ) {
         _tripStatisticsFlow.value = metrics.statistics
         _rangeFlow.value = authoritativeRangeKm(metrics)
+        if (::totalStatisticsTracker.isInitialized) {
+            _totalStatisticsFlow.value = totalStatisticsTracker.onTick(
+                now,
+                CumulativeFuelUsage(metrics.fuelUsedLitres, metrics.confirmedCanFuelUsedLitres),
+                currentTripGeneration,
+            ).statistics
+        }
+    }
+
+    private fun advanceTotalStatistics(
+        telemetry: CoreTelemetry,
+        now: Long,
+        decision: ConfirmedFuelLevelChange?,
+    ) {
+        val statistics = _tripStatisticsFlow.value
+        _totalStatisticsFlow.value = totalStatisticsTracker.advanceWithFuelDecision(
+            telemetry.speed,
+            telemetry.fuelLitres,
+            now,
+            decision,
+            CumulativeFuelUsage(statistics.fuelUsedLitres, statistics.confirmedCanFuelUsedLitres),
+            currentTripGeneration,
+            resetStatisticsOnRefuel = false,
+        ).statistics
     }
 
     private fun refreshTripAndPartial(now: Long) {
         if (!::tripSession.isInitialized || !::distanceSinceRefuelTracker.isInitialized) return
         val tripMetrics = tripSession.onTick(now)
-        publishTripMetrics(tripMetrics)
+        publishTripMetrics(tripMetrics, now)
         publishDistanceSinceRefuel(
             distanceSinceRefuelTracker.onTick(
                 elapsedRealtimeMs = now,
@@ -884,7 +935,7 @@ class TelemetryService : Service() {
             now,
             decision,
         )
-        publishTripMetrics(tripMetrics)
+        publishTripMetrics(tripMetrics, now)
         val partialUpdate = distanceSinceRefuelTracker.advanceWithFuelDecision(
             telemetry.speed,
             fuelLitres,
@@ -907,6 +958,7 @@ class TelemetryService : Service() {
             )
         }
         publishDistanceSinceRefuel(partialUpdate)
+        advanceTotalStatistics(telemetry, now, decision)
         persistTripSession()
         persistDistanceSinceRefuel(synchronously = true)
     }
@@ -919,6 +971,12 @@ class TelemetryService : Service() {
             ),
             synchronously = synchronously,
         )
+        if (::totalStatisticsTracker.isInitialized) {
+            totalStatisticsStore.write(
+                totalStatisticsTracker.persistenceSnapshot(),
+                synchronously = synchronously,
+            )
+        }
     }
 
     private fun persistTripSession() {
@@ -998,12 +1056,12 @@ class TelemetryService : Service() {
             ).takeIf { it > 0 },
         )
         journeyHistoryManager.closeTrip(generation, startedAt, endedAt, statistics)
-        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+        publishJourneyHistory()
     }
 
     private fun closeCurrentPartial(endedAtEpochMs: Long) {
         journeyHistoryManager.closePartial(_partialStatisticsFlow.value, endedAtEpochMs)
-        _journeyHistoryFlow.value = journeyHistoryManager.snapshot()
+        publishJourneyHistory()
     }
 
     private fun restoreRangeConsumptionState(): RangeConsumptionState {

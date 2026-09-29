@@ -27,10 +27,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +41,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -152,6 +153,13 @@ internal const val MAP_DARK_ACTIVATION_DELAY_MS = 60_000L
 
 internal fun clampMapZoom(zoom: Double): Double =
     zoom.coerceIn(MAP_MINIMUM_ZOOM, MAP_MAXIMUM_ZOOM)
+
+internal fun mapVehicleMarkerScale(
+    zoom: Double,
+    referenceZoom: Double,
+    isFollowing: Boolean,
+): Float = if (isFollowing) 1f else
+    2.0.pow((zoom - referenceZoom) / 2.0).coerceIn(.5, 1.0).toFloat()
 
 enum class MapTileStyle(
     val displayName: String,
@@ -684,10 +692,14 @@ private fun CockpitMapView(
     val session = remember(cacheGeneration, tileStyle, zoomPreferenceKey) {
         MapViewSession("M-${UUID.randomUUID().toString().take(8)}")
     }
+    var markerScreenPosition by remember(session) { mutableStateOf(Offset.Unspecified) }
+    var markerScreenBearing by remember(session) { mutableFloatStateOf(0f) }
+    var markerZoom by remember(session) { mutableDoubleStateOf(initialZoom) }
+    var markerReferenceZoom by remember(session) { mutableDoubleStateOf(initialZoom) }
     LaunchedEffect(session) {
         cameraTracking.recenter()
     }
-    BoxWithConstraints(
+    Box(
         modifier = modifier.background(Color(0xFF071014)),
     ) {
         key(cacheGeneration, tileStyle, zoomPreferenceKey) {
@@ -896,12 +908,12 @@ private fun CockpitMapView(
                 return@LaunchedEffect
             }
             var lastRendered: MapMotionSample? = null
-            var lastCameraFrameNanos = 0L
+            var lastFrameNanos = 0L
             onDiagnostic("${session.id} CÁMARA CONTINUA | retardo=250ms | predicción_máxima=1000ms")
             while (currentCoroutineContext().isActive) {
                 withFrameNanos { frameTimeNanos ->
                     val rendered = motionSmoother.positionAt(SystemClock.elapsedRealtime())
-                    val frameDue = frameTimeNanos - lastCameraFrameNanos >=
+                    val frameDue = frameTimeNanos - lastFrameNanos >=
                         CAMERA_FRAME_INTERVAL_NANOS
                     if (rendered != null && cameraTracking.shouldUpdate(
                             frameDue = frameDue,
@@ -922,8 +934,22 @@ private fun CockpitMapView(
                             )
                         )
                         lastRendered = rendered
-                        lastCameraFrameNanos = frameTimeNanos
                         cameraTracking.markUpdated()
+                    }
+                    if (rendered != null && frameDue) {
+                        // Project the vehicle independently of camera tracking so
+                        // gestures move the map beneath its actual GPS position.
+                        val point = map.projection.toScreenLocation(
+                            LatLng(rendered.latitude, rendered.longitude)
+                        )
+                        markerScreenPosition = Offset(point.x, point.y)
+                        val camera = map.cameraPosition
+                        markerScreenBearing = normalizeDegrees(
+                            rendered.bearing - camera.bearing.toFloat()
+                        )
+                        markerZoom = camera.zoom
+                        if (cameraTracking.isFollowing) markerReferenceZoom = camera.zoom
+                        lastFrameNanos = frameTimeNanos
                     }
                 }
             }
@@ -1002,15 +1028,23 @@ private fun CockpitMapView(
             }
         }
 
-        if (cameraTracking.isFollowing) {
-            MapVehicleMarker(
-                color = markerColor,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = maxHeight * .30f)
-                    .size(38.dp),
-            )
-        }
+        MapVehicleMarker(
+            color = markerColor,
+            modifier = Modifier
+                .size(38.dp)
+                .graphicsLayer {
+                    val point = markerScreenPosition
+                    alpha = if (point.x.isFinite() && point.y.isFinite()) 1f else 0f
+                    translationX = if (point.x.isFinite()) point.x - size.width / 2f else 0f
+                    translationY = if (point.y.isFinite()) point.y - size.height / 2f else 0f
+                    rotationZ = markerScreenBearing
+                    val scale = mapVehicleMarkerScale(
+                        markerZoom, markerReferenceZoom, cameraTracking.isFollowing
+                    )
+                    scaleX = scale
+                    scaleY = scale
+                },
+        )
     }
 }
 

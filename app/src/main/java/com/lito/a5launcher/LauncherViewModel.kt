@@ -88,6 +88,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _partialStatistics = MutableStateFlow(JourneyStatisticsSnapshot())
     val partialStatistics: StateFlow<JourneyStatisticsSnapshot> = _partialStatistics.asStateFlow()
 
+    private val _totalStatistics = MutableStateFlow(JourneyStatisticsSnapshot())
+    val totalStatistics: StateFlow<JourneyStatisticsSnapshot> = _totalStatistics.asStateFlow()
+
     private val _pendingRefuelConfirmation = MutableStateFlow<PendingRefuelConfirmation?>(null)
     val pendingRefuelConfirmation: StateFlow<PendingRefuelConfirmation?> =
         _pendingRefuelConfirmation.asStateFlow()
@@ -154,6 +157,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 })
                 collectionJobs.add(viewModelScope.launch {
                     svc.partialStatisticsFlow.collect { _partialStatistics.value = it }
+                })
+                collectionJobs.add(viewModelScope.launch {
+                    svc.totalStatisticsFlow.collect { _totalStatistics.value = it }
                 })
                 collectionJobs.add(viewModelScope.launch {
                     svc.pendingRefuelConfirmationFlow.collect {

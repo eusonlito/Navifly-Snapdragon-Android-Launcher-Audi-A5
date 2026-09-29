@@ -245,6 +245,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val gear by viewModel.gear.collectAsStateWithLifecycle()
     val tripStatistics by viewModel.tripStatistics.collectAsStateWithLifecycle()
     val partialStatistics by viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val totalStatistics by viewModel.totalStatistics.collectAsStateWithLifecycle()
     val journeyHistory by viewModel.journeyHistory.collectAsStateWithLifecycle()
     val pendingRefuelConfirmation by
         viewModel.pendingRefuelConfirmation.collectAsStateWithLifecycle()
@@ -673,27 +674,37 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     )
 
                     statisticsPanel?.let { scope ->
-                        JourneyStatisticsPanel(
-                            title = stringResource(
-                                if (scope == StatisticsPanelScope.TRIP) {
-                                    R.string.trip_statistics_title
-                                } else {
-                                    R.string.partial_statistics_title
+                        key(scope) {
+                            JourneyStatisticsPanel(
+                                title = stringResource(
+                                    when (scope) {
+                                        StatisticsPanelScope.TRIP -> R.string.trip_statistics_title
+                                        StatisticsPanelScope.PARTIAL -> R.string.partial_statistics_title
+                                        StatisticsPanelScope.TOTAL -> R.string.total_statistics_title
+                                    },
+                                ),
+                                statistics = when (scope) {
+                                    StatisticsPanelScope.TRIP -> tripStatistics
+                                    StatisticsPanelScope.PARTIAL -> partialStatistics
+                                    StatisticsPanelScope.TOTAL -> totalStatistics
                                 },
-                            ),
-                            statistics = if (scope == StatisticsPanelScope.TRIP) {
-                                tripStatistics
-                            } else {
-                                partialStatistics
-                            },
-                            locale = dashboardLocale,
-                            darkModeActive = darkModeActive,
-                            onClose = { statisticsPanel = null },
-                            onReset = if (scope == StatisticsPanelScope.PARTIAL) {
-                                { showManualPartialResetConfirmation = true }
-                            } else null,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                                history = remember(journeyHistory.records, scope) {
+                                    statisticsPanelHistory(journeyHistory.records, scope)
+                                },
+                                startedAtEpochMs = when (scope) {
+                                    StatisticsPanelScope.TRIP -> journeyHistory.tripStartedAtEpochMs
+                                    StatisticsPanelScope.PARTIAL -> journeyHistory.partialStartedAtEpochMs
+                                    StatisticsPanelScope.TOTAL -> null
+                                },
+                                locale = dashboardLocale,
+                                darkModeActive = darkModeActive,
+                                onClose = { statisticsPanel = null },
+                                onReset = if (scope == StatisticsPanelScope.PARTIAL) {
+                                    { showManualPartialResetConfirmation = true }
+                                } else null,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
 
                     CockpitMapIntegrationOverlay(
@@ -766,6 +777,12 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                         statisticsPanel = toggleStatisticsPanel(
                             current = statisticsPanel,
                             requested = StatisticsPanelScope.PARTIAL,
+                        )
+                    },
+                    onTotalStatistics = {
+                        statisticsPanel = toggleStatisticsPanel(
+                            current = statisticsPanel,
+                            requested = StatisticsPanelScope.TOTAL,
                         )
                     },
                     onBlockOrderChanged = { order ->
@@ -1612,6 +1629,7 @@ private fun CompactVitals(
     blockOrder: List<FooterBlockItem>,
     onTripStatistics: () -> Unit,
     onPartialStatistics: () -> Unit,
+    onTotalStatistics: () -> Unit,
     onBlockOrderChanged: (List<FooterBlockItem>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1683,7 +1701,9 @@ private fun CompactVitals(
                         ) {
                             BottomStatusPanel(doors, seatbeltAlert, parkingBrake, lightsActive)
                         }
-                        FooterBlockItem.ODOMETER -> FooterBlock {
+                        FooterBlockItem.ODOMETER -> FooterBlock(
+                            modifier = Modifier.clickable(onClick = onTotalStatistics),
+                        ) {
                             MiniValue(
                                 stringResource(R.string.dashboard_odometer),
                                 if (mileage > 0) formatDashboardInteger(mileage, locale) else "—",
@@ -1702,7 +1722,7 @@ private fun CompactVitals(
     }
 }
 
-internal enum class StatisticsPanelScope { TRIP, PARTIAL }
+internal enum class StatisticsPanelScope { TRIP, PARTIAL, TOTAL }
 
 internal fun toggleStatisticsPanel(
     current: StatisticsPanelScope?,

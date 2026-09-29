@@ -213,7 +213,7 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    escalares y se descarta al reiniciar el proceso, por lo que no genera
    historiales ni aumenta el almacenamiento con la duración del viaje.
 
-   Los bloques `Viaje` y `Parcial` sustituyen temporalmente el mapa por un panel
+   Los bloques `Viaje`, `Parcial` y `Odómetro` sustituyen temporalmente el mapa por un panel
    negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
    distancia, tiempo total y en movimiento, velocidad media total, velocidad
    media mientras circula, velocidad máxima, combustible estimado, combustible
@@ -241,6 +241,30 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    28 dp dentro de superficies circulares de 40 dp teñidas con su color de
    acción: 10 % en modo oscuro y 24 % en modo claro. Así mantienen una zona
    táctil clara y legible con luz diurna sin comprimir la cabecera.
+
+   `Odómetro` abre las Estadísticas Totales. Acumulan desde la primera ejecución
+   de esta versión, independientemente del historial: no suman los viajes y
+   parciales antiguos, cuyos periodos se solapan. Reutilizan el integrador y la
+   persistencia del parcial en preferencias independientes (`total_statistics`),
+   conservando distancia, tiempos, velocidad máxima y combustible entre arranques,
+   recreaciones del proceso, repostajes y reinicios manuales del parcial. No hay
+   acción de reinicio del total; desactivar o borrar el historial tampoco lo modifica.
+
+   Los paneles de Viaje y Parcial permiten deslizar hacia la izquierda para
+   consultar registros anteriores del mismo ámbito y hacia la derecha para
+   volver a los más recientes. Las flechas ofrecen la misma navegación. La
+   primera página contiene las estadísticas actuales en vivo; las restantes
+   muestran las fotografías cerradas, ordenadas de más reciente a más antigua,
+   junto con las fechas de inicio y fin. En el registro actual, la fecha de fin
+   es la fecha y hora actuales y se actualiza mientras el panel está abierto;
+   en los registros anteriores se utiliza el fin guardado. No se muestra un
+   contador de páginas ni el texto «En curso» en este panel. Las fechas se
+   centran entre las flechas; en el total, la cabecera incorpora 12 dp adicionales
+   de separación antes de los datos.
+   Cada apertura o cambio de
+   ámbito empieza en la página actual, sin recordar la página cerrada. El
+   reinicio del parcial sólo se ofrece en su página actual. La `X`, el botón
+   Atrás de Android y una segunda pulsación en el mismo bloque cierran el panel.
 
    La pestaña `Viajes`, situada en primera posición en Ajustes, conserva una
    fotografía de estas mismas estadísticas al finalizar cada sesión de encendido
