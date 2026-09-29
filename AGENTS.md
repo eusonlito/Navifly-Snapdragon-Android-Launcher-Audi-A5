@@ -3,19 +3,19 @@
 ## Change workflow
 
 - Complete the requested change, run the relevant checks, commit it, and push it
-  directly to `develop`. Do not create working branches or use another branch
-  for implementation, commits, or pushes. This owner preference overrides skill
-  workflows that propose creating branches.
-- Every commit integrated into `develop` must produce a GitHub Release. Check
+  directly to `master`, following development -> tests -> publication. Do not
+  create working branches or use another branch for implementation, commits,
+  or pushes. This owner preference overrides skill branch/PR workflows.
+- Every commit integrated into `master` must produce a GitHub Release. Check
   both the build and every `publish-release` job and resolve failures before
   finishing. Confirm the APK and checksum are published, then leave the working
-  tree clean and synchronized with `origin/develop`.
+  tree clean and synchronized with `origin/master`.
 
 ## Publishing an APK
 
 - Distribute APKs as assets on **GitHub Releases**. This project does not publish
   to GitHub Packages; do not describe a Release asset as a Package.
-- Push the source commit to `develop`; GitHub Actions creates its version tag and
+- Push the source commit to `master`; GitHub Actions creates its version tag and
   Release automatically. No manual tag or extra version commit is required.
 - `scripts/release-version.py` is the version authority, also used by Gradle.
   Each first-parent commit after the automatic-release baseline increments the

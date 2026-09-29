@@ -316,7 +316,7 @@ The Gradle wrapper is included:
 `scripts/compile.sh` runs tests, Lint and the optimized release build. It writes
 the APK, its SHA-256 checksum and the R8 mapping, when present, to `out/`.
 
-Every commit integrated into `develop` automatically gets a signed APK, SHA-256
+Every commit integrated into `master` automatically gets a signed APK, SHA-256
 checksum and GitHub Release once its tests, Lint and build pass. GitHub Actions
 creates the version tag; pushing a source commit is enough. A push containing
 several commits publishes each separately, and retries preserve completed releases.

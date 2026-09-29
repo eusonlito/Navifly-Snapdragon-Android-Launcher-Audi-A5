@@ -320,7 +320,7 @@ El wrapper de Gradle está incluido:
 `scripts/compile.sh` ejecuta pruebas, Lint y la compilación release optimizada.
 Guarda el APK, su SHA-256 y el mapping de R8 —si existe— en `out/`.
 
-Cada commit integrado en `develop` genera automáticamente su APK firmado, checksum
+Cada commit integrado en `master` genera automáticamente su APK firmado, checksum
 SHA-256 y GitHub Release cuando pasan sus pruebas, Lint y compilación. GitHub
 Actions crea la etiqueta de versión; basta con subir el commit de código. Si un
 push contiene varios commits, se publica cada uno por separado. Los reintentos
