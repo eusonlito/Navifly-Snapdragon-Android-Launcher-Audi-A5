@@ -4,6 +4,26 @@ plugins {
 }
 
 val buildTimeEpochMillis = System.currentTimeMillis()
+val releaseKeystorePath = providers.environmentVariable("A5_RELEASE_KEYSTORE_PATH").orNull
+val releaseStorePassword = providers.environmentVariable("A5_RELEASE_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("A5_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("A5_RELEASE_KEY_PASSWORD").orNull
+val releaseSigningInputs = listOf(
+    releaseKeystorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+)
+val releaseSigningConfigured = releaseSigningInputs.all { !it.isNullOrBlank() }
+val releaseSigningPartiallyConfigured = releaseSigningInputs.any { !it.isNullOrBlank() }
+val requireReleaseSigning = providers.environmentVariable("A5_REQUIRE_RELEASE_SIGNING").orNull == "true"
+
+if (releaseSigningPartiallyConfigured && !releaseSigningConfigured) {
+    throw GradleException("A5 release signing is partially configured; provide all four A5_RELEASE_* values.")
+}
+if (requireReleaseSigning && !releaseSigningConfigured) {
+    throw GradleException("A5_RELEASE signing credentials are required for this build.")
+}
 
 android {
     namespace = "com.lito.a5launcher"
@@ -25,6 +45,17 @@ android {
         }
     }
 
+    signingConfigs {
+        create("distribution") {
+            if (releaseSigningConfigured) {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // The real-trip JSONL remains outside the app sources, but is packaged
@@ -40,9 +71,13 @@ android {
                 abiFilters += "arm64-v8a"
             }
             buildConfigField("boolean", "TELEMETRY_REPLAY_ENABLED", "false")
-            // Installable test-production artifact. A private distribution key can
-            // replace this signing config later without changing the optimized build.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the stable distribution identity when credentials are available;
+            // local builds remain installable with the machine's debug key.
+            signingConfig = if (releaseSigningConfigured) {
+                signingConfigs.getByName("distribution")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

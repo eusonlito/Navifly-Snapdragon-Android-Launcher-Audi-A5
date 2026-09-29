@@ -122,9 +122,9 @@ disponibles del firmware. No sustituyen los indicadores originales del coche.
 
 ### 1. Conseguir el APK
 
-Descarga `A5Cockpit.apk` desde la publicación de GitHub correspondiente, si esa
-versión incluye un APK. Si sólo aparece el código fuente, el APK debe compilarse
-siguiendo la sección [Compilación](#compilación).
+Descarga [`A5Cockpit.apk` desde la última publicación de GitHub](https://github.com/eusonlito/Navifly-Snapdragon-Android-Launcher-Audi-A5/releases/latest/download/A5Cockpit.apk).
+Si todavía no hay ninguna publicación, compila el APK siguiendo la sección
+[Compilación](#compilación).
 
 Instala únicamente un APK obtenido de este repositorio o de una persona en la
 que confíes. Android sólo permite actualizar una instalación existente con un
@@ -212,17 +212,16 @@ Las claves API son opcionales y no están incluidas en el repositorio.
 
 ## Actualización Mediante el Propio Launcher
 
-La forma más cómoda es mantener una carpeta compartida de Dropbox que contenga
-el último `A5Cockpit.apk`:
+Descarga la última [versión de `A5Cockpit.apk`](https://github.com/eusonlito/Navifly-Snapdragon-Android-Launcher-Audi-A5/releases/latest/download/A5Cockpit.apk)
+en `Downloads` y selecciónala desde el selector de documentos de Android:
 
-1. Copia el nuevo APK a Dropbox desde el ordenador y espera a que se sincronice.
-2. En el coche, abre **Ajustes del Launcher > Sistema > Actualización**.
-3. Pulsa **Actualizar**.
-4. En el selector de Android, abre Dropbox y selecciona el APK. También puedes
-   elegir un APK previamente descargado en `Downloads`.
-5. La primera vez, Android pedirá permitir que A5 Cockpit instale aplicaciones.
+1. En el coche, abre **Ajustes del Launcher > Sistema > Actualización**.
+2. Pulsa **Actualizar**.
+3. Abre `Downloads` en el selector de Android y elige el APK. También puedes
+   transferirlo mediante Dropbox u otro proveedor de documentos.
+4. La primera vez, Android pedirá permitir que A5 Cockpit instale aplicaciones.
    Activa **Permitir Desde Esta Fuente**, vuelve y continúa.
-6. Confirma la instalación en la pantalla del instalador de Android.
+5. Confirma la instalación en la pantalla del instalador de Android.
 
 Se puede cancelar sin elegir un fichero usando **Atrás**. La aplicación comprueba
 que el APK pertenece a A5 Cockpit; Android comprueba además su firma. Una
@@ -320,10 +319,20 @@ El wrapper de Gradle está incluido:
 `scripts/compile.sh` ejecuta pruebas, Lint y la compilación release optimizada.
 Guarda el APK, su SHA-256 y el mapping de R8 —si existe— en `out/`.
 
-La configuración pública firma actualmente el release con la clave debug
-estándar para instalación local. Quien distribuya actualizaciones debe utilizar
-una clave privada estable, guardarla fuera del repositorio y firmar siempre con
-la misma identidad.
+GitHub Actions publica el APK y su checksum SHA-256 al subir una etiqueta
+`vMAYOR.MENOR.PARCHE` y si pasan todas las comprobaciones de CI. Antes de crearla,
+actualiza `versionName` y `versionCode` en `app/build.gradle.kts`: la etiqueta
+debe coincidir con `versionName` y `versionCode` debe aumentar respecto a la
+publicación anterior.
+
+Los APK de Release usan la identidad de firma estable de las instalaciones
+actuales. El keystore está fuera del repositorio y se guarda como secreto de
+GitHub Actions: `A5_RELEASE_KEYSTORE_BASE64`, `A5_RELEASE_STORE_PASSWORD`,
+`A5_RELEASE_KEY_ALIAS` y `A5_RELEASE_KEY_PASSWORD`. Conserva una copia segura
+del keystore y las credenciales en
+`~/.android/a5-cockpit-release/`; perder esta clave impide instalar
+actualizaciones sobre las versiones existentes. Las compilaciones locales sin
+las variables de firma siguen usando la clave debug del equipo.
 
 ### Emulador y Replay
 
