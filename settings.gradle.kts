@@ -13,7 +13,7 @@ pluginManagement {
 
 plugins {
     // Informe bajo demanda: descubre actualizaciones, pero no modifica el build.
-    id("io.github.ben-manes.versions.settings") version "0.61.0"
+    id("io.github.ben-manes.versions.settings") version "0.64.0"
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
