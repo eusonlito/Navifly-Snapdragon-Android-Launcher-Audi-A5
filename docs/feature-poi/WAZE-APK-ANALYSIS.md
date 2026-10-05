@@ -1,8 +1,8 @@
 # Análisis local del APK de Waze 5.22.90.123
 
 Este apunte conserva los resultados de inspeccionar el APK local para evitar
-repetir la extracción. Está basado exclusivamente en el APK y en el código de
-este repositorio; no contiene una prueba de llamadas contra los servidores.
+repetir la extracción. Los hallazgos de código salen del APK y del launcher;
+la sección de prueba registra una petición directa mínima, sin credenciales.
 
 ## Artefacto y reproducción
 
@@ -34,7 +34,7 @@ parámetros de consulta suficientes, un esquema de respuesta consumible por otra
 apps ni que la llamada sea anónima. La ruta aparece como configuración del
 cliente; el APK no basta para concluir que pueda consultarse directamente sin
 sesión, identificadores del cliente u otros datos que construya el código
-nativo. No se hizo una petición de red.
+nativo.
 
 El límite nativo también aparece en las alertas: `RtAlertsNativeManager` declara
 `getRtAlertsOnRouteNTV()`, y `C18657z.getRtAlertsOnRoute()` procesa los bytes
@@ -50,6 +50,24 @@ cámaras de semáforo, accidentes y carriles bloqueados. Son preferencias/capas
 del cliente; su presencia no demuestra que todos esos elementos se entreguen
 por `rtserver/distrib` ni que ese servicio proporcione una respuesta integral
 para una región.
+
+## Prueba de acceso directo
+
+El 5 de octubre de 2026 se envió una única petición HTTPS GET a
+`https://rt.waze.com/rtserver/distrib`, sin cookies, parámetros ni otros datos
+de sesión. El servidor respondió `HTTP 403`, `server: nginx`, sin tipo de
+contenido y con 10 bytes; no se guardó ni examinó el cuerpo. La petición llegó
+al host, pero no devolvió datos. Esto confirma que una consulta GET básica sin
+credenciales no sirve para obtener alertas. No descarta que el cliente Waze
+use otro método o protocolo nativo: el APK no permite construir esa petición
+de forma independiente con evidencia suficiente.
+
+También se instaló el APK en el emulador Android 16, se fijó una ubicación
+simulada en Madrid y se concedieron permisos de ubicación al paquete. La app
+se quedó en su pantalla propia de introducción al permiso y no llegó al mapa;
+por ello no se pudo observar `getRtAlertsOnRouteNTV()` ni recibir un
+`RtAlertItemList` durante la prueba. La instalación de prueba se retiró al
+terminar.
 
 ## Encaje con el mapa del launcher
 
@@ -71,10 +89,10 @@ lógica adicional.
 
 - **Pintar eventos en el mapa:** sí, técnicamente, si hay un origen de datos
   utilizable y coordenadas convertibles a GeoJSON.
-- **Usar `rtserver/distrib` como API externa:** el APK confirma que el cliente
-  lo configura, pero no aporta evidencia suficiente para afirmar que se pueda
-  consumir de forma anónima o estable desde el launcher. La respuesta,
-  autenticación y compatibilidad externa quedan sin validar.
+- **Usar `rtserver/distrib` como API externa:** la petición sin credenciales
+  recibió 403 y el APK no aporta evidencia suficiente para construir la
+  petición nativa correcta. No queda validado el consumo anónimo ni estable
+  desde el launcher.
 - **Sustituir la gestión interna de POIs usando solo este APK:** no queda
   validado. Extraer la URL no aporta un contrato de datos externo. El sistema
   actual puede seguir siendo la capa de dibujo mientras una fuente remota
