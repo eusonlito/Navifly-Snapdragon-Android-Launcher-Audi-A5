@@ -5,6 +5,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -90,50 +97,58 @@ internal fun LauncherUpdateCard(
             Text(it, color = if (checkFailed || downloadFailed) SettingsPalette.Danger else SettingsPalette.Accent, fontSize = 10.sp, lineHeight = 14.sp)
             Spacer(Modifier.height(8.dp))
         }
-        SettingsActionButton(
-            text = installLabel,
-            controlHeight = SettingsDimensions.ActionHeight,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = available && !working,
-            onClick = {
-                val selected = release ?: return@SettingsActionButton
-                downloading = true
-                downloadFailed = false
-                scope.launch {
-                    try {
-                        val prepared = runInterruptible(Dispatchers.IO) {
-                            val apk = updates.download(selected, context.cacheDir)
-                            try {
-                                LauncherUpdateInstaller.prepare(context, apk.toUri())
-                            } finally {
-                                apk.delete()
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SettingsActionButton(
+                text = installLabel,
+                controlHeight = SettingsDimensions.ActionHeight,
+                modifier = Modifier.weight(1f),
+                enabled = available && !working,
+                onClick = {
+                    val selected = release ?: return@SettingsActionButton
+                    downloading = true
+                    downloadFailed = false
+                    scope.launch {
+                        try {
+                            val prepared = runInterruptible(Dispatchers.IO) {
+                                val apk = updates.download(selected, context.cacheDir)
+                                try {
+                                    LauncherUpdateInstaller.prepare(context, apk.toUri())
+                                } finally {
+                                    apk.delete()
+                                }
                             }
+                            onPrepared(prepared)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            downloadFailed = true
+                        } finally {
+                            downloading = false
                         }
-                        onPrepared(prepared)
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        downloadFailed = true
-                    } finally {
-                        downloading = false
                     }
-                }
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SettingsActionButton(
-                stringResource(R.string.launcher_release_check), SettingsDimensions.ActionHeight,
-                Modifier.weight(1f), enabled = !working,
-            ) { scope.launch { checkRelease() } }
-            SettingsActionButton(
-                stringResource(R.string.launcher_release_local), SettingsDimensions.ActionHeight,
-                Modifier.weight(1f), enabled = !working,
+                },
+            )
+            IconButton(
+                onClick = { scope.launch { checkRelease() } },
+                modifier = Modifier.size(48.dp),
+                enabled = !working,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = SettingsPalette.Accent),
             ) {
-                checkFailed = false
-                downloadFailed = false
-                onSelectLocalApk()
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.launcher_release_check))
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        SettingsActionButton(
+            stringResource(R.string.launcher_release_local), SettingsDimensions.ActionHeight,
+            Modifier.fillMaxWidth(), enabled = !working,
+        ) {
+            checkFailed = false
+            downloadFailed = false
+            onSelectLocalApk()
         }
     }
 }
