@@ -1,11 +1,14 @@
 package com.lito.a5launcher.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -23,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -73,13 +77,13 @@ internal fun LauncherUpdateCard(
     val available = release?.isNewerThan(BuildConfig.VERSION_NAME) == true
     val status = when {
         downloading -> stringResource(R.string.launcher_release_downloading)
-        checking -> stringResource(R.string.launcher_release_checking)
+        checking -> null
         checkFailed -> stringResource(R.string.launcher_release_check_failed)
         downloadFailed -> stringResource(R.string.launcher_release_download_failed)
         installMessage != null -> installMessage
         else -> null
     }
-    val installLabel = release?.let { published ->
+    val installLabel = if (checking) stringResource(R.string.launcher_release_checking) else release?.let { published ->
         if (available) stringResource(R.string.launcher_release_install_version, published.version)
         else stringResource(R.string.launcher_release_current)
     } ?: stringResource(R.string.launcher_release_install)
@@ -90,7 +94,16 @@ internal fun LauncherUpdateCard(
         Text(stringResource(R.string.launcher_release_description), color = SettingsPalette.MutedText, fontSize = 10.sp, lineHeight = 14.sp)
         release?.let {
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.launcher_release_version, it.version), color = SettingsPalette.Text, fontSize = 12.sp)
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(SettingsPalette.Control, RoundedCornerShape(7.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.launcher_release_version), color = SettingsPalette.MutedText, fontSize = 10.sp)
+                Text(it.version, color = SettingsPalette.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
         Spacer(Modifier.weight(1f))
         status?.let {

@@ -157,14 +157,14 @@
     <string name="device_reboot_failed">No se ha podido enviar la solicitud de reinicio.</string>
     <string name="launcher_update_button">Actualizar</string>
     <string name="launcher_release_description">Busca la última versión publicada en GitHub e instálala desde aquí.</string>
-    <string name="launcher_release_version">Versión publicada: %1$s</string>
+    <string name="launcher_release_version">Versión publicada</string>
     <string name="launcher_release_checking">Consultando GitHub…</string>
     <string name="launcher_release_check">Buscar</string>
     <string name="launcher_release_install">Descargar e instalar</string>
     <string name="launcher_release_install_version">Descargar e instalar la versión %1$s</string>
     <string name="launcher_release_downloading">Descargando y verificando el APK…</string>
     <string name="launcher_release_current">Tu versión está al día</string>
-    <string name="launcher_release_check_failed">No se pudo consultar GitHub. Pulsa Buscar para reintentar.</string>
+    <string name="launcher_release_check_failed">No se pudo consultar GitHub. Pulsa el icono de refrescar para reintentar.</string>
     <string name="launcher_release_download_failed">No se pudo descargar o verificar el APK. Vuelve a intentarlo.</string>
     <string name="launcher_release_local">APK local</string>
     <string name="launcher_update_preparing">Preparando actualización…</string>

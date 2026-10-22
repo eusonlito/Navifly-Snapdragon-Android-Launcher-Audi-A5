@@ -158,14 +158,14 @@
     <string name="device_reboot_failed">The restart request could not be sent.</string>
     <string name="launcher_update_button">Update</string>
     <string name="launcher_release_description">Check the latest version published on GitHub and install it here.</string>
-    <string name="launcher_release_version">Published version: %1$s</string>
+    <string name="launcher_release_version">Published version</string>
     <string name="launcher_release_checking">Checking GitHub…</string>
     <string name="launcher_release_check">Check</string>
     <string name="launcher_release_install">Download and install</string>
     <string name="launcher_release_install_version">Download and install version %1$s</string>
     <string name="launcher_release_downloading">Downloading and verifying the APK…</string>
     <string name="launcher_release_current">Your version is up to date</string>
-    <string name="launcher_release_check_failed">Could not check GitHub. Tap Check to retry.</string>
+    <string name="launcher_release_check_failed">Could not check GitHub. Tap the refresh icon to retry.</string>
     <string name="launcher_release_download_failed">Could not download or verify the APK. Please try again.</string>
     <string name="launcher_release_local">Local APK</string>
     <string name="launcher_update_preparing">Preparing update…</string>
