@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic Android versions for commits integrated into develop."""
+"""Deterministic Android versions for commits integrated into master."""
 
 import json
 import subprocess

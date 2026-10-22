@@ -24,7 +24,7 @@ class ReleaseVersionTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.addCleanup(os.chdir, original)
         os.chdir(temporary.name)
-        subprocess.run(["git", "init", "-q", "-b", "develop"], check=True)
+        subprocess.run(["git", "init", "-q", "-b", "master"], check=True)
         RELEASE.git("config", "user.name", "Release test")
         RELEASE.git("config", "user.email", "test@example.com")
         RELEASE.git("commit", "--allow-empty", "-qm", "Base")
@@ -56,19 +56,19 @@ class ReleaseVersionTest(unittest.TestCase):
         RELEASE.git("checkout", "-qb", "feature")
         RELEASE.git("commit", "--allow-empty", "-qm", "Side one")
         RELEASE.git("commit", "--allow-empty", "-qm", "Side two")
-        RELEASE.git("checkout", "-q", "develop")
+        RELEASE.git("checkout", "-q", "master")
         RELEASE.git("merge", "--no-ff", "-qm", "Merge", "feature")
         merged = RELEASE.git("rev-parse", "HEAD")
         self.assertEqual(("1.3.3", 7), RELEASE.version(merged))
         self.assertEqual({"include": [{"commit": merged, "tag": "v1.3.3"}]},
                          RELEASE.release_commits(second, merged))
 
-    def test_release_workflow_publishes_only_pushes_to_develop(self):
+    def test_release_workflow_publishes_only_pushes_to_master(self):
         workflow = (ROOT / ".github/workflows/android.yml").read_text()
-        self.assertIn("  push:\n    branches:\n      - develop\n", workflow)
+        self.assertIn("  push:\n    branches:\n      - master\n", workflow)
         for job in ("plan-releases", "publish-release"):
             stanza = workflow.split(f"  {job}:\n", 1)[1].split("    runs-on:", 1)[0]
-            self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", stanza)
+            self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/master'", stanza)
 
     def test_actual_publication_preserves_repairs_creates_and_rejects_wrong_tags(self):
         workflow = (ROOT / ".github/workflows/android.yml").read_text()
