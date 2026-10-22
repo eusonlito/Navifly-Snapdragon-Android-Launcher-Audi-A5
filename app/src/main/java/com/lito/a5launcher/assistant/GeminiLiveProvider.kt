@@ -1,6 +1,5 @@
 package com.lito.a5launcher.assistant
 
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -12,7 +11,7 @@ import java.net.URLEncoder
 import java.util.Base64
 
 class GeminiLiveProvider(
-    private val client: OkHttpClient = defaultRealtimeHttpClient(),
+    private val client: WebSocket.Factory = defaultRealtimeHttpClient(),
 ) : RealtimeVoiceProvider {
     override val inputSampleRate: Int = 16_000
 
@@ -91,7 +90,7 @@ class GeminiLiveProvider(
             socket.send(
                 JSONObject().put(
                     "realtimeInput",
-                    JSONObject().put("audioStreamEnd", true),
+                    JSONObject().put("activityEnd", JSONObject()),
                 ).toString(),
             )
         }
@@ -118,6 +117,7 @@ class GeminiLiveProvider(
         private fun dispatch(event: ProtocolEvent) {
             if (event == ProtocolEvent.Ready) {
                 GeminiProtocol.initialHistory(request.history)?.let { socket.send(it.toString()) }
+                socket.send(JSONObject().put("realtimeInput", JSONObject().put("activityStart", JSONObject())).toString())
                 listener.onReady()
                 return
             }
@@ -150,13 +150,14 @@ internal object GeminiProtocol {
         }
         return JSONObject().put(
             "clientContent",
-            JSONObject().put("turns", turns).put("turnComplete", true),
+            JSONObject().put("turns", turns).put("turnComplete", false),
         )
     }
 
     fun setup(request: AssistantSessionRequest): JSONObject {
         val declaration = JSONObject()
             .put("name", "navigate_to")
+            .put("behavior", "BLOCKING")
             .put("description", "Navigate to the requested destination without asking the user for coordinates")
             .put("parameters", JSONObject(AssistantPrompt.destinationSearchParametersJson))
         val tools = JSONArray()
@@ -167,6 +168,10 @@ internal object GeminiProtocol {
             .put(
                 "generationConfig",
                 JSONObject().put("responseModalities", JSONArray().put("AUDIO")),
+            )
+            .put(
+                "realtimeInputConfig",
+                JSONObject().put("automaticActivityDetection", JSONObject().put("disabled", true)),
             )
             .put("systemInstruction", JSONObject().put(
                 "parts",

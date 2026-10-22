@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 import java.util.Base64
 
 class OpenAiRealtimeProvider(
-    private val client: OkHttpClient = defaultRealtimeHttpClient(),
+    private val client: WebSocket.Factory = defaultRealtimeHttpClient(),
 ) : RealtimeVoiceProvider {
     override val inputSampleRate: Int = 24_000
 
@@ -38,6 +38,7 @@ class OpenAiRealtimeProvider(
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
+            if (completed) return
             dispatch(OpenAiProtocol.parse(text))
         }
 
@@ -80,7 +81,6 @@ class OpenAiRealtimeProvider(
 
         override fun finishAudio() {
             socket.send(JSONObject().put("type", "input_audio_buffer.commit").toString())
-            socket.send(JSONObject().put("type", "response.create").toString())
         }
 
         override fun cancel() {
@@ -104,6 +104,9 @@ class OpenAiRealtimeProvider(
                 completed = true
                 listener.onTurnComplete()
                 socket.close(1000, "turn_complete")
+            }
+            if (event is ProtocolEvent.UserTranscript && !completed) {
+                socket.send(JSONObject().put("type", "response.create").toString())
             }
         }
     }
@@ -147,7 +150,7 @@ internal object OpenAiProtocol {
                         "input",
                         JSONObject()
                             .put("format", JSONObject().put("type", "audio/pcm").put("rate", 24_000))
-                            .put("transcription", JSONObject().put("model", "gpt-realtime-whisper"))
+                            .put("transcription", JSONObject().put("model", "gpt-transcribe"))
                             .put("turn_detection", JSONObject.NULL),
                     )
                     .put(
@@ -186,7 +189,7 @@ internal object OpenAiProtocol {
                 } else ProtocolEvent.Ignored
             }
             "response.done" -> ProtocolEvent.Complete
-            "error" -> ProtocolEvent.Failure(
+            "error", "conversation.item.input_audio_transcription.failed" -> ProtocolEvent.Failure(
                 ProviderFailure(
                     ProviderFailureKind.REJECTED_REQUEST,
                     ProtocolJson.providerDiagnostic(root),

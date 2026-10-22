@@ -18,6 +18,7 @@ class RealtimeProtocolTest {
             AssistantSessionRequest("es-ES", emptyList()),
         ).getJSONObject("session")
         val audio = session.getJSONObject("audio")
+        assertEquals("gpt-transcribe", audio.getJSONObject("input").getJSONObject("transcription").getString("model"))
         assertEquals(24_000, audio.getJSONObject("input").getJSONObject("format").getInt("rate"))
         assertEquals(24_000, audio.getJSONObject("output").getJSONObject("format").getInt("rate"))
     }
@@ -67,6 +68,8 @@ class RealtimeProtocolTest {
     fun geminiSetupIncludesSearchAndNavigationTool() {
         val setup = GeminiProtocol.setup(AssistantSessionRequest("es-ES", emptyList()))
             .getJSONObject("setup")
+        assertEquals("models/gemini-3.8-live", setup.getString("model"))
+        assertTrue(setup.getJSONObject("realtimeInputConfig").getJSONObject("automaticActivityDetection").getBoolean("disabled"))
         assertTrue(!setup.has("responseModalities"))
         assertEquals(
             "AUDIO",
@@ -79,6 +82,10 @@ class RealtimeProtocolTest {
             "navigate_to",
             tools.getJSONObject(1).getJSONArray("functionDeclarations").getJSONObject(0).getString("name"),
         )
+        assertEquals(
+            "BLOCKING",
+            tools.getJSONObject(1).getJSONArray("functionDeclarations").getJSONObject(0).getString("behavior"),
+        )
     }
 
     @Test
@@ -89,6 +96,11 @@ class RealtimeProtocolTest {
         assertEquals(ProviderFailureKind.REJECTED_REQUEST, openAiFailure.kind)
         assertEquals("invalid_api_key / invalid_request_error", openAiFailure.diagnostic?.code)
         assertEquals("Invalid key", openAiFailure.diagnostic?.message)
+
+        val transcriptionFailure = OpenAiProtocol.parse(
+            """{"type":"conversation.item.input_audio_transcription.failed","error":{"code":"transcription_error","message":"Audio transcription failed"}}""",
+        ) as ProtocolEvent.Failure
+        assertEquals("transcription_error", transcriptionFailure.failure.diagnostic?.code)
 
         val geminiFailure = (GeminiProtocol.parse(
             """{"error":{"code":400,"message":"API key not valid","status":"INVALID_ARGUMENT"}}""",
@@ -142,7 +154,7 @@ class RealtimeProtocolTest {
         val gemini = GeminiProtocol.initialHistory(history)!!.getJSONObject("clientContent")
         assertEquals("user", gemini.getJSONArray("turns").getJSONObject(0).getString("role"))
         assertEquals("model", gemini.getJSONArray("turns").getJSONObject(1).getString("role"))
-        assertTrue(gemini.getBoolean("turnComplete"))
+        assertTrue(!gemini.getBoolean("turnComplete"))
 
         val request = AssistantSessionRequest("es-ES", history)
         assertTrue(!AssistantPrompt.build(request).contains("Busca Ordes"))

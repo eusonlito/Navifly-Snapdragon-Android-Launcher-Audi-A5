@@ -10,7 +10,7 @@ enum class AssistantProvider(
 ) {
     DISABLED(""),
     OPENAI("gpt-realtime-2.1-mini"),
-    GEMINI("gemini-3.1-flash-live-preview"),
+    GEMINI("gemini-3.8-live"),
 }
 
 enum class AssistantCredentialKind(val model: String) {
