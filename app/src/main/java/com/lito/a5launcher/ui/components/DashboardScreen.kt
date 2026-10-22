@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as lazyListItems
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -2021,18 +2022,9 @@ private fun LauncherSettingsOverlay(
     val installedDate = remember(installedAtEpochMs, locale) {
         formatBuildDate(installedAtEpochMs, locale)
     }
-    val mapColorLabels = mapOf(
-        MapColorMode.AUTOMATIC to stringResource(R.string.map_automatic).uppercase(locale),
-        MapColorMode.LIGHT to stringResource(R.string.map_light).uppercase(locale),
-        MapColorMode.DARK to stringResource(R.string.map_dark).uppercase(locale),
-    )
-    val mapDebugLabels = mapOf(
-        false to stringResource(R.string.map_inactive).uppercase(locale),
-        true to stringResource(R.string.map_active).uppercase(locale),
-    )
     val languageLabels = mapOf(
-        AppLanguage.SPANISH to stringResource(R.string.language_spanish).uppercase(locale),
-        AppLanguage.ENGLISH to stringResource(R.string.language_english).uppercase(locale),
+        AppLanguage.SPANISH to stringResource(R.string.language_spanish),
+        AppLanguage.ENGLISH to stringResource(R.string.language_english),
     )
     var showRebootConfirmation by remember { mutableStateOf(false) }
     var rebootRequestFailed by remember { mutableStateOf(false) }
@@ -2066,300 +2058,402 @@ private fun LauncherSettingsOverlay(
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(SettingsPalette.Background)
     ) {
         LauncherOverlayHeader(
             title = stringResource(R.string.launcher_settings_title),
             headerHeight = headerHeight,
             darkModeActive = darkModeActive,
             onClose = onClose,
-        )
+        ) {
+            LauncherSettingsTabs(
+                selectedTab = selectedTab,
+                onSelectedTabChanged = onSelectedTabChanged,
+                modifier = Modifier.weight(1f).padding(start = 40.dp),
+            )
+        }
 
-        Column(
+        Box(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 18.dp),
+                .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 16.dp),
         ) {
+            when (selectedTab) {
+                LauncherSettingsTab.TRIPS -> JourneyHistoryPanel(
+                    snapshot = journeyHistory,
+                    tripStatistics = tripStatistics,
+                    partialStatistics = partialStatistics,
+                    onEnabledChanged = onJourneyHistoryEnabledChanged,
+                    onDeleteRecord = onDeleteJourneyHistoryRecord,
+                    onClearAll = onClearJourneyHistory,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                LauncherSettingsTab.MAP -> MapSettingsPanel(
+                    diagnostics = diagnostics,
+                    mapTileStyle = mapTileStyle,
+                    onMapTileStyleChanged = onMapTileStyleChanged,
+                    mapColorMode = mapColorMode,
+                    onMapColorModeChanged = onMapColorModeChanged,
+                    mapCacheLimit = mapCacheLimit,
+                    onMapCacheLimitChanged = onMapCacheLimitChanged,
+                    mapDebugEnabled = mapDebugEnabled,
+                    onMapDebugChanged = onMapDebugChanged,
+                    maintenanceMessage = maintenanceMessage,
+                    mapCacheSizeBytes = mapCacheSizeBytes,
+                    debugLogStats = debugLogStats,
+                    onClearMapCache = onClearMapCache,
+                    onClearDebugLogs = onClearDebugLogs,
+                    onExportDebugLogs = onExportDebugLogs,
+                    poiSnapshot = poiSnapshot,
+                    onImportPoiSource = onImportPoiSource,
+                    onImportPoiIcon = onImportPoiIcon,
+                    onImportPoiCategories = onImportPoiCategories,
+                    onDeletePoiSource = onDeletePoiSource,
+                    onDeletePoiIcon = onDeletePoiIcon,
+                    onDeletePoiCategories = onDeletePoiCategories,
+                )
+                LauncherSettingsTab.ASSISTANT -> AssistantSettingsPanel(
+                    settings = assistantSettings,
+                    credentialTester = assistantCredentialTester,
+                    readErrorLogStats = readAssistantErrorLogStats,
+                    onExportErrorLogs = onExportAssistantErrorLogs,
+                    onClearErrorLogs = onClearAssistantErrorLogs,
+                    onSaved = onAssistantSaved,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                LauncherSettingsTab.LOGS -> FunctionalLogsPanel(
+                    access = functionalEventLogAccess,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                LauncherSettingsTab.SYSTEM -> SystemSettingsPanel(
+                    buildDate = buildDate,
+                    installedDate = installedDate,
+                    languageLabels = languageLabels,
+                    updateState = updateState,
+                    onPreparedUpdate = onPreparedUpdate,
+                    onSelectUpdateApk = onSelectUpdateApk,
+                    rebootRequestFailed = rebootRequestFailed,
+                    onReboot = {
+                        rebootRequestFailed = false
+                        showRebootConfirmation = true
+                    },
+                )
+            }
+            FloatingNotificationHost(
+                notification = poiNotice.takeIf { selectedTab == LauncherSettingsTab.MAP },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 14.dp)
+                    .zIndex(2f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LauncherSettingsTabs(
+    selectedTab: LauncherSettingsTab,
+    onSelectedTabChanged: (LauncherSettingsTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    Row(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LauncherSettingsTab.entries.forEach { tab ->
+            val selected = tab == selectedTab
+            val contentColor = if (selected) SettingsPalette.OnAccent else SettingsPalette.Text.copy(alpha = .78f)
+            Row(
+                Modifier
+                    .weight(1f)
+                    .height(SettingsDimensions.TabHeight)
+                    .clip(SettingsControlShape)
+                    .background(if (selected) SettingsPalette.Accent else SettingsPalette.Card)
+                    .border(
+                        1.dp,
+                        if (selected) SettingsPalette.Accent else SettingsPalette.Border,
+                        SettingsControlShape,
+                    )
+                    .selectable(
+                        selected = selected,
+                        role = androidx.compose.ui.semantics.Role.Tab,
+                        onClick = { onSelectedTabChanged(tab) },
+                    )
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(tab.icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    stringResource(tab.labelRes).uppercase(locale),
+                    color = contentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = .8.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapSettingsPanel(
+    diagnostics: MapDiagnostics,
+    mapTileStyle: MapTileStyle,
+    onMapTileStyleChanged: (MapTileStyle) -> Unit,
+    mapColorMode: MapColorMode,
+    onMapColorModeChanged: (MapColorMode) -> Unit,
+    mapCacheLimit: MapCacheLimit,
+    onMapCacheLimitChanged: (MapCacheLimit) -> Unit,
+    mapDebugEnabled: Boolean,
+    onMapDebugChanged: (Boolean) -> Unit,
+    maintenanceMessage: String,
+    mapCacheSizeBytes: Long,
+    debugLogStats: MapDebugLogStats,
+    onClearMapCache: () -> Unit,
+    onClearDebugLogs: () -> Unit,
+    onExportDebugLogs: ((Boolean?) -> Unit) -> Unit,
+    poiSnapshot: PoiSnapshot,
+    onImportPoiSource: () -> Unit,
+    onImportPoiIcon: () -> Unit,
+    onImportPoiCategories: () -> Unit,
+    onDeletePoiSource: (String) -> Unit,
+    onDeletePoiIcon: (String) -> Unit,
+    onDeletePoiCategories: () -> Unit,
+) {
+    val mapColorLabels = mapOf(
+        MapColorMode.AUTOMATIC to stringResource(R.string.map_automatic),
+        MapColorMode.LIGHT to stringResource(R.string.map_light),
+        MapColorMode.DARK to stringResource(R.string.map_dark),
+    )
+    val mapDebugLabels = mapOf(
+        false to stringResource(R.string.map_inactive),
+        true to stringResource(R.string.map_active),
+    )
+    Row(
+        Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.CardGap),
+    ) {
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            SettingsSectionTitle(stringResource(R.string.map_appearance), SettingsIcons.Palette)
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            SettingsLabel(stringResource(R.string.map_color))
+            SegmentedSettingsSelector(
+                options = MapColorMode.entries,
+                selected = mapColorMode,
+                label = { mode -> mapColorLabels.getValue(mode) },
+                onSelected = onMapColorModeChanged,
+            )
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            SettingsLabel(stringResource(R.string.map_style))
+            SegmentedSettingsSelector(
+                options = MapTileStyle.entries.filterNot { it == MapTileStyle.DARK },
+                selected = mapTileStyle,
+                label = MapTileStyle::displayName,
+                onSelected = onMapTileStyleChanged,
+            )
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            SettingsLabel(stringResource(R.string.map_cache_maximum))
+            SegmentedSettingsSelector(
+                options = MapCacheLimit.entries,
+                selected = mapCacheLimit,
+                label = MapCacheLimit::displayName,
+                onSelected = onMapCacheLimitChanged,
+            )
+        }
+
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            SettingsSectionTitle(stringResource(R.string.map_status), SettingsIcons.Activity)
+            Spacer(Modifier.height(6.dp))
+            val mapLoaded = diagnostics.mapError.isBlank()
+            SettingsValueRow(
+                stringResource(R.string.map_label),
+                diagnostics.mapStatus,
+                icon = SettingsIcons.Map,
+                statusColor = if (mapLoaded) SettingsPalette.Success else SettingsPalette.Danger,
+            )
+            SettingsValueRow(
+                stringResource(R.string.map_network),
+                stringResource(if (diagnostics.networkAvailable) R.string.map_connected else R.string.map_offline),
+                icon = SettingsIcons.Wifi,
+                statusColor = if (diagnostics.networkAvailable) SettingsPalette.Success else SettingsPalette.Warning,
+            )
+            SettingsValueRow(
+                stringResource(R.string.map_gps),
+                if (diagnostics.gpsAvailable) {
+                    stringResource(R.string.map_gps_active)
+                } else if (diagnostics.hasKnownPosition) {
+                    stringResource(R.string.map_gps_last_position)
+                } else {
+                    stringResource(R.string.map_gps_no_position)
+                },
+                icon = SettingsIcons.Crosshair,
+                statusColor = when {
+                    diagnostics.gpsAvailable -> SettingsPalette.Success
+                    diagnostics.hasKnownPosition -> SettingsPalette.Warning
+                    else -> SettingsPalette.Danger
+                },
+            )
+            val coordinates = if (
+                diagnostics.latitude != null && diagnostics.longitude != null
+            ) {
+                String.format(
+                    java.util.Locale.US,
+                    "%.5f, %.5f",
+                    diagnostics.latitude,
+                    diagnostics.longitude,
+                )
+            } else {
+                "—"
+            }
+            SettingsValueRow(stringResource(R.string.map_coordinates), coordinates, icon = SettingsIcons.Pin)
+            SettingsValueRow(
+                stringResource(R.string.map_provider),
+                "OpenFreeMap / OSM",
+                icon = SettingsIcons.Globe,
+                divider = diagnostics.mapError.isNotBlank(),
+            )
+            if (diagnostics.mapError.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${stringResource(R.string.map_last_error)}: ${diagnostics.mapError}",
+                    color = SettingsPalette.Danger,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            SettingsSectionTitle(stringResource(R.string.map_cache), SettingsIcons.Database) {
+                Text(
+                    "${formatStorageSize(mapCacheSizeBytes)} / ${formatStorageSize(mapCacheLimit.bytes)}",
+                    color = SettingsPalette.Text,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            SettingsStorageUsage(usedBytes = mapCacheSizeBytes, limitBytes = mapCacheLimit.bytes)
+            Spacer(Modifier.height(12.dp))
+            SettingsActionButton(
+                stringResource(R.string.map_clear_cache),
+                SettingsDimensions.ActionHeight,
+                modifier = Modifier.fillMaxWidth(),
+                icon = SettingsIcons.Trash,
+                onClick = onClearMapCache,
+            )
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            SettingsDivider()
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            SettingsSectionTitle(stringResource(R.string.map_logs), SettingsIcons.Document) {
+                Text(
+                    stringResource(
+                        R.string.settings_files_summary,
+                        debugLogStats.fileCount,
+                        formatStorageSize(debugLogStats.sizeBytes),
+                    ),
+                    color = SettingsPalette.MutedText,
+                    fontSize = 11.sp,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                LauncherSettingsTab.entries.forEach { tab ->
-                    val selected = tab == selectedTab
-                    val shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
-                    Box(
-                        Modifier.weight(1f).height(SettingsDimensions.TabHeight)
-                            .clip(shape)
-                            .background(
-                                if (selected) SettingsPalette.Content else SettingsPalette.ShellControl
-                            )
-                            .clickable { onSelectedTabChanged(tab) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            stringResource(tab.labelRes).uppercase(LocalConfiguration.current.locales[0]),
-                            color = if (selected) SettingsPalette.Accent else Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
-            Box(
-                Modifier.weight(1f).fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                    .background(SettingsPalette.Content)
-                    .padding(16.dp),
-            ) {
-                when (selectedTab) {
-        LauncherSettingsTab.TRIPS -> JourneyHistoryPanel(
-            snapshot = journeyHistory,
-            tripStatistics = tripStatistics,
-            partialStatistics = partialStatistics,
-            onEnabledChanged = onJourneyHistoryEnabledChanged,
-            onDeleteRecord = onDeleteJourneyHistoryRecord,
-            onClearAll = onClearJourneyHistory,
-            modifier = Modifier.fillMaxSize(),
-        )
-        LauncherSettingsTab.MAP -> Row(
-            Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SettingsPalette.Card)
-                    .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    stringResource(R.string.map_color).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(3.dp))
-                SegmentedSettingsSelector(
-                    options = MapColorMode.entries,
-                    selected = mapColorMode,
-                    label = { mode -> mapColorLabels.getValue(mode) },
-                    onSelected = onMapColorModeChanged,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.map_style).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(3.dp))
-                SegmentedSettingsSelector(
-                    options = MapTileStyle.entries.filterNot { it == MapTileStyle.DARK },
-                    selected = mapTileStyle,
-                    label = MapTileStyle::displayName,
-                    onSelected = onMapTileStyleChanged,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.map_cache_maximum).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(3.dp))
-                SegmentedSettingsSelector(
-                    options = MapCacheLimit.entries,
-                    selected = mapCacheLimit,
-                    label = MapCacheLimit::displayName,
-                    onSelected = onMapCacheLimitChanged,
-                )
-            }
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SettingsPalette.Card)
-                    .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-            ) {
-                SettingsStackedValue(stringResource(R.string.map_label), diagnostics.mapStatus)
-                SettingsStackedValue(
-                    stringResource(R.string.map_network),
-                    stringResource(if (diagnostics.networkAvailable) R.string.map_connected else R.string.map_offline),
-                )
-                SettingsStackedValue(
-                    stringResource(R.string.map_gps),
-                    if (diagnostics.gpsAvailable) {
-                        stringResource(R.string.map_gps_active)
-                    } else if (diagnostics.hasKnownPosition) {
-                        stringResource(R.string.map_gps_last_position)
-                    } else {
-                        stringResource(R.string.map_gps_no_position)
-                    },
-                )
-                val coordinates = if (
-                    diagnostics.latitude != null && diagnostics.longitude != null
-                ) {
-                    String.format(
-                        java.util.Locale.US,
-                        "%.5f, %.5f",
-                        diagnostics.latitude,
-                        diagnostics.longitude,
-                    )
-                } else {
-                    "—"
-                }
-                SettingsStackedValue(stringResource(R.string.map_coordinates), coordinates)
-                SettingsStackedValue(stringResource(R.string.map_provider), "OpenFreeMap / OpenStreetMap")
-                if (diagnostics.mapError.isNotBlank()) {
-                    SettingsStackedValue(stringResource(R.string.map_last_error), diagnostics.mapError)
-                }
-            }
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SettingsPalette.Card)
-                    .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-            ) {
-                SettingsStorageUsage(
-                    label = stringResource(R.string.map_cache),
-                    usedBytes = mapCacheSizeBytes,
-                    limitBytes = mapCacheLimit.bytes,
-                )
-                Spacer(Modifier.height(7.dp))
                 SettingsActionButton(
-                    stringResource(R.string.map_clear_cache),
+                    stringResource(R.string.settings_download),
                     SettingsDimensions.ActionHeight,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onClearMapCache,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.map_logs).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(3.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f),
+                    icon = SettingsIcons.Download,
                 ) {
-                    SettingsActionButton(
-                        stringResource(
-                            R.string.map_download_logs,
-                            debugLogStats.fileCount,
-                            formatStorageSize(debugLogStats.sizeBytes),
-                        ),
-                        SettingsDimensions.ActionHeight,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        onExportDebugLogs { }
-                    }
-                    SettingsActionButton(
-                        stringResource(R.string.map_clear_logs),
-                        SettingsDimensions.ActionHeight,
-                        modifier = Modifier.weight(1f),
-                        destructive = true,
-                        onClick = onClearDebugLogs,
-                    )
+                    onExportDebugLogs { }
                 }
-                if (maintenanceMessage.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        maintenanceMessage,
-                        color = SettingsPalette.Accent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    stringResource(R.string.map_diagnostics).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(4.dp))
-                SegmentedSettingsSelector(
-                    options = listOf(false, true),
-                    selected = mapDebugEnabled,
-                    label = { enabled -> mapDebugLabels.getValue(enabled) },
-                    onSelected = onMapDebugChanged,
+                SettingsActionButton(
+                    stringResource(R.string.map_clear_logs),
+                    SettingsDimensions.ActionHeight,
+                    modifier = Modifier.weight(1f),
+                    destructive = true,
+                    icon = SettingsIcons.Trash,
+                    onClick = onClearDebugLogs,
                 )
             }
+            if (maintenanceMessage.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    maintenanceMessage,
+                    color = SettingsPalette.Accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            SettingsLabel(stringResource(R.string.map_diagnostics))
+            SegmentedSettingsSelector(
+                options = listOf(false, true),
+                selected = mapDebugEnabled,
+                label = { enabled -> mapDebugLabels.getValue(enabled) },
+                onSelected = onMapDebugChanged,
+            )
+        }
 
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SettingsPalette.Card)
-                    .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            val poiItems = poiSnapshot.sources.size + poiSnapshot.icons.size +
+                (if (poiSnapshot.categoryCatalog != null) 1 else 0)
+            SettingsSectionTitle(stringResource(R.string.poi_title), SettingsIcons.Pin) {
+                SettingsCountBadge(poiSnapshot.totalPoints.toString())
+            }
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    stringResource(R.string.poi_title).uppercase(LocalConfiguration.current.locales[0]),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+                PoiImportTile(stringResource(R.string.poi_import_geojson), SettingsIcons.Upload, Modifier.weight(1f), onImportPoiSource)
+                PoiImportTile(stringResource(R.string.poi_import_png), SettingsIcons.Image, Modifier.weight(1f), onImportPoiIcon)
+                PoiImportTile(stringResource(R.string.poi_import_categories), SettingsIcons.Tag, Modifier.weight(1f), onImportPoiCategories)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(
+                    R.string.poi_summary,
+                    poiSnapshot.sources.size,
+                    poiSnapshot.totalPoints,
+                    poiSnapshot.categoryCatalog?.styles?.size ?: 0,
+                    poiSnapshot.icons.size,
+                ),
+                color = SettingsPalette.MutedText,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            if (poiItems == 0) {
+                SettingsEmptyState(
+                    icon = SettingsIcons.Pin,
+                    text = stringResource(R.string.poi_empty),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SettingsActionButton(
-                        stringResource(R.string.poi_import_geojson),
-                        SettingsDimensions.ActionHeight,
-                        Modifier.weight(1f),
-                        onClick = onImportPoiSource,
-                    )
-                    SettingsActionButton(
-                        stringResource(R.string.poi_import_png),
-                        SettingsDimensions.ActionHeight,
-                        Modifier.weight(1f),
-                        onClick = onImportPoiIcon,
-                    )
-                    SettingsActionButton(
-                        stringResource(R.string.poi_import_categories),
-                        SettingsDimensions.ActionHeight,
-                        Modifier.weight(1f),
-                        onClick = onImportPoiCategories,
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    stringResource(
-                        R.string.poi_summary,
-                        poiSnapshot.sources.size,
-                        poiSnapshot.totalPoints,
-                        poiSnapshot.categoryCatalog?.styles?.size ?: 0,
-                        poiSnapshot.icons.size,
-                    ),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 9.sp,
-                )
+            } else {
                 LazyColumn(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     poiSnapshot.categoryCatalog?.let { catalog ->
                         item(key = "categories") {
-                            PoiItemRow("${catalog.fileName} · ${catalog.styles.size}") {
+                            PoiItemRow(SettingsIcons.Tag, catalog.fileName, catalog.styles.size.toString()) {
                                 onDeletePoiCategories()
                             }
                         }
@@ -2368,7 +2462,7 @@ private fun LauncherSettingsOverlay(
                         items = poiSnapshot.sources,
                         key = { source -> "source-${source.fileName}" },
                     ) { source ->
-                        PoiItemRow("${source.fileName} · ${source.pointCount}") {
+                        PoiItemRow(SettingsIcons.Map, source.fileName, source.pointCount.toString()) {
                             onDeletePoiSource(source.fileName)
                         }
                     }
@@ -2376,141 +2470,181 @@ private fun LauncherSettingsOverlay(
                         items = poiSnapshot.icons,
                         key = { icon -> "icon-${icon.code}" },
                     ) { icon ->
-                        PoiItemRow("${icon.code}.png · ${icon.width}×${icon.height}") {
+                        PoiItemRow(SettingsIcons.Image, "${icon.code}.png", "${icon.width}×${icon.height}") {
                             onDeletePoiIcon(icon.code)
                         }
                     }
-                    if (
-                        poiSnapshot.sources.isEmpty() &&
-                        poiSnapshot.icons.isEmpty() &&
-                        poiSnapshot.categoryCatalog == null
-                    ) {
-                        item(key = "empty") {
-                            Text(
-                                stringResource(R.string.poi_empty),
-                                color = SettingsPalette.MutedText,
-                                fontSize = 9.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                            )
-                        }
-                    }
                 }
-            }
-        }
-        LauncherSettingsTab.ASSISTANT -> AssistantSettingsPanel(
-            settings = assistantSettings,
-            credentialTester = assistantCredentialTester,
-            readErrorLogStats = readAssistantErrorLogStats,
-            onExportErrorLogs = onExportAssistantErrorLogs,
-            onClearErrorLogs = onClearAssistantErrorLogs,
-            onSaved = onAssistantSaved,
-            modifier = Modifier.fillMaxSize(),
-        )
-        LauncherSettingsTab.LOGS -> FunctionalLogsPanel(
-            access = functionalEventLogAccess,
-            modifier = Modifier.fillMaxSize(),
-        )
-        LauncherSettingsTab.SYSTEM -> Row(
-            Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            val updateMessage = when (updateState) {
-                LauncherUpdateState.Idle -> null
-                LauncherUpdateState.Preparing -> stringResource(R.string.launcher_update_preparing)
-                is LauncherUpdateState.PermissionRequired -> stringResource(
-                    R.string.launcher_update_permission_required,
-                )
-                LauncherUpdateState.Unreadable -> stringResource(R.string.launcher_update_unreadable)
-                LauncherUpdateState.TooLarge -> stringResource(R.string.launcher_update_too_large)
-                LauncherUpdateState.InvalidApk -> stringResource(R.string.launcher_update_invalid_apk)
-                LauncherUpdateState.WrongApplication -> stringResource(
-                    R.string.launcher_update_wrong_application,
-                )
-                LauncherUpdateState.InstallerUnavailable -> stringResource(
-                    R.string.launcher_update_installer_unavailable,
-                )
-            }
-            SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
-                SettingsSectionTitle(stringResource(R.string.system_application))
-                Spacer(Modifier.height(10.dp))
-                SettingsInlineValue(stringResource(R.string.system_version), BuildConfig.VERSION_NAME, 100.dp)
-                SettingsInlineValue(stringResource(R.string.system_build), buildDate, 100.dp)
-                SettingsInlineValue(stringResource(R.string.system_installation), installedDate, 100.dp)
-                Spacer(Modifier.height(8.dp))
-                SettingsSectionTitle(stringResource(R.string.system_language))
-                Spacer(Modifier.height(6.dp))
-                SegmentedSettingsSelector(
-                    options = AppLanguage.entries,
-                    selected = AppLanguageManager.current(context),
-                    label = { language -> languageLabels.getValue(language) },
-                    onSelected = { AppLanguageManager.select(context, it) },
-                )
-            }
-            LauncherUpdateCard(
-                busy = updateState == LauncherUpdateState.Preparing,
-                installMessage = updateMessage,
-                onPrepared = onPreparedUpdate,
-                onSelectLocalApk = onSelectUpdateApk,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
-            SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
-                SettingsSectionTitle(stringResource(R.string.system_device))
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.system_reboot_description),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
-                )
-                Spacer(Modifier.weight(1f))
-                if (rebootRequestFailed) {
-                    Text(
-                        stringResource(R.string.device_reboot_failed),
-                        color = SettingsPalette.Danger,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-                SettingsActionButton(
-                    text = stringResource(R.string.device_reboot_button),
-                    controlHeight = SettingsDimensions.ActionHeight,
-                    modifier = Modifier.fillMaxWidth(),
-                    destructive = true,
-                    onClick = {
-                        rebootRequestFailed = false
-                        showRebootConfirmation = true
-                    },
-                )
-            }
-        }
-                }
-                FloatingNotificationHost(
-                    notification = poiNotice.takeIf { selectedTab == LauncherSettingsTab.MAP },
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 14.dp)
-                        .zIndex(2f),
-                )
             }
         }
     }
 }
 
 @Composable
-private fun PoiItemRow(label: String, onDelete: () -> Unit) {
+private fun SystemSettingsPanel(
+    buildDate: String,
+    installedDate: String,
+    languageLabels: Map<AppLanguage, String>,
+    updateState: LauncherUpdateState,
+    onPreparedUpdate: (LauncherUpdateInstaller.PreparationResult) -> Unit,
+    onSelectUpdateApk: () -> Unit,
+    rebootRequestFailed: Boolean,
+    onReboot: () -> Unit,
+) {
+    val context = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().height(28.dp),
+        Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.CardGap),
+    ) {
+        val updateMessage = when (updateState) {
+            LauncherUpdateState.Idle -> null
+            LauncherUpdateState.Preparing -> stringResource(R.string.launcher_update_preparing)
+            is LauncherUpdateState.PermissionRequired -> stringResource(
+                R.string.launcher_update_permission_required,
+            )
+            LauncherUpdateState.Unreadable -> stringResource(R.string.launcher_update_unreadable)
+            LauncherUpdateState.TooLarge -> stringResource(R.string.launcher_update_too_large)
+            LauncherUpdateState.InvalidApk -> stringResource(R.string.launcher_update_invalid_apk)
+            LauncherUpdateState.WrongApplication -> stringResource(
+                R.string.launcher_update_wrong_application,
+            )
+            LauncherUpdateState.InstallerUnavailable -> stringResource(
+                R.string.launcher_update_installer_unavailable,
+            )
+        }
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            SettingsSectionTitle(stringResource(R.string.system_application), SettingsIcons.Info)
+            Spacer(Modifier.height(6.dp))
+            SettingsValueRow(stringResource(R.string.system_version), BuildConfig.VERSION_NAME, icon = SettingsIcons.Tag)
+            SettingsValueRow(stringResource(R.string.system_build), buildDate, icon = SettingsIcons.Package)
+            SettingsValueRow(
+                stringResource(R.string.system_installation),
+                installedDate,
+                icon = SettingsIcons.Download,
+                divider = false,
+            )
+            Spacer(Modifier.weight(1f))
+            SettingsSectionTitle(stringResource(R.string.system_language), SettingsIcons.Globe)
+            Spacer(Modifier.height(10.dp))
+            SegmentedSettingsSelector(
+                options = AppLanguage.entries,
+                selected = AppLanguageManager.current(context),
+                label = { language -> languageLabels.getValue(language) },
+                onSelected = { AppLanguageManager.select(context, it) },
+            )
+        }
+        LauncherUpdateCard(
+            busy = updateState == LauncherUpdateState.Preparing,
+            installMessage = updateMessage,
+            onPrepared = onPreparedUpdate,
+            onSelectLocalApk = onSelectUpdateApk,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
+            SettingsSectionTitle(stringResource(R.string.system_device), SettingsIcons.Monitor)
+            Spacer(Modifier.height(6.dp))
+            SettingsValueRow(
+                stringResource(R.string.system_device_model),
+                listOf(android.os.Build.MANUFACTURER, android.os.Build.MODEL)
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .joinToString(" "),
+                icon = SettingsIcons.Monitor,
+            )
+            SettingsValueRow(
+                stringResource(R.string.system_android_version),
+                "${android.os.Build.VERSION.RELEASE} · API ${android.os.Build.VERSION.SDK_INT}",
+                icon = SettingsIcons.Chip,
+                divider = false,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                stringResource(R.string.system_reboot_description),
+                color = SettingsPalette.MutedText,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+            if (rebootRequestFailed) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.device_reboot_failed),
+                    color = SettingsPalette.Danger,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            SettingsActionButton(
+                text = stringResource(R.string.device_reboot_button),
+                controlHeight = SettingsDimensions.ActionHeight,
+                modifier = Modifier.fillMaxWidth(),
+                destructive = true,
+                icon = SettingsIcons.Power,
+                onClick = onReboot,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PoiImportTile(
+    label: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier
+            .height(58.dp)
+            .clip(SettingsControlShape)
+            .background(SettingsPalette.Accent.copy(alpha = .08f))
+            .border(1.dp, SettingsPalette.Accent.copy(alpha = .45f), SettingsControlShape)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(horizontal = 4.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = SettingsPalette.Accent, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.height(5.dp))
+        Text(
+            label,
+            color = SettingsPalette.Accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun PoiItemRow(icon: ImageVector, label: String, detail: String, onDelete: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(SettingsControlShape)
+            .background(SettingsPalette.Raised)
+            .padding(start = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(icon, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
             label,
             color = SettingsPalette.Text,
-            fontSize = 9.sp,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
+        )
+        Text(
+            detail,
+            color = SettingsPalette.MutedText,
+            fontSize = 11.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 6.dp),
         )
         SettingsDeleteIconButton(
             contentDescription = stringResource(R.string.poi_delete),
@@ -2525,6 +2659,16 @@ internal enum class LauncherSettingsTab(val labelRes: Int) {
     ASSISTANT(R.string.launcher_settings_tab_assistant),
     LOGS(R.string.launcher_settings_tab_logs),
     SYSTEM(R.string.launcher_settings_tab_system),
+    ;
+
+    val icon: ImageVector
+        get() = when (this) {
+            TRIPS -> SettingsIcons.Route
+            MAP -> SettingsIcons.Map
+            ASSISTANT -> SettingsIcons.Sparkles
+            LOGS -> SettingsIcons.Document
+            SYSTEM -> SettingsIcons.Gear
+        }
 }
 
 @Composable
@@ -2544,65 +2688,7 @@ private fun <T> SegmentedSettingsSelector(
 )
 
 @Composable
-private fun SettingsInlineValue(
-    label: String,
-    value: String,
-    labelWidth: androidx.compose.ui.unit.Dp = 112.dp,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "${label.uppercase(locale)}:",
-            color = SettingsPalette.MutedText,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(labelWidth),
-        )
-        Text(
-            value,
-            color = SettingsPalette.Text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun SettingsStackedValue(label: String, value: String) {
-    val locale = LocalConfiguration.current.locales[0]
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-    ) {
-        Text(
-            label.uppercase(locale),
-            color = SettingsPalette.MutedText,
-            fontSize = 8.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            value,
-            color = SettingsPalette.Text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
 private fun SettingsStorageUsage(
-    label: String,
     usedBytes: Long,
     limitBytes: Long,
 ) {
@@ -2611,25 +2697,6 @@ private fun SettingsStorageUsage(
     } else {
         0f
     }
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            color = SettingsPalette.MutedText,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            "${formatStorageSize(usedBytes)} / ${formatStorageSize(limitBytes)}",
-            color = SettingsPalette.Text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-    Spacer(Modifier.height(7.dp))
     Box(
         Modifier
             .fillMaxWidth()
@@ -2641,6 +2708,7 @@ private fun SettingsStorageUsage(
             Modifier
                 .fillMaxWidth(fraction)
                 .fillMaxHeight()
+                .clip(RoundedCornerShape(3.dp))
                 .background(SettingsPalette.Accent),
         )
     }
@@ -2689,7 +2757,8 @@ private fun AppsOverlay(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 18.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SettingsPalette.Content)
+                .background(SettingsPalette.Card)
+                .border(1.dp, SettingsPalette.Border, RoundedCornerShape(12.dp))
                 .padding(18.dp),
         ) {
             LazyVerticalGrid(
@@ -2715,6 +2784,7 @@ private fun LauncherOverlayHeader(
     headerHeight: androidx.compose.ui.unit.Dp,
     darkModeActive: Boolean,
     onClose: () -> Unit,
+    trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
         Modifier
@@ -2738,7 +2808,9 @@ private fun LauncherOverlayHeader(
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Black,
+            maxLines = 1,
         )
+        trailing()
     }
 }
 
@@ -2749,7 +2821,7 @@ fun AppCard(app: AppInfo, onClick: () -> Unit, onLongClick: () -> Unit) {
         Modifier
             .height(92.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(SettingsPalette.Card)
+            .background(SettingsPalette.Raised)
             .combinedClickable(
                 onClick = onClick,
                 onLongClickLabel = stringResource(R.string.app_info_description, app.label),

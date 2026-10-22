@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,11 +16,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -269,11 +272,11 @@ internal fun JourneyHistoryPanel(
     Box(modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.CardGap),
         ) {
             SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
-                SettingsSectionTitle(stringResource(R.string.journey_history_recording))
-                Spacer(Modifier.height(4.dp))
+                SettingsSectionTitle(stringResource(R.string.journey_history_recording), SettingsIcons.History)
+                Spacer(Modifier.height(10.dp))
                 SettingsSegmentedSelector(
                     options = listOf(false, true),
                     selected = snapshot.enabled,
@@ -281,10 +284,10 @@ internal fun JourneyHistoryPanel(
                     controlHeight = SettingsDimensions.SelectorHeight,
                     onSelected = onEnabledChanged,
                 )
-    
-                Spacer(Modifier.height(8.dp))
-                SettingsSectionTitle(stringResource(R.string.journey_history_filter_type))
-                Spacer(Modifier.height(4.dp))
+
+                Spacer(Modifier.height(SettingsDimensions.SectionGap))
+                SettingsSectionTitle(stringResource(R.string.journey_history_filter_type), SettingsIcons.Layers)
+                Spacer(Modifier.height(10.dp))
                 SettingsSegmentedSelector(
                     options = JourneyHistoryTypeFilter.entries,
                     selected = typeFilter,
@@ -292,41 +295,30 @@ internal fun JourneyHistoryPanel(
                     controlHeight = SettingsDimensions.SelectorHeight,
                     onSelected = { typeFilter = it },
                 )
-    
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SettingsSectionTitle(stringResource(R.string.journey_history_filter_dates))
-                    if (fromEpochDay != null || toEpochDay != null) {
-                        Text(
-                            text = stringResource(R.string.journey_history_clear_dates),
-                            color = SettingsPalette.Accent,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable {
-                                fromEpochDay = null
-                                toEpochDay = null
-                            },
-                        )
-                    }
+
+                Spacer(Modifier.height(SettingsDimensions.SectionGap))
+                SettingsSectionTitle(stringResource(R.string.journey_history_filter_dates), SettingsIcons.Calendar) {
+                    Text(
+                        text = stringResource(
+                            R.string.journey_history_results,
+                            filtered.size,
+                            allItems.size,
+                        ),
+                        color = SettingsPalette.MutedText,
+                        fontSize = 12.sp,
+                    )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SettingsActionButton(
-                        text = fromEpochDay?.let {
-                            stringResource(
-                                R.string.journey_history_from_value,
-                                LocalDate.ofEpochDay(it).format(dateFormatter),
-                            )
-                        } ?: stringResource(R.string.journey_history_from),
-                        controlHeight = SettingsDimensions.FieldHeight,
+                    JourneyDateField(
+                        label = stringResource(R.string.journey_history_from),
+                        epochDay = fromEpochDay,
+                        formatter = dateFormatter,
                         modifier = Modifier.weight(1f),
+                        onClear = { fromEpochDay = null },
                         onClick = {
                             showDatePicker(
                                 context = context,
@@ -340,15 +332,12 @@ internal fun JourneyHistoryPanel(
                             )
                         },
                     )
-                    SettingsActionButton(
-                        text = toEpochDay?.let {
-                            stringResource(
-                                R.string.journey_history_to_value,
-                                LocalDate.ofEpochDay(it).format(dateFormatter),
-                            )
-                        } ?: stringResource(R.string.journey_history_to),
-                        controlHeight = SettingsDimensions.FieldHeight,
+                    JourneyDateField(
+                        label = stringResource(R.string.journey_history_to),
+                        epochDay = toEpochDay,
+                        formatter = dateFormatter,
                         modifier = Modifier.weight(1f),
+                        onClear = { toEpochDay = null },
                         onClick = {
                             showDatePicker(
                                 context = context,
@@ -364,22 +353,13 @@ internal fun JourneyHistoryPanel(
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                Text(
-                    text = stringResource(
-                        R.string.journey_history_results,
-                        filtered.size,
-                        allItems.size,
-                    ),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                )
-                Spacer(Modifier.height(5.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsActionButton(
                         text = stringResource(R.string.journey_history_export),
-                        controlHeight = SettingsDimensions.FieldHeight,
+                        controlHeight = SettingsDimensions.ActionHeight,
                         modifier = Modifier.weight(1f),
                         enabled = filtered.isNotEmpty(),
+                        icon = SettingsIcons.Download,
                         onClick = {
                             val exportedAtEpochMs = System.currentTimeMillis()
                             pendingExport = JourneyHistoryExportRequest(
@@ -401,46 +381,31 @@ internal fun JourneyHistoryPanel(
                     )
                     SettingsActionButton(
                         text = stringResource(R.string.journey_history_clear_all),
-                        controlHeight = SettingsDimensions.FieldHeight,
+                        controlHeight = SettingsDimensions.ActionHeight,
                         modifier = Modifier.weight(1f),
                         enabled = snapshot.records.isNotEmpty(),
                         destructive = true,
+                        icon = SettingsIcons.Trash,
                         onClick = { showClearConfirmation = true },
                     )
                 }
             }
-    
+
             SettingsCard(Modifier.weight(2f).fillMaxHeight()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SettingsSectionTitle(stringResource(R.string.journey_history_title))
-                    Text(
-                        text = filtered.size.toString(),
-                        color = SettingsPalette.Accent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                SettingsSectionTitle(stringResource(R.string.journey_history_title), SettingsIcons.List) {
+                    SettingsCountBadge(filtered.size.toString())
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(12.dp))
                 if (filtered.isEmpty()) {
-                    Column(
+                    SettingsEmptyState(
+                        icon = SettingsIcons.Route,
+                        text = stringResource(R.string.journey_history_empty),
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.journey_history_empty),
-                            color = SettingsPalette.MutedText,
-                            fontSize = 11.sp,
-                        )
-                    }
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(filtered, key = JourneyHistoryItem::id) { record ->
                             JourneyHistoryRecordRow(
@@ -467,6 +432,50 @@ internal fun JourneyHistoryPanel(
 }
 
 @Composable
+private fun JourneyDateField(
+    label: String,
+    epochDay: Long?,
+    formatter: DateTimeFormatter,
+    modifier: Modifier,
+    onClear: () -> Unit,
+    onClick: () -> Unit,
+) {
+    SettingsField(
+        label = label,
+        value = epochDay?.let { LocalDate.ofEpochDay(it).format(formatter) }
+            ?: stringResource(R.string.journey_history_any_date),
+        modifier = modifier,
+        icon = SettingsIcons.Calendar,
+        valueColor = if (epochDay != null) SettingsPalette.Text else SettingsPalette.MutedText,
+        onClick = onClick,
+    ) {
+        if (epochDay != null) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onClear),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    SettingsIcons.Close,
+                    contentDescription = stringResource(R.string.journey_history_clear_dates),
+                    tint = SettingsPalette.MutedText,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        } else {
+            Icon(
+                SettingsIcons.ChevronDown,
+                contentDescription = null,
+                tint = SettingsPalette.MutedText,
+                modifier = Modifier.padding(end = 6.dp).size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun JourneyHistoryRecordRow(
     record: JourneyHistoryItem,
     locale: Locale,
@@ -478,86 +487,89 @@ private fun JourneyHistoryRecordRow(
     val dateTimeFormatter = remember(locale) {
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale)
     }
+    val accent = if (record.isOpen) SettingsPalette.Accent else SettingsPalette.BorderStrong
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                SettingsPalette.Control,
-                androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            ),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
+            .clip(SettingsControlShape)
+            .background(SettingsPalette.Raised)
+            .border(1.dp, SettingsPalette.Border, SettingsControlShape),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onToggleExpanded)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                .height(60.dp)
+                .clickable(onClick = onToggleExpanded),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(
-                    when {
-                        record.isOpen && record.kind == JourneyHistoryKind.TRIP ->
-                            R.string.journey_history_current_trip
-                        record.isOpen -> R.string.journey_history_current_partial
-                        record.kind == JourneyHistoryKind.TRIP -> R.string.journey_history_trip
-                        else -> R.string.journey_history_partial
-                    }
-                ),
-                color = SettingsPalette.Accent,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-            )
-            Text(
-                text = record.endedAtEpochMs?.let { endedAt ->
-                    stringResource(
+            Box(Modifier.width(3.dp).fillMaxHeight().background(accent))
+            Spacer(Modifier.width(12.dp))
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(SettingsPalette.Track),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (record.kind == JourneyHistoryKind.TRIP) SettingsIcons.Route else SettingsIcons.Flag,
+                    contentDescription = null,
+                    tint = if (record.isOpen) SettingsPalette.Accent else SettingsPalette.MutedText,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        when {
+                            record.isOpen && record.kind == JourneyHistoryKind.TRIP ->
+                                R.string.journey_history_current_trip
+                            record.isOpen -> R.string.journey_history_current_partial
+                            record.kind == JourneyHistoryKind.TRIP -> R.string.journey_history_trip
+                            else -> R.string.journey_history_partial
+                        }
+                    ),
+                    color = SettingsPalette.Text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    text = stringResource(
                         R.string.journey_history_period,
                         formatRecordDate(record.startedAtEpochMs, dateTimeFormatter),
-                        formatRecordDate(endedAt, dateTimeFormatter),
-                    )
-                } ?: stringResource(
-                    R.string.journey_history_period,
-                    formatRecordDate(record.startedAtEpochMs, dateTimeFormatter),
-                    stringResource(R.string.journey_history_in_progress),
-                ),
-                color = SettingsPalette.MutedText,
-                fontSize = 9.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 10.dp).weight(1f),
-            )
-            Text(
-                text = stringResource(
+                        record.endedAtEpochMs?.let { formatRecordDate(it, dateTimeFormatter) }
+                            ?: stringResource(R.string.journey_history_in_progress),
+                    ),
+                    color = SettingsPalette.MutedText,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(Modifier.width(1.dp).height(28.dp).background(SettingsPalette.Border))
+            Spacer(Modifier.width(16.dp))
+            RecordMetric(
+                SettingsIcons.Pin,
+                stringResource(
                     R.string.statistics_distance_value,
                     formatOneDecimal(statistics.distanceKm, locale),
                 ),
-                color = SettingsPalette.Text,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
+                Modifier.width(112.dp),
             )
-            Text(
-                text = formatTripDuration(statistics.elapsedMs),
-                color = SettingsPalette.Text,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                modifier = Modifier.padding(start = 12.dp),
-            )
-            onDelete?.let {
+            RecordMetric(SettingsIcons.Clock, formatTripDuration(statistics.elapsedMs), Modifier.width(84.dp))
+            // Reserve the delete slot on open records so metrics stay aligned in every row.
+            if (onDelete != null) {
                 SettingsDeleteIconButton(
                     contentDescription = stringResource(R.string.journey_history_delete),
-                    modifier = Modifier.padding(start = 5.dp),
-                    onClick = it,
+                    onClick = onDelete,
                 )
+            } else {
+                Spacer(Modifier.width(32.dp))
             }
             Icon(
-                imageVector = if (expanded) {
-                    Icons.Default.KeyboardArrowUp
-                } else {
-                    Icons.Default.KeyboardArrowDown
-                },
+                imageVector = if (expanded) SettingsIcons.ChevronUp else SettingsIcons.ChevronDown,
                 contentDescription = stringResource(
                     if (expanded) {
                         R.string.journey_history_collapse
@@ -566,10 +578,32 @@ private fun JourneyHistoryRecordRow(
                     },
                 ),
                 tint = SettingsPalette.Accent,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier.padding(start = 4.dp, end = 14.dp).size(20.dp),
             )
         }
-        if (expanded) JourneyHistoryDetails(statistics, locale)
+        if (expanded) {
+            SettingsDivider()
+            JourneyHistoryDetails(statistics, locale)
+        }
+    }
+}
+
+@Composable
+private fun RecordMetric(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = value,
+            color = SettingsPalette.Text,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
     }
 }
 
@@ -579,8 +613,8 @@ private fun JourneyHistoryDetails(
     locale: Locale,
 ) {
     Column(
-        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 7.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             HistoryMetric(
@@ -653,14 +687,14 @@ private fun HistoryMetric(label: String, value: String, modifier: Modifier = Mod
         Text(
             text = label,
             color = SettingsPalette.MutedText,
-            fontSize = 8.sp,
+            fontSize = 10.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = value,
             color = SettingsPalette.Text,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )

@@ -24,9 +24,9 @@
     <string name="assistant_api_key">API key</string>
     <string name="assistant_save">Save</string>
     <string name="assistant_delete_key">Delete Key</string>
-    <string name="assistant_credential_openai">OPENAI</string>
-    <string name="assistant_credential_gemini">GOOGLE GEMINI</string>
-    <string name="assistant_credential_places">GOOGLE PLACES</string>
+    <string name="assistant_credential_openai">OpenAI</string>
+    <string name="assistant_credential_gemini">Google Gemini</string>
+    <string name="assistant_credential_places">Google Places</string>
     <string name="assistant_places_service">Places API (New) · Text Search</string>
     <string name="assistant_test">Test</string>
     <string name="assistant_disabled">Disabled</string>
@@ -44,10 +44,8 @@
     <string name="assistant_error_provider_rejected">The AI provider rejected the request.</string>
     <string name="assistant_error_provider_response">The AI provider sent an invalid response.</string>
     <string name="assistant_error_logging">Error Logging</string>
-    <string name="assistant_error_logs">Errors</string>
     <string name="assistant_inactive">Inactive</string>
     <string name="assistant_active">Active</string>
-    <string name="assistant_export_errors_with_stats">Download - %1$d - %2$s</string>
     <string name="assistant_clear_errors">Clear</string>
     <string name="assistant_no_error_logs">There are no error logs to download.</string>
     <string name="assistant_error_export_failed">The error logs could not be downloaded.</string>
@@ -130,7 +128,6 @@
     <string name="map_cache">Map Cache</string>
     <string name="map_clear_cache">Clear Cache</string>
     <string name="map_logs">Logs</string>
-    <string name="map_download_logs">Download - %1$d - %2$s</string>
     <string name="map_clear_logs">Clear</string>
     <string name="map_diagnostics">Map Diagnostics</string>
     <string name="map_active">Active</string>
@@ -291,8 +288,6 @@
     <string name="journey_history_filter_dates">Date Range</string>
     <string name="journey_history_from">From</string>
     <string name="journey_history_to">To</string>
-    <string name="journey_history_from_value">From %1$s</string>
-    <string name="journey_history_to_value">To %1$s</string>
     <string name="journey_history_clear_dates">Clear Dates</string>
     <string name="journey_history_results">%1$d of %2$d</string>
     <string name="journey_history_empty">No completed records match the selected filters.</string>
@@ -313,4 +308,14 @@
     <string name="journey_history_clear_title">Delete Trip History</string>
     <string name="journey_history_clear_message">All completed Trip and Partial records will be deleted.</string>
     <string name="journey_history_cancel">Cancel</string>
+    <string name="settings_download">Download</string>
+    <string name="settings_files_summary">Files: %1$d · %2$s</string>
+    <string name="map_appearance">Appearance</string>
+    <string name="map_status">Status</string>
+    <string name="system_device_model">Model</string>
+    <string name="system_android_version">Android</string>
+    <string name="assistant_credentials">Credentials</string>
+    <string name="functional_logs_timeline">Captured events</string>
+    <string name="journey_history_any_date">Any date</string>
+    <string name="assistant_api_key_placeholder">Not configured</string>
 </resources>

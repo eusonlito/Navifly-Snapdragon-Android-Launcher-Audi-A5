@@ -23,9 +23,9 @@
     <string name="assistant_api_key">Clave API</string>
     <string name="assistant_save">Guardar</string>
     <string name="assistant_delete_key">Eliminar Clave</string>
-    <string name="assistant_credential_openai">OPENAI</string>
-    <string name="assistant_credential_gemini">GOOGLE GEMINI</string>
-    <string name="assistant_credential_places">GOOGLE PLACES</string>
+    <string name="assistant_credential_openai">OpenAI</string>
+    <string name="assistant_credential_gemini">Google Gemini</string>
+    <string name="assistant_credential_places">Google Places</string>
     <string name="assistant_places_service">Places API (New) · Text Search</string>
     <string name="assistant_test">Probar</string>
     <string name="assistant_disabled">Desactivado</string>
@@ -43,10 +43,8 @@
     <string name="assistant_error_provider_rejected">El proveedor de IA ha rechazado la solicitud.</string>
     <string name="assistant_error_provider_response">El proveedor de IA ha enviado una respuesta no válida.</string>
     <string name="assistant_error_logging">Registro de Errores</string>
-    <string name="assistant_error_logs">Errores</string>
     <string name="assistant_inactive">Inactivo</string>
     <string name="assistant_active">Activo</string>
-    <string name="assistant_export_errors_with_stats">Descargar - %1$d - %2$s</string>
     <string name="assistant_clear_errors">Limpiar</string>
     <string name="assistant_no_error_logs">No hay errores registrados para descargar.</string>
     <string name="assistant_error_export_failed">No se han podido descargar los errores.</string>
@@ -129,7 +127,6 @@
     <string name="map_cache">Caché del Mapa</string>
     <string name="map_clear_cache">Borrar Caché</string>
     <string name="map_logs">Logs</string>
-    <string name="map_download_logs">Descargar - %1$d - %2$s</string>
     <string name="map_clear_logs">Limpiar</string>
     <string name="map_diagnostics">Diagnóstico del Mapa</string>
     <string name="map_active">Activo</string>
@@ -290,8 +287,6 @@
     <string name="journey_history_filter_dates">Rango de Fechas</string>
     <string name="journey_history_from">Desde</string>
     <string name="journey_history_to">Hasta</string>
-    <string name="journey_history_from_value">Desde %1$s</string>
-    <string name="journey_history_to_value">Hasta %1$s</string>
     <string name="journey_history_clear_dates">Quitar Fechas</string>
     <string name="journey_history_results">%1$d de %2$d</string>
     <string name="journey_history_empty">No hay registros finalizados que coincidan con los filtros.</string>
@@ -312,4 +307,14 @@
     <string name="journey_history_clear_title">Eliminar Historial de Viajes</string>
     <string name="journey_history_clear_message">Se eliminarán todos los registros finalizados de Viajes y Parciales.</string>
     <string name="journey_history_cancel">Cancelar</string>
+    <string name="settings_download">Descargar</string>
+    <string name="settings_files_summary">Ficheros: %1$d · %2$s</string>
+    <string name="map_appearance">Apariencia</string>
+    <string name="map_status">Estado</string>
+    <string name="system_device_model">Modelo</string>
+    <string name="system_android_version">Android</string>
+    <string name="assistant_credentials">Credenciales</string>
+    <string name="functional_logs_timeline">Eventos capturados</string>
+    <string name="journey_history_any_date">Cualquier fecha</string>
+    <string name="assistant_api_key_placeholder">Sin configurar</string>
 </resources>

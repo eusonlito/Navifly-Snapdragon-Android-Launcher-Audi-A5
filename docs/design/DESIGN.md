@@ -351,46 +351,45 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   la misma retícula vertical al alternar entre dashboard, Aplicaciones y
   Ajustes.
   Ajustes abre por defecto la pestaña `Viajes`, seguida de `Mapa`, `Asistente IA`,
-  `Registros` y `Sistema`. `Viajes` reserva un tercio para activar el historial y
-  aplicar filtros de tipo o fecha, y dos tercios para una lista compacta y
-  desplazable de Viajes y Parciales. Cada elemento ocupa una sola línea con su
-  periodo, distancia y duración, y puede desplegarse de forma independiente para
-  comparar simultáneamente el detalle de varios registros. Las primeras filas
-  muestran el Viaje y el Parcial actuales en tiempo real, identificados como
-  abiertos y sin fecha de fin. El bloque de filtros permite descargar mediante
-  el selector de archivos un JSON con exactamente las filas visibles; sin filtro
-  activo se incluyen todos los Viajes y Parciales. El resto
-  de pestañas conserva sus distribuciones específicas; Mapa distribuye el
-  contenido en paneles visualmente uniformes.
-  Los paneles no necesitan títulos propios ni desplazamiento vertical. El
-  El primero reúne color, estilo, límite de caché y diagnóstico. Los cinco límites
-  de caché comparten una única fila.
-  Todas las opciones de cada ajuste reparten por igual el ancho disponible y
-  centran su texto. Los selectores segmentados usan una cápsula interior que se
-  desplaza con una animación breve hasta la opción elegida y cada segmento se
-  expone como opción de radio accesible. El segundo panel contiene únicamente
-  información del mapa en filas de una línea con formato `ETIQUETA: valor`. El
-  tercero agrupa almacenamiento y mantenimiento: ocupación de caché frente al
-  límite seleccionado, tamaño de logs y sus acciones de borrado. Selectores y
-  botones de mantenimiento comparten exactamente la misma altura compacta. Este
-  último panel también identifica el APK mediante fecha y hora de compilación,
-  fecha y hora de instalación o actualización y `versionName`, en ese orden
-  visual: versión, compilación e instalación. Las fechas respetan el formato
-  regional del dispositivo y las horas se muestran siempre en formato de 24
-  horas. La compilación se
-  inyecta automáticamente en `BuildConfig` durante cada build y la instalación
-  procede de `PackageInfo.lastUpdateTime`; ninguno de estos valores se mantiene
-  manualmente. La pestaña de versión incorpora una acción de reinicio con
-  confirmación previa; envía exclusivamente la orden nativa de EventCenter que
-  ya utiliza el logger y no requiere acceso root. También permite seleccionar
-  desde el selector de documentos de Android un APK de actualización. La
-  cancelación del selector no altera el estado; antes de abrir el instalador
-  nativo, el fichero se copia a caché privada y se comprueba que pertenece al
-  paquete de A5 Cockpit. Android conserva la confirmación final de instalación
-  y solicita una sola vez el permiso para instalar aplicaciones desde esta
-  fuente. No se muestra el nombre del
-  fichero de diagnóstico ni
-  configuración para asignar el launcher predeterminado.
+  `Registros` y `Sistema`. Las pestañas son píldoras con icono integradas en la
+  propia cabecera, a la derecha del título, para que el contenido disponga de
+  toda la altura restante; ninguna pestaña necesita desplazamiento vertical salvo
+  sus listas.
+* El sistema visual de Ajustes vive en `SettingsComponents.kt` y
+  `SettingsIcons.kt` y es común a todas las pestañas:
+  * Fondo negro absoluto, como el cockpit. Las tarjetas son superficies planas
+    de grafito (`#0D1317`) con borde de 1 dp, radio de 14 dp, padding de 16 dp
+    y 12 dp de separación. El cian del dashboard (`#00DDF4`) es el único acento;
+    el rojo queda reservado a acciones destructivas y el verde/ámbar a puntos de
+    estado.
+  * Cada tarjeta empieza con un título de sección: pictograma cian de 18 dp,
+    texto en mayúsculas de 12 sp y un hueco opcional a la derecha para
+    contadores o resúmenes (`3 de 3`, `Ficheros: 0 · 0 B`).
+  * Los pictogramas son trazos finos propios sobre una retícula de 24 unidades,
+    coherentes con los iconos de la cabecera del dashboard, sin añadir el
+    conjunto extendido de Material Icons al APK.
+  * Selectores segmentados de 36 dp con cápsula cian animada y texto en
+    minúsculas; botones de 40 dp con icono, contorno y relleno tenue del tono
+    de su acción. La acción principal de una tarjeta (Guardar, Instalar) usa
+    relleno cian completo.
+  * Los campos (fechas, modelo, clave API) muestran etiqueta y valor dentro de
+    una caja elevada de 48 dp; los datos de solo lectura usan filas
+    `etiqueta … valor` separadas por líneas finas.
+  * Ningún texto baja de 10 sp; los valores principales usan 12–13 sp.
+  * Los controles inferiores de las tarjetas contiguas quedan alineados en la
+    misma línea base.
+* `Viajes` reserva un tercio para activar el historial y filtrar por tipo o
+  fechas, y dos tercios para la lista de Viajes y Parciales. Cada fila muestra
+  icono, periodo, distancia y duración en columnas alineadas, y se despliega
+  para ver el detalle. Las primeras filas son el Viaje y el Parcial actuales,
+  marcados con una barra cian. La descarga genera un JSON con las filas visibles.
+* `Mapa` reparte cuatro tarjetas iguales: apariencia (color, estilo y límite de
+  caché), estado (mapa, red, GPS, coordenadas y proveedor con puntos de color),
+  caché y logs de diagnóstico, y puntos de interés.
+* `Sistema` muestra aplicación (versión, compilación, instalación e idioma),
+  actualización desde GitHub o APK local, y dispositivo (modelo, versión de
+  Android y reinicio con confirmación previa mediante EventCenter, sin root).
+  Las fechas respetan el formato regional y las horas usan 24 horas.
   los símbolos circulares y diagonales se reducen ligeramente y los horizontales
   se amplían, de modo que su masa visual sea uniforme aunque sus `viewBox` sean
   diferentes. La calibración se ha realizado con la pantalla real de 2400x896,

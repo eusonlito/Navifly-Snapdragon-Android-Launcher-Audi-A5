@@ -13,8 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -242,7 +240,7 @@ private fun FunctionalLogsContent(
 ) {
     Row(
         Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(SettingsDimensions.CardGap),
     ) {
         FunctionalLogsControls(
             state = state,
@@ -267,8 +265,8 @@ private fun FunctionalLogsControls(
     val disabledLabel = stringResource(R.string.functional_logs_disabled)
     val enabledLabel = stringResource(R.string.functional_logs_enabled)
     SettingsCard(modifier) {
-        SettingsSectionTitle(stringResource(R.string.functional_logs_capture))
-        Spacer(Modifier.height(8.dp))
+        SettingsSectionTitle(stringResource(R.string.functional_logs_capture), SettingsIcons.Record)
+        Spacer(Modifier.height(10.dp))
         SettingsSegmentedSelector(
             options = listOf(false, true),
             selected = state.settings.enabled,
@@ -277,9 +275,9 @@ private fun FunctionalLogsControls(
             enabled = !busy,
             onSelected = actions.setGlobalEnabled,
         )
-        Spacer(Modifier.height(14.dp))
-        SettingsSectionTitle(stringResource(R.string.functional_logs_categories))
-        Spacer(Modifier.height(7.dp))
+        Spacer(Modifier.height(SettingsDimensions.SectionGap))
+        SettingsSectionTitle(stringResource(R.string.functional_logs_categories), SettingsIcons.ListChecks)
+        Spacer(Modifier.height(10.dp))
         Column(
             Modifier
                 .weight(1f)
@@ -297,16 +295,17 @@ private fun FunctionalLogsControls(
                     onChecked = { actions.setCategoryEnabled(category, it) },
                     onDelete = { actions.selectCategoryForDeletion(category) },
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingsActionButton(
                 text = stringResource(R.string.functional_logs_export_all),
                 controlHeight = SettingsDimensions.ActionHeight,
                 modifier = Modifier.weight(1f),
                 enabled = !busy && state.stats.validEvents > 0,
+                icon = SettingsIcons.Download,
                 onClick = actions.exportAll,
             )
             SettingsActionButton(
@@ -315,6 +314,7 @@ private fun FunctionalLogsControls(
                 modifier = Modifier.weight(1f),
                 enabled = !busy && (state.stats.validEvents > 0 || state.stats.corruptLines > 0),
                 destructive = true,
+                icon = SettingsIcons.Trash,
                 onClick = actions.selectAllForDeletion,
             )
         }
@@ -338,25 +338,36 @@ private fun FunctionalLogsTimeline(
     LaunchedEffect(nearEnd) { if (nearEnd) actions.loadMore() }
 
     SettingsCard(modifier) {
+        SettingsSectionTitle(stringResource(R.string.functional_logs_timeline), SettingsIcons.Document) {
+            SettingsCountBadge(state.stats.validEvents.toString())
+        }
+        Spacer(Modifier.height(12.dp))
         if (state.initialLoading && state.events.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     stringResource(R.string.functional_logs_loading),
                     color = SettingsPalette.MutedText,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                 )
             }
+        } else if (state.events.isEmpty() && state.loadError == null && !state.pageLoading) {
+            SettingsEmptyState(
+                icon = SettingsIcons.Document,
+                text = stringResource(R.string.functional_logs_empty),
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 items(state.events, key = FunctionalEvent::sequence) { event ->
                     FunctionalLogEventRow(
                         event = event,
                         expanded = event.sequence in state.expandedSequences,
                         onClick = { actions.toggleExpanded(event.sequence) },
                     )
-                }
-                if (state.events.isEmpty() && state.loadError == null) {
-                    item(key = "empty") { FunctionalLogsFooter(R.string.functional_logs_empty) }
                 }
                 if (state.pageLoading) {
                     item(key = "loading") {
@@ -372,14 +383,14 @@ private fun FunctionalLogsTimeline(
                             Text(
                                 state.loadError,
                                 color = SettingsPalette.Danger,
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 stringResource(R.string.functional_logs_retry),
                                 color = SettingsPalette.Accent,
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable(onClick = actions.retry).padding(7.dp),
                             )
@@ -425,38 +436,39 @@ private fun FunctionalLogEventRow(
         Modifier
             .fillMaxWidth()
             .semantics { stateDescription = expansionDescription }
+            .clip(SettingsControlShape)
+            .background(SettingsPalette.Raised)
+            .border(1.dp, SettingsPalette.Border, SettingsControlShape)
             .clickable(onClick = onClick)
-            .padding(vertical = 3.dp)
-            .border(
-                width = 0.5.dp,
-                color = SettingsPalette.Border.copy(alpha = .7f),
-                shape = RoundedCornerShape(7.dp),
-            )
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(FunctionalEventPresentation.categoryLabelRes(event.category)),
                 color = SettingsPalette.Accent,
-                fontSize = 8.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(SettingsPalette.Accent.copy(alpha = .12f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
             Text(
                 summary,
                 color = SettingsPalette.Text,
-                fontSize = 9.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(8.dp))
-            Text(date, color = SettingsPalette.MutedText, fontSize = 8.sp)
+            Text(date, color = SettingsPalette.MutedText, fontSize = 11.sp)
         }
         if (expanded) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             val source = stringResource(
                 if (event.source == FunctionalEventSource.REPLAY) {
                     R.string.functional_logs_source_replay
@@ -472,7 +484,7 @@ private fun FunctionalLogEventRow(
                     source,
                 ),
                 color = SettingsPalette.MutedText,
-                fontSize = 8.sp,
+                fontSize = 11.sp,
             )
             event.context.toSortedMap().forEach { (key, value) ->
                 val labelRes = FunctionalEventPresentation.contextLabelRes(key)
@@ -481,8 +493,8 @@ private fun FunctionalLogEventRow(
                 Text(
                     "$label: ${formatFunctionalEventValue(value, locale)}",
                     color = SettingsPalette.MutedText,
-                    fontSize = 8.sp,
-                    lineHeight = 11.sp,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
                 )
             }
         }
@@ -502,23 +514,23 @@ private fun FunctionalLogsCategoryRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(38.dp),
+            .height(44.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(7.dp))
+                .clip(SettingsControlShape)
                 .background(
                     if (checked) SettingsPalette.Accent.copy(alpha = .08f)
-                    else SettingsPalette.Control.copy(alpha = .55f),
+                    else SettingsPalette.Raised,
                 )
                 .border(
                     1.dp,
-                    if (checked) SettingsPalette.Accent.copy(alpha = .55f)
+                    if (checked) SettingsPalette.Accent.copy(alpha = .45f)
                     else SettingsPalette.Border,
-                    RoundedCornerShape(7.dp),
+                    SettingsControlShape,
                 )
                 .toggleable(
                     value = checked,
@@ -526,13 +538,13 @@ private fun FunctionalLogsCategoryRow(
                     role = Role.Checkbox,
                     onValueChange = onChecked,
                 )
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 label,
                 color = SettingsPalette.Text.copy(alpha = if (enabled) 1f else .45f),
-                fontSize = 9.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -541,13 +553,13 @@ private fun FunctionalLogsCategoryRow(
             Text(
                 count.toString(),
                 color = SettingsPalette.MutedText.copy(alpha = if (enabled) 1f else .45f),
-                fontSize = 8.sp,
+                fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
             Box(
                 Modifier
-                    .size(18.dp)
-                    .clip(RoundedCornerShape(5.dp))
+                    .size(20.dp)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(if (checked) SettingsPalette.Accent else Color.Transparent)
                     .border(
                         1.dp,
@@ -558,10 +570,10 @@ private fun FunctionalLogsCategoryRow(
             ) {
                 if (checked) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = SettingsIcons.Check,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(13.dp),
+                        tint = SettingsPalette.OnAccent,
+                        modifier = Modifier.size(14.dp),
                     )
                 }
             }
@@ -592,7 +604,7 @@ private fun FunctionalLogsFooter(textRes: Int) {
     Text(
         stringResource(textRes),
         color = SettingsPalette.MutedText,
-        fontSize = 9.sp,
+        fontSize = 11.sp,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
     )

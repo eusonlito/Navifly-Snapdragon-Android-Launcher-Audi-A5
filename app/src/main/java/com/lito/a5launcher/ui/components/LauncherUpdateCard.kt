@@ -2,18 +2,16 @@ package com.lito.a5launcher.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,9 +22,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -89,25 +89,54 @@ internal fun LauncherUpdateCard(
     } ?: stringResource(R.string.launcher_release_install)
 
     SettingsCard(modifier) {
-        SettingsSectionTitle(stringResource(R.string.system_update))
-        Spacer(Modifier.height(10.dp))
-        Text(stringResource(R.string.launcher_release_description), color = SettingsPalette.MutedText, fontSize = 10.sp, lineHeight = 14.sp)
-        release?.let {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                Modifier.fillMaxWidth()
-                    .background(SettingsPalette.Control, RoundedCornerShape(7.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.launcher_release_version), color = SettingsPalette.MutedText, fontSize = 10.sp)
-                Text(it.version, color = SettingsPalette.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        SettingsSectionTitle(stringResource(R.string.system_update), SettingsIcons.CloudDownload)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.launcher_release_description),
+            color = SettingsPalette.MutedText,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth()
+                .height(SettingsDimensions.FieldHeight)
+                .settingsFieldSurface()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(SettingsIcons.Package, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.launcher_release_version),
+                color = SettingsPalette.MutedText,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f),
+            )
+            if (release != null && !checking) {
+                Box(
+                    Modifier.size(7.dp).clip(CircleShape)
+                        .background(if (available) SettingsPalette.Accent else SettingsPalette.Success),
+                )
+                Spacer(Modifier.width(8.dp))
             }
+            Text(
+                release?.version ?: "—",
+                color = SettingsPalette.Text,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
         Spacer(Modifier.weight(1f))
         status?.let {
-            Text(it, color = if (checkFailed || downloadFailed) SettingsPalette.Danger else SettingsPalette.Accent, fontSize = 10.sp, lineHeight = 14.sp)
+            Text(
+                it,
+                color = if (checkFailed || downloadFailed) SettingsPalette.Danger else SettingsPalette.Accent,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
             Spacer(Modifier.height(8.dp))
         }
         Row(
@@ -120,6 +149,8 @@ internal fun LauncherUpdateCard(
                 controlHeight = SettingsDimensions.ActionHeight,
                 modifier = Modifier.weight(1f),
                 enabled = available && !working,
+                prominent = true,
+                icon = if (available) SettingsIcons.Download else SettingsIcons.Check,
                 onClick = {
                     val selected = release ?: return@SettingsActionButton
                     downloading = true
@@ -145,19 +176,20 @@ internal fun LauncherUpdateCard(
                     }
                 },
             )
-            IconButton(
-                onClick = { scope.launch { checkRelease() } },
-                modifier = Modifier.size(48.dp),
+            SettingsIconButton(
+                icon = SettingsIcons.Refresh,
+                contentDescription = stringResource(R.string.launcher_release_check),
                 enabled = !working,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = SettingsPalette.Accent),
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.launcher_release_check))
-            }
+                onClick = { scope.launch { checkRelease() } },
+            )
         }
         Spacer(Modifier.height(8.dp))
         SettingsActionButton(
-            stringResource(R.string.launcher_release_local), SettingsDimensions.ActionHeight,
-            Modifier.fillMaxWidth(), enabled = !working,
+            stringResource(R.string.launcher_release_local),
+            SettingsDimensions.ActionHeight,
+            Modifier.fillMaxWidth(),
+            enabled = !working,
+            icon = SettingsIcons.Upload,
         ) {
             checkFailed = false
             downloadFailed = false
