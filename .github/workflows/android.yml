@@ -3,7 +3,7 @@ name: Android CI
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   plan-releases:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     outputs:
       releases: ${{ steps.releases.outputs.matrix }}
@@ -80,7 +80,7 @@ jobs:
 
   publish-release:
     needs: plan-releases
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan-releases.outputs.releases) }}
