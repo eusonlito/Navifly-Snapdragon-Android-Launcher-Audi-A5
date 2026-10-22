@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,6 +109,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.io.File
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -459,17 +461,54 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
 
     var updateState by remember { mutableStateOf<LauncherUpdateState>(LauncherUpdateState.Idle) }
+    var pendingInstallPath by rememberSaveable { mutableStateOf<String?>(null) }
     val installPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
-        val permissionState = updateState as? LauncherUpdateState.PermissionRequired
-        if (permissionState != null && LauncherUpdateInstaller.canInstallPackages(context)) {
+        val pendingFile = pendingInstallPath?.let(::File)
+        if (pendingFile != null && LauncherUpdateInstaller.canInstallPackages(context)) {
+            pendingInstallPath = null
             updateState = if (
-                LauncherUpdateInstaller.install(context, permissionState.file).isFailure
+                LauncherUpdateInstaller.install(context, pendingFile).isFailure
             ) {
                 LauncherUpdateState.InstallerUnavailable
             } else {
                 LauncherUpdateState.Idle
+            }
+        } else if (pendingFile != null) {
+            updateState = LauncherUpdateState.PermissionRequired(pendingFile)
+        }
+    }
+    val onPreparedUpdate: (LauncherUpdateInstaller.PreparationResult) -> Unit = { preparation ->
+        when (preparation) {
+            is LauncherUpdateInstaller.PreparationResult.Ready -> {
+                if (LauncherUpdateInstaller.canInstallPackages(context)) {
+                    updateState = if (
+                        LauncherUpdateInstaller.install(context, preparation.file).isFailure
+                    ) {
+                        LauncherUpdateState.InstallerUnavailable
+                    } else {
+                        LauncherUpdateState.Idle
+                    }
+                } else {
+                    pendingInstallPath = preparation.file.absolutePath
+                    updateState = LauncherUpdateState.PermissionRequired(preparation.file)
+                    if (runCatching {
+                        installPermissionLauncher.launch(LauncherUpdateInstaller.requestPermissionIntent(context))
+                    }.isFailure) updateState = LauncherUpdateState.InstallerUnavailable
+                }
+            }
+            LauncherUpdateInstaller.PreparationResult.Unreadable -> {
+                updateState = LauncherUpdateState.Unreadable
+            }
+            LauncherUpdateInstaller.PreparationResult.TooLarge -> {
+                updateState = LauncherUpdateState.TooLarge
+            }
+            LauncherUpdateInstaller.PreparationResult.InvalidApk -> {
+                updateState = LauncherUpdateState.InvalidApk
+            }
+            LauncherUpdateInstaller.PreparationResult.WrongApplication -> {
+                updateState = LauncherUpdateState.WrongApplication
             }
         }
     }
@@ -479,39 +518,9 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
         if (selectedApk != null) {
             updateState = LauncherUpdateState.Preparing
             coroutineScope.launch {
-                val preparation = withContext(Dispatchers.IO) {
+                onPreparedUpdate(withContext(Dispatchers.IO) {
                     LauncherUpdateInstaller.prepare(context, selectedApk)
-                }
-                when (preparation) {
-                    is LauncherUpdateInstaller.PreparationResult.Ready -> {
-                        if (LauncherUpdateInstaller.canInstallPackages(context)) {
-                            updateState = if (
-                                LauncherUpdateInstaller.install(context, preparation.file).isFailure
-                            ) {
-                                LauncherUpdateState.InstallerUnavailable
-                            } else {
-                                LauncherUpdateState.Idle
-                            }
-                        } else {
-                            updateState = LauncherUpdateState.PermissionRequired(preparation.file)
-                            installPermissionLauncher.launch(
-                                LauncherUpdateInstaller.requestPermissionIntent(context),
-                            )
-                        }
-                    }
-                    LauncherUpdateInstaller.PreparationResult.Unreadable -> {
-                        updateState = LauncherUpdateState.Unreadable
-                    }
-                    LauncherUpdateInstaller.PreparationResult.TooLarge -> {
-                        updateState = LauncherUpdateState.TooLarge
-                    }
-                    LauncherUpdateInstaller.PreparationResult.InvalidApk -> {
-                        updateState = LauncherUpdateState.InvalidApk
-                    }
-                    LauncherUpdateInstaller.PreparationResult.WrongApplication -> {
-                        updateState = LauncherUpdateState.WrongApplication
-                    }
-                }
+                })
             }
         }
     }
@@ -960,6 +969,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     onDeleteJourneyHistoryRecord = viewModel::deleteJourneyHistoryRecord,
                     onClearJourneyHistory = viewModel::clearJourneyHistory,
                     updateState = updateState,
+                    onPreparedUpdate = onPreparedUpdate,
                     onSelectUpdateApk = {
                         updateApkPicker.launch(arrayOf(LauncherUpdateInstaller.APK_MIME_TYPE))
                     },
@@ -1993,6 +2003,7 @@ private fun LauncherSettingsOverlay(
     onDeleteJourneyHistoryRecord: (String) -> Unit,
     onClearJourneyHistory: () -> Unit,
     updateState: LauncherUpdateState,
+    onPreparedUpdate: (LauncherUpdateInstaller.PreparationResult) -> Unit,
     onSelectUpdateApk: () -> Unit,
     onRequestDeviceReboot: () -> Result<Unit>,
     onClose: () -> Unit,
@@ -2436,41 +2447,13 @@ private fun LauncherSettingsOverlay(
                     onSelected = { AppLanguageManager.select(context, it) },
                 )
             }
-            SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
-                SettingsSectionTitle(stringResource(R.string.system_update))
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.system_update_description),
-                    color = SettingsPalette.MutedText,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
-                )
-                Spacer(Modifier.weight(1f))
-                if (updateMessage != null) {
-                    Text(
-                        updateMessage,
-                        color = SettingsPalette.Accent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-                SettingsActionButton(
-                    text = stringResource(
-                        if (updateState == LauncherUpdateState.Preparing) {
-                            R.string.launcher_update_preparing
-                        } else {
-                            R.string.launcher_update_button
-                        },
-                    ),
-                    controlHeight = SettingsDimensions.ActionHeight,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = updateState != LauncherUpdateState.Preparing,
-                    onClick = onSelectUpdateApk,
-                )
-            }
+            LauncherUpdateCard(
+                busy = updateState == LauncherUpdateState.Preparing,
+                installMessage = updateMessage,
+                onPrepared = onPreparedUpdate,
+                onSelectLocalApk = onSelectUpdateApk,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
             SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
                 SettingsSectionTitle(stringResource(R.string.system_device))
                 Spacer(Modifier.height(10.dp))

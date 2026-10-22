@@ -15,7 +15,7 @@ internal object LauncherUpdateInstaller {
     private const val FILE_PROVIDER_SUFFIX = ".update-files"
     private const val UPDATE_DIRECTORY = "updates"
     private const val UPDATE_FILE = "A5Cockpit-update.apk"
-    private const val MAX_APK_SIZE_BYTES = 250L * 1024L * 1024L
+    const val MAX_APK_SIZE_BYTES = 250L * 1024L * 1024L
 
     sealed interface PreparationResult {
         data class Ready(val file: File) : PreparationResult

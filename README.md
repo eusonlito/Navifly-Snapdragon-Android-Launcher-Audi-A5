@@ -64,7 +64,7 @@ Do not install this build expecting compatibility with:
 - Application launcher, app switcher, settings and original Audi MMI access.
 - Optional OpenAI or Gemini AI Assistant, with Google Places for nearby searches
   and Waze navigation.
-- In-app APK update through Android's document picker.
+- In-app updates from the latest GitHub Release, with checksum verification and local APK selection.
 - Map and AI Assistant diagnostic log export.
 - A progressive startup reveal that brings in the gauges before the rest of the
   dashboard, without briefly flashing the complete interface first.
@@ -210,18 +210,18 @@ API keys are optional and are not bundled with the repository.
 
 ## Updating Through the Launcher
 
-Download the latest [`A5Cockpit.apk` release](https://github.com/eusonlito/Navifly-Snapdragon-Android-Launcher-Audi-A5/releases/latest/download/A5Cockpit.apk)
-to `Downloads`, then select it in Android's document picker:
-
 1. In the car, open **Launcher Settings > System > Update**.
-2. Press **Update**.
-3. Open `Downloads` in Android's document picker and choose the APK. Dropbox or
-   another document provider can also be used to transfer it.
+2. The launcher checks GitHub and shows the published version. Press **Check**
+   to refresh or retry if the connection failed.
+3. When a newer version is available, press **Download and install**. The APK
+   is downloaded from that Release and verified against its SHA-256 checksum.
 4. On the first update, Android asks whether A5 Cockpit may install
    applications. Enable **Allow From This Source**, go back and continue.
 5. Confirm the installation in Android's installer.
 
-The operation can be cancelled without selecting a file by pressing **Back**.
+For a manually downloaded APK, press **Local APK** and select it from `Downloads`,
+Dropbox or another Android document provider. Press **Back** to cancel selection.
+The GitHub update button stays disabled for equal or older published versions.
 The application checks that the APK belongs to A5 Cockpit, and Android also
 verifies its signature. A regular update preserves settings, keys, cache and
 local data.
