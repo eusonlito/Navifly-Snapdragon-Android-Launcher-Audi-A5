@@ -373,8 +373,9 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
     de su acción. La acción principal de una tarjeta (Guardar, Instalar) usa
     relleno cian completo.
   * Los campos (fechas, modelo, clave API) muestran etiqueta y valor dentro de
-    una caja elevada de 48 dp; los datos de solo lectura usan filas
-    `etiqueta … valor` separadas por líneas finas.
+    una caja elevada de 54 dp; los datos de solo lectura usan filas
+    `etiqueta … valor` separadas por líneas finas, o filas de dos líneas
+    (etiqueta encima del valor) cuando el ancho de la tarjeta es reducido.
   * Ningún texto baja de 10 sp; los valores principales usan 12–13 sp.
   * Los controles inferiores de las tarjetas contiguas quedan alineados en la
     misma línea base.
@@ -384,7 +385,8 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   para ver el detalle. Las primeras filas son el Viaje y el Parcial actuales,
   marcados con una barra cian. La descarga genera un JSON con las filas visibles.
 * `Mapa` reparte cuatro tarjetas iguales: apariencia (color, estilo y límite de
-  caché), estado (mapa, red, GPS, coordenadas y proveedor con puntos de color),
+  caché), estado (mapa, red, GPS, coordenadas y proveedor en filas de dos
+  líneas con puntos de color, sin desplazamiento),
   caché y logs de diagnóstico, y puntos de interés.
 * `Sistema` muestra aplicación (versión, compilación, instalación e idioma),
   actualización desde GitHub o APK local, y dispositivo (modelo, versión de

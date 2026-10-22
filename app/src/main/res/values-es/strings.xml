@@ -106,7 +106,6 @@
     <string name="system_update">Actualización</string>
     <string name="system_update_description">Selecciona el APK con la nueva versión a instalar.</string>
     <string name="system_device">Dispositivo</string>
-    <string name="system_reboot_description">Reinicia el sistema Android del vehículo.</string>
     <string name="map_color">Color del Mapa</string>
     <string name="map_style">Estilo del Mapa</string>
     <string name="map_cache_maximum">Caché Máxima</string>
@@ -146,7 +145,7 @@
     <string name="map_no_logs">No hay logs para descargar</string>
     <string name="map_logs_exported">Logs descargados correctamente</string>
     <string name="map_logs_export_failed">No se han podido descargar los logs</string>
-    <string name="device_reboot_button">Reiniciar</string>
+    <string name="device_reboot_button">Reiniciar Dispositivo</string>
     <string name="device_reboot_title">Reiniciar dispositivo</string>
     <string name="device_reboot_confirmation">El dispositivo se reiniciará. ¿Quieres continuar?</string>
     <string name="device_reboot_confirm">Reiniciar</string>
@@ -158,7 +157,7 @@
     <string name="launcher_release_checking">Consultando GitHub…</string>
     <string name="launcher_release_check">Buscar</string>
     <string name="launcher_release_install">Descargar e instalar</string>
-    <string name="launcher_release_install_version">Descargar e instalar la versión %1$s</string>
+    <string name="launcher_release_install_version">Instalar Nueva Versión %1$s</string>
     <string name="launcher_release_downloading">Descargando y verificando el APK…</string>
     <string name="launcher_release_current">Tu versión está al día</string>
     <string name="launcher_release_check_failed">No se pudo consultar GitHub. Pulsa el icono de refrescar para reintentar.</string>
@@ -315,6 +314,6 @@
     <string name="system_android_version">Android</string>
     <string name="assistant_credentials">Credenciales</string>
     <string name="functional_logs_timeline">Eventos capturados</string>
-    <string name="journey_history_any_date">Cualquier fecha</string>
+    <string name="journey_history_any_date">Cualquiera</string>
     <string name="assistant_api_key_placeholder">Sin configurar</string>
 </resources>

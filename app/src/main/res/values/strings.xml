@@ -107,7 +107,6 @@
     <string name="system_update">Update</string>
     <string name="system_update_description">Select the APK containing the new version.</string>
     <string name="system_device">Device</string>
-    <string name="system_reboot_description">Restart the vehicle Android system.</string>
     <string name="map_color">Map Color</string>
     <string name="map_style">Map Style</string>
     <string name="map_cache_maximum">Maximum Cache</string>
@@ -147,7 +146,7 @@
     <string name="map_no_logs">There are no logs to download</string>
     <string name="map_logs_exported">Logs downloaded successfully</string>
     <string name="map_logs_export_failed">The logs could not be downloaded</string>
-    <string name="device_reboot_button">Restart</string>
+    <string name="device_reboot_button">Restart Device</string>
     <string name="device_reboot_title">Restart device</string>
     <string name="device_reboot_confirmation">The device will restart. Do you want to continue?</string>
     <string name="device_reboot_confirm">Restart</string>
@@ -159,7 +158,7 @@
     <string name="launcher_release_checking">Checking GitHub…</string>
     <string name="launcher_release_check">Check</string>
     <string name="launcher_release_install">Download and install</string>
-    <string name="launcher_release_install_version">Download and install version %1$s</string>
+    <string name="launcher_release_install_version">Install New Version %1$s</string>
     <string name="launcher_release_downloading">Downloading and verifying the APK…</string>
     <string name="launcher_release_current">Your version is up to date</string>
     <string name="launcher_release_check_failed">Could not check GitHub. Tap the refresh icon to retry.</string>
@@ -316,6 +315,6 @@
     <string name="system_android_version">Android</string>
     <string name="assistant_credentials">Credentials</string>
     <string name="functional_logs_timeline">Captured events</string>
-    <string name="journey_history_any_date">Any date</string>
+    <string name="journey_history_any_date">Any</string>
     <string name="assistant_api_key_placeholder">Not configured</string>
 </resources>

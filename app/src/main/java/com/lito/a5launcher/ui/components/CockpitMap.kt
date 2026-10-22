@@ -166,10 +166,10 @@ enum class MapTileStyle(
     val cacheKey: String,
     val styleUrl: String,
 ) {
-    POSITRON("POSITRON", "positron", "https://tiles.openfreemap.org/styles/positron"),
-    LIBERTY("LIBERTY", "liberty", "https://tiles.openfreemap.org/styles/liberty"),
-    BRIGHT("BRIGHT", "bright", "https://tiles.openfreemap.org/styles/bright"),
-    DARK("DARK", "dark", "https://tiles.openfreemap.org/styles/dark"),
+    POSITRON("Positron", "positron", "https://tiles.openfreemap.org/styles/positron"),
+    LIBERTY("Liberty", "liberty", "https://tiles.openfreemap.org/styles/liberty"),
+    BRIGHT("Bright", "bright", "https://tiles.openfreemap.org/styles/bright"),
+    DARK("Dark", "dark", "https://tiles.openfreemap.org/styles/dark"),
 }
 
 enum class MapColorMode(val displayName: String) {

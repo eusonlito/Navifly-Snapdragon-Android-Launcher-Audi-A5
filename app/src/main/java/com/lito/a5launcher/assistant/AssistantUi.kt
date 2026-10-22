@@ -58,6 +58,7 @@ import com.lito.a5launcher.ui.components.SettingsActionButton
 import com.lito.a5launcher.ui.components.SettingsCard
 import com.lito.a5launcher.ui.components.SettingsDivider
 import com.lito.a5launcher.ui.components.SettingsField
+import com.lito.a5launcher.ui.components.SettingsFieldLabel
 import com.lito.a5launcher.ui.components.SettingsIcons
 import com.lito.a5launcher.ui.components.SettingsSectionTitle
 import com.lito.a5launcher.ui.components.SettingsSegmentedSelector
@@ -520,13 +521,13 @@ private fun AssistantApiKeyField(
         modifier
             .height(SettingsDimensions.FieldHeight)
             .settingsFieldSurface(enabled)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(SettingsIcons.Lock, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, color = SettingsPalette.MutedText, fontSize = 10.sp, maxLines = 1)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            SettingsFieldLabel(label)
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -537,6 +538,7 @@ private fun AssistantApiKeyField(
                 textStyle = TextStyle(
                     color = SettingsPalette.Text.copy(alpha = if (enabled) 1f else .5f),
                     fontSize = 13.sp,
+                    lineHeight = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                 ),
                 cursorBrush = SolidColor(SettingsPalette.Accent),
@@ -548,6 +550,7 @@ private fun AssistantApiKeyField(
                                 stringResource(R.string.assistant_api_key_placeholder),
                                 color = SettingsPalette.SubtleText,
                                 fontSize = 13.sp,
+                                lineHeight = 17.sp,
                                 maxLines = 1,
                             )
                         }

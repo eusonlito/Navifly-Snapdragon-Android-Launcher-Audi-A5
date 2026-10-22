@@ -19,7 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -163,6 +164,7 @@ internal fun JourneyHistoryPanel(
     var toEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
     var expandedIds by remember { mutableStateOf(emptySet<String>()) }
+    val listState = rememberLazyListState()
     var pendingExport by remember { mutableStateOf<JourneyHistoryExportRequest?>(null) }
     var exportNotice by remember { mutableStateOf<FloatingNotification?>(null) }
     val nowEpochMs = System.currentTimeMillis()
@@ -404,16 +406,20 @@ internal fun JourneyHistoryPanel(
                     )
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(filtered, key = JourneyHistoryItem::id) { record ->
+                        itemsIndexed(filtered, key = { _, record -> record.id }) { index, record ->
                             JourneyHistoryRecordRow(
                                 record = record,
                                 locale = locale,
                                 expanded = record.id in expandedIds,
                                 onToggleExpanded = {
+                                    val expanding = record.id !in expandedIds
                                     expandedIds = toggleJourneyHistoryExpansion(expandedIds, record.id)
+                                    // Bring the opened header to the top so its detail is not left below the card.
+                                    if (expanding) scope.launch { listState.animateScrollToItem(index) }
                                 },
                                 onDelete = record.endedAtEpochMs?.let {
                                     { onDeleteRecord(record.id) }
@@ -445,8 +451,8 @@ private fun JourneyDateField(
         value = epochDay?.let { LocalDate.ofEpochDay(it).format(formatter) }
             ?: stringResource(R.string.journey_history_any_date),
         modifier = modifier,
-        icon = SettingsIcons.Calendar,
         valueColor = if (epochDay != null) SettingsPalette.Text else SettingsPalette.MutedText,
+        valueFontSize = 12.sp,
         onClick = onClick,
     ) {
         if (epochDay != null) {

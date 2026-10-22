@@ -2270,21 +2270,21 @@ private fun MapSettingsPanel(
 
         SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
             SettingsSectionTitle(stringResource(R.string.map_status), SettingsIcons.Activity)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             val mapLoaded = diagnostics.mapError.isBlank()
-            SettingsValueRow(
+            SettingsStackedValueRow(
                 stringResource(R.string.map_label),
                 diagnostics.mapStatus,
                 icon = SettingsIcons.Map,
                 statusColor = if (mapLoaded) SettingsPalette.Success else SettingsPalette.Danger,
             )
-            SettingsValueRow(
+            SettingsStackedValueRow(
                 stringResource(R.string.map_network),
                 stringResource(if (diagnostics.networkAvailable) R.string.map_connected else R.string.map_offline),
                 icon = SettingsIcons.Wifi,
                 statusColor = if (diagnostics.networkAvailable) SettingsPalette.Success else SettingsPalette.Warning,
             )
-            SettingsValueRow(
+            SettingsStackedValueRow(
                 stringResource(R.string.map_gps),
                 if (diagnostics.gpsAvailable) {
                     stringResource(R.string.map_gps_active)
@@ -2312,8 +2312,8 @@ private fun MapSettingsPanel(
             } else {
                 "—"
             }
-            SettingsValueRow(stringResource(R.string.map_coordinates), coordinates, icon = SettingsIcons.Pin)
-            SettingsValueRow(
+            SettingsStackedValueRow(stringResource(R.string.map_coordinates), coordinates, icon = SettingsIcons.Pin)
+            SettingsStackedValueRow(
                 stringResource(R.string.map_provider),
                 "OpenFreeMap / OSM",
                 icon = SettingsIcons.Globe,
@@ -2326,7 +2326,7 @@ private fun MapSettingsPanel(
                     color = SettingsPalette.Danger,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -2558,22 +2558,15 @@ private fun SystemSettingsPanel(
                 divider = false,
             )
             Spacer(Modifier.weight(1f))
-            Text(
-                stringResource(R.string.system_reboot_description),
-                color = SettingsPalette.MutedText,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-            )
             if (rebootRequestFailed) {
-                Spacer(Modifier.height(6.dp))
                 Text(
                     stringResource(R.string.device_reboot_failed),
                     color = SettingsPalette.Danger,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(12.dp))
             SettingsActionButton(
                 text = stringResource(R.string.device_reboot_button),
                 controlHeight = SettingsDimensions.ActionHeight,

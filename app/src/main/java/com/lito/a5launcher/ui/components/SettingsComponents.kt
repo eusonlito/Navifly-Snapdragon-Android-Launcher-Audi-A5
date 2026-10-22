@@ -71,7 +71,7 @@ internal object SettingsPalette {
 
 internal object SettingsDimensions {
     val SelectorHeight = 36.dp
-    val FieldHeight = 48.dp
+    val FieldHeight = 54.dp
     val InputHeight = 40.dp
     val ActionHeight = 40.dp
     val TabHeight = 40.dp
@@ -364,6 +364,7 @@ internal fun SettingsField(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     valueColor: Color = SettingsPalette.Text,
+    valueFontSize: TextUnit = 13.sp,
     onClick: (() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
@@ -372,25 +373,73 @@ internal fun SettingsField(
             .height(SettingsDimensions.FieldHeight)
             .settingsFieldSurface()
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .padding(start = 12.dp, end = 6.dp),
+            .padding(start = 14.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
         }
-        Column(Modifier.weight(1f)) {
-            Text(label, color = SettingsPalette.MutedText, fontSize = 10.sp, maxLines = 1)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            SettingsFieldLabel(label)
             Text(
                 value,
                 color = valueColor,
-                fontSize = 13.sp,
+                fontSize = valueFontSize,
+                lineHeight = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         trailing()
+    }
+}
+
+@Composable
+internal fun SettingsFieldLabel(text: String) {
+    Text(text, color = SettingsPalette.MutedText, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1)
+}
+
+/** Two-line read-only value: muted label above, value below. */
+@Composable
+internal fun SettingsStackedValueRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    statusColor: Color? = null,
+    divider: Boolean = true,
+) {
+    Column(modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = SettingsPalette.MutedText, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(12.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label, color = SettingsPalette.MutedText, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (statusColor != null) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(statusColor))
+                        Spacer(Modifier.width(7.dp))
+                    }
+                    Text(
+                        value,
+                        color = SettingsPalette.Text,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        if (divider) SettingsDivider()
     }
 }
 
