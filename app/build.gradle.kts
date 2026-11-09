@@ -135,8 +135,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material3:material3")
-    implementation("org.maplibre.gl:android-sdk:13.6.1")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("org.maplibre.gl:android-sdk:13.7.1")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20260814")
