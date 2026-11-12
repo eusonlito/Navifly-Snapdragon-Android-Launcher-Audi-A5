@@ -63,9 +63,22 @@ sin márgenes transparentes innecesarios. El límite de 512 × 512 indicado más
 abajo es únicamente una protección del importador, no el tamaño de diseño
 recomendado.
 
-Si una categoría no está definida, el catálogo está ausente o el PNG indicado
-no está instalado, se utiliza el marcador POI genérico sin pulso. El resto de
-propiedades GeoJSON se conserva para futuros usos.
+Si una categoría no está definida o el catálogo está ausente, se utiliza el
+marcador POI genérico sin pulso. Si sólo falta el PNG, se utiliza el icono
+genérico y se conserva el pulso configurado. El resto de propiedades GeoJSON
+se conserva para futuros usos.
+
+Las categorías con `pulseEnabled: true` activan también una tarjeta visual
+sobre el mapa para el POI más cercano a 1 km o menos que no quede detrás del
+coche (hasta 90° a cada lado del rumbo de marcha). Muestra su nombre y distancia
+en línea recta, sin sonido ni un ajuste adicional. La orientación de la cámara
+del mapa no afecta a la selección.
+
+La tarjeta necesita una posición GPS reciente y un rumbo obtenido en marcha;
+conserva ese rumbo al detenerse y se oculta si la posición caduca. El índice se
+prepara al cambiar los POI y la selección se actualiza una vez por segundo en
+segundo plano mientras la actividad está activa, sin modificar los datos de
+viajes. No identifica la carretera ni el sentido de aplicación de un radar.
 
 ## Límites de seguridad
 

@@ -5,6 +5,18 @@ import org.junit.Test
 
 class PartialStatisticsTest {
     @Test
+    fun pagesShowLatestSixWithoutLosingOrRepeatingPartials() {
+        val records = (1..14).map { record(it.toString(), 10.0, 1.0, 1.0) }
+        assertEquals(records.takeLast(6), partialStatisticsPage(records, 0))
+        assertEquals(records.subList(2, 8), partialStatisticsPage(records, 1))
+        assertEquals(records.take(2), partialStatisticsPage(records, 2))
+        assertEquals(records, (2 downTo 0).flatMap { partialStatisticsPage(records, it) })
+        assertEquals(records.take(2), partialStatisticsPage(records, 99))
+        assertEquals(records.take(1), partialStatisticsPage(records.take(1), 0))
+        assertTrue(partialStatisticsPage(emptyList(), 0).isEmpty())
+    }
+
+    @Test
     fun averagesAreDistanceWeightedAndTripsNeverContribute() {
         val result = buildPartialStatistics(listOf(
             record("a", 100.0, 8.0, 7.0),

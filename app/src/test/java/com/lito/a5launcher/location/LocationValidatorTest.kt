@@ -67,6 +67,7 @@ class LocationValidatorTest {
         ) as LocationDecision.Accepted
 
         assertEquals(357f, gps.location.bearing, 0.001f)
+        assertEquals(10f, gps.location.travelBearing)
 
         val network = validator.evaluate(
             sample(provider = LocationProvider.NETWORK, elapsedNanos = 2_000_000_000L),
@@ -87,6 +88,20 @@ class LocationValidatorTest {
         )
         assertTrue(live.activePosition(nowElapsedMillis = 31_999) != null)
         assertEquals(null, live.activePosition(nowElapsedMillis = 32_001))
+    }
+
+    @Test
+    fun travelHeadingRequiresMovementThenSurvivesAStopButNotNetworkPositions() {
+        val validator = LocationValidator(initialBearing = 90f)
+        fun accept(provider: LocationProvider, bearing: Float?, speed: Float, seconds: Long) =
+            (validator.evaluate(sample(provider, bearing = bearing, speedMps = speed,
+                elapsedNanos = seconds * 1_000_000_000), seconds * 1_000) as LocationDecision.Accepted).location
+
+        assertEquals(null, accept(LocationProvider.GPS, 90f, 0f, 1).travelBearing)
+        assertEquals(180f, accept(LocationProvider.GPS, 180f, 10f, 2).travelBearing)
+        assertEquals(180f, accept(LocationProvider.GPS, null, 0f, 3).travelBearing)
+        assertEquals(0f, accept(LocationProvider.GPS, 0f, 10f, 4).travelBearing)
+        assertEquals(null, accept(LocationProvider.NETWORK, null, 0f, 21).travelBearing)
     }
 
     private fun sample(

@@ -320,12 +320,14 @@
     <string name="history_statistics_title">Statistics</string>
     <string name="history_statistics_mean_estimated">Estimated average</string>
     <string name="history_statistics_mean_can">CAN average</string>
-    <string name="history_statistics_chart">Consumption per partial</string>
-    <string name="history_statistics_estimated">Estimated</string>
-    <string name="history_statistics_can">CAN</string>
+    <string name="history_statistics_estimated">Estimated consumption</string>
+    <string name="history_statistics_can">CAN consumption</string>
     <string name="history_statistics_consumption_unit">L/100 km</string>
     <string name="history_statistics_stopped">Stationary</string>
     <string name="history_statistics_empty">No saved partials in this period</string>
     <string name="history_statistics_duration">%1$d h %2$d min</string>
-    <string name="history_statistics_speed">Average speed · km/h</string>
+    <string name="history_statistics_speed">Average Speed</string>
+    <string name="history_statistics_older">Previous</string>
+    <string name="history_statistics_newer">Next</string>
+    <string name="history_statistics_page">Page %1$d of %2$d</string>
 </resources>

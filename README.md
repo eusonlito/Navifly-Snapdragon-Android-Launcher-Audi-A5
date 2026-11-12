@@ -108,8 +108,10 @@ Emulator screenshots with sample data.
 
 Open Statistics from Trips to compare saved partials: estimated and CAN consumption,
 average speed, and distance, time and maximum-speed details. Filter by date and tap a
-partial in the chart. Data is calculated when opening the panel or changing its filter,
-without changing storage or adding background processing.
+partial in the chart, with six partials per page. All three series use bars with values
+above them; the detail groups consumption, time and speed. Data is calculated when
+opening the panel or changing its filter, without changing storage or adding background
+processing.
 
 ![Saved partial statistics](docs/screenshots/settings-statistics.png)
 

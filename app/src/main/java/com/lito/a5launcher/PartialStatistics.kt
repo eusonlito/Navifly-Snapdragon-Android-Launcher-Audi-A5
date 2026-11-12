@@ -7,6 +7,15 @@ internal data class PartialStatistics(
     val canConsumption: Double?,
 )
 
+internal const val PARTIALS_PER_PAGE = 6
+
+/** Page zero contains the latest six partials, in chronological order. */
+internal fun partialStatisticsPage(records: List<JourneyHistoryRecord>, page: Int): List<JourneyHistoryRecord> {
+    val lastPage = (records.size - 1).coerceAtLeast(0) / PARTIALS_PER_PAGE
+    val end = records.size - page.coerceIn(0, lastPage) * PARTIALS_PER_PAGE
+    return records.subList((end - PARTIALS_PER_PAGE).coerceAtLeast(0), end)
+}
+
 internal fun partialEstimatedConsumption(statistics: JourneyStatisticsSnapshot): Double? =
     if (statistics.distanceKm > 0.0) statistics.fuelUsedLitres / statistics.distanceKm * 100.0 else null
 

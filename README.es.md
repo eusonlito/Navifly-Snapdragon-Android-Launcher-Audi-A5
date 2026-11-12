@@ -109,7 +109,9 @@ Capturas del emulador con datos de ejemplo.
 
 Desde Viajes, abre Estadísticas para comparar parciales guardados: consumo estimado y CAN,
 velocidad media y detalle de distancia, tiempos y velocidad máxima. Puedes filtrar por
-fechas y tocar un parcial en la gráfica. Los datos se calculan al abrir el panel o cambiar
+fechas, navegar en páginas de seis parciales y tocar cualquiera en la gráfica. Las tres
+series se muestran como columnas con el valor encima; el detalle agrupa consumos,
+tiempos y velocidades. Los datos se calculan al abrir el panel o cambiar
 el filtro, sin modificar el almacenamiento ni añadir trabajo en segundo plano.
 
 ![Estadísticas de parciales guardados](docs/screenshots/es/settings-statistics.png)

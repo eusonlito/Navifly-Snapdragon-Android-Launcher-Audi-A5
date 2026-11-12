@@ -27,10 +27,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -71,6 +73,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -134,6 +137,7 @@ import kotlin.coroutines.resume
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 private const val POI_SOURCE_ID = "private-poi-sources"
 private const val POI_PULSE_FIRST_LAYER_ID = "private-poi-pulse-first"
@@ -516,6 +520,16 @@ internal fun CockpitMap(
 
     val hasKnownPosition = locationState.position != null
     val gpsAvailable = permissionGranted && locationState.gpsAvailable(tick)
+    var approachIndex by remember(poiSnapshot) { mutableStateOf<PoiApproachIndex?>(null) }
+    var poiApproach by remember(approachIndex) { mutableStateOf<PoiApproach?>(null) }
+    LaunchedEffect(poiSnapshot) {
+        approachIndex = withContext(Dispatchers.Default) { PoiApproachIndex(poiSnapshot) }
+    }
+    LaunchedEffect(approachIndex, tick, lifecycleActive, permissionGranted) {
+        poiApproach = if (lifecycleActive && permissionGranted) {
+            withContext(Dispatchers.Default) { approachIndex?.nearest(locationState, tick) }
+        } else null
+    }
 
     LaunchedEffect(debugEnabled, effectiveTileStyle) {
         debugLogger.setEnabled(debugEnabled)
@@ -627,15 +641,21 @@ internal fun CockpitMap(
                 .padding(bottom = 3.dp),
         )
 
-        Row(
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (!networkAvailable) StatusBadge(noConnection)
-            if (!gpsAvailable) StatusBadge(if (hasKnownPosition) noGpsSignal else noGps)
-            if (debugEnabled) StatusBadge(mapStatus)
+            if (!networkAvailable || !gpsAvailable || debugEnabled) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!networkAvailable) StatusBadge(noConnection)
+                    if (!gpsAvailable) StatusBadge(if (hasKnownPosition) noGpsSignal else noGps)
+                    if (debugEnabled) StatusBadge(mapStatus)
+                }
+            }
+            poiApproach?.let { PoiApproachCard(it) }
         }
 
         if (rendererStarted && !cameraTracking.isFollowing) {
@@ -649,6 +669,28 @@ internal fun CockpitMap(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 18.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun PoiApproachCard(approach: PoiApproach) {
+    val color = remember(approach.color) { Color(android.graphics.Color.parseColor(approach.color)) }
+    Row(
+        Modifier.width(250.dp)
+            .background(Color(0xF010181D), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFF344149), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp)
+            .semantics(mergeDescendants = true) { },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(painterResource(R.drawable.ic_map_poi), contentDescription = null, tint = color, modifier = Modifier.size(26.dp))
+        Column(Modifier.weight(1f)) {
+            Text(approach.name, color = Color(0xFFD4DCE0), fontSize = 12.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${approach.distanceMetres.roundToInt()} m", color = Color.White,
+                fontSize = 22.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }

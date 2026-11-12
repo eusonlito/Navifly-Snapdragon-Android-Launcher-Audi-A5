@@ -319,12 +319,14 @@
     <string name="history_statistics_title">Estadísticas</string>
     <string name="history_statistics_mean_estimated">Media estimada</string>
     <string name="history_statistics_mean_can">Media CAN</string>
-    <string name="history_statistics_chart">Consumo por parcial</string>
-    <string name="history_statistics_estimated">Estimado</string>
-    <string name="history_statistics_can">CAN</string>
+    <string name="history_statistics_estimated">Consumo estimado</string>
+    <string name="history_statistics_can">Consumo Can</string>
     <string name="history_statistics_consumption_unit">l/100 km</string>
     <string name="history_statistics_stopped">Detenido</string>
     <string name="history_statistics_empty">No hay parciales guardados en este periodo</string>
     <string name="history_statistics_duration">%1$d h %2$d min</string>
-    <string name="history_statistics_speed">Vel. media · km/h</string>
+    <string name="history_statistics_speed">Velocidad Media</string>
+    <string name="history_statistics_older">Anteriores</string>
+    <string name="history_statistics_newer">Siguientes</string>
+    <string name="history_statistics_page">Página %1$d de %2$d</string>
 </resources>

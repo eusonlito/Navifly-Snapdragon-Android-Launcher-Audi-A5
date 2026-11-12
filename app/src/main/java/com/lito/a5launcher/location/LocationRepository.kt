@@ -36,6 +36,7 @@ internal data class ValidatedLocation(
     val bearing: Float,
     val speedMps: Float,
     val acceptedElapsedMillis: Long?,
+    val travelBearing: Float? = null,
 )
 
 internal data class LocationState(
@@ -67,6 +68,7 @@ internal class LocationValidator(initialBearing: Float = 0f) {
     private var lastAcceptedSample: LocationSample? = null
     private var lastGpsFixElapsedMillis = 0L
     private var filteredBearing = initialBearing
+    private var travelBearing: Float? = null
 
     fun evaluate(sample: LocationSample, nowElapsedMillis: Long): LocationDecision {
         if (!sample.latitude.isFinite() || sample.latitude !in -90.0..90.0 ||
@@ -102,8 +104,10 @@ internal class LocationValidator(initialBearing: Float = 0f) {
         if (
             sample.provider == LocationProvider.GPS &&
             sample.bearing != null &&
+            sample.bearing.isFinite() &&
             sample.speedMps >= 2.5f
         ) {
+            travelBearing = normalizeDegrees(sample.bearing)
             val delta = shortestBearingDelta(filteredBearing, sample.bearing)
             filteredBearing = normalizeDegrees(filteredBearing + delta * .35f)
         }
@@ -120,6 +124,7 @@ internal class LocationValidator(initialBearing: Float = 0f) {
                 acceptedElapsedMillis = sample.elapsedRealtimeNanos
                     .takeIf { it > 0L }
                     ?.div(1_000_000L),
+                travelBearing = travelBearing.takeIf { sample.provider == LocationProvider.GPS },
             ),
             gpsFixElapsedMillis = lastGpsFixElapsedMillis,
         )
