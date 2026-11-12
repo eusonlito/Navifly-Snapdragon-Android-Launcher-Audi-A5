@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -87,6 +88,7 @@ internal val SettingsControlShape = RoundedCornerShape(SettingsDimensions.Contro
 @Composable
 internal fun SettingsCard(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(SettingsDimensions.CardPadding),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(SettingsDimensions.CardRadius)
@@ -95,7 +97,7 @@ internal fun SettingsCard(
             .clip(shape)
             .background(SettingsPalette.Card)
             .border(1.dp, SettingsPalette.Border, shape)
-            .padding(SettingsDimensions.CardPadding),
+            .padding(contentPadding),
         content = content,
     )
 }

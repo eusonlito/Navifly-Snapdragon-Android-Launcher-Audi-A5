@@ -125,9 +125,9 @@ internal fun PartialStatisticsPanel(records: List<JourneyHistoryRecord>, onBack:
 
 @Composable
 private fun StatisticSummary(label: String, value: String, modifier: Modifier) {
-    SettingsCard(modifier.height(72.dp)) {
+    SettingsCard(modifier.height(50.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
         Text(label.uppercase(LocalConfiguration.current.locales[0]), color = SettingsPalette.MutedText, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1)
-        Text(value, color = SettingsPalette.Text, fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = SettingsPalette.Text, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -146,7 +146,7 @@ private fun ConsumptionChart(
     }
     val speedColor = Color(0xFFCEC4FF)
     val pages = (records.size + PARTIALS_PER_PAGE - 1) / PARTIALS_PER_PAGE
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             ChartLegend(stringResource(R.string.history_statistics_estimated), stringResource(R.string.history_statistics_consumption_unit), SettingsPalette.Accent)
             ChartLegend(stringResource(R.string.history_statistics_can), stringResource(R.string.history_statistics_consumption_unit), SettingsPalette.Warning)
@@ -171,7 +171,7 @@ private fun ConsumptionChart(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().height(plotHeight + 18.dp).padding(horizontal = 6.dp),
+                            Modifier.widthIn(max = 78.dp).fillMaxWidth().height(plotHeight + 18.dp),
                             horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom,
                         ) {
                             StatisticsBar(partialEstimatedConsumption(record.statistics), maximum, plotHeight, SettingsPalette.Accent, locale, 1, Modifier.weight(1f))
@@ -186,9 +186,9 @@ private fun ConsumptionChart(
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SettingsActionButton(stringResource(R.string.history_statistics_older), 32.dp, fontSize = 10.sp, enabled = page < pages - 1) { onPage(page + 1) }
-            Text(stringResource(R.string.history_statistics_page, pages - page, pages), color = SettingsPalette.MutedText, fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            SettingsActionButton(stringResource(R.string.history_statistics_newer), 32.dp, fontSize = 10.sp, enabled = page > 0) { onPage(page - 1) }
+            SettingsActionButton(stringResource(R.string.history_statistics_older), 24.dp, fontSize = 9.sp, enabled = page < pages - 1) { onPage(page + 1) }
+            Text(stringResource(R.string.history_statistics_page, pages - page, pages), color = SettingsPalette.MutedText, fontSize = 9.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            SettingsActionButton(stringResource(R.string.history_statistics_newer), 24.dp, fontSize = 9.sp, enabled = page > 0) { onPage(page - 1) }
         }
     }
 }
@@ -199,7 +199,7 @@ private fun StatisticsBar(value: Double?, maximum: Double, plotHeight: androidx.
         Spacer(Modifier.weight(1f))
         Text(value?.let { number(it, locale, decimals) } ?: "—", color = color, fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Spacer(Modifier.height(3.dp))
-        Box(Modifier.widthIn(max = 30.dp).fillMaxWidth().height(plotHeight * ((value ?: 0.0) / maximum).toFloat()).background(color))
+        Box(Modifier.widthIn(max = 22.dp).fillMaxWidth().height(plotHeight * ((value ?: 0.0) / maximum).toFloat()).background(color))
     }
 }
 
