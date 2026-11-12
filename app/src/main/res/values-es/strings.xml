@@ -316,4 +316,15 @@
     <string name="functional_logs_timeline">Eventos capturados</string>
     <string name="journey_history_any_date">Cualquiera</string>
     <string name="assistant_api_key_placeholder">Sin configurar</string>
+    <string name="history_statistics_title">Estadísticas</string>
+    <string name="history_statistics_mean_estimated">Media estimada</string>
+    <string name="history_statistics_mean_can">Media CAN</string>
+    <string name="history_statistics_chart">Consumo por parcial</string>
+    <string name="history_statistics_estimated">Estimado</string>
+    <string name="history_statistics_can">CAN</string>
+    <string name="history_statistics_consumption_unit">l/100 km</string>
+    <string name="history_statistics_stopped">Detenido</string>
+    <string name="history_statistics_empty">No hay parciales guardados en este periodo</string>
+    <string name="history_statistics_duration">%1$d h %2$d min</string>
+    <string name="history_statistics_speed">Vel. media · km/h</string>
 </resources>

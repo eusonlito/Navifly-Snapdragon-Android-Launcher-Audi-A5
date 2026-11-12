@@ -38,6 +38,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -2009,6 +2011,9 @@ private fun LauncherSettingsOverlay(
     onRequestDeviceReboot: () -> Result<Unit>,
     onClose: () -> Unit,
 ) {
+    var statisticsOpen by rememberSaveable { mutableStateOf(false) }
+    val historyState = rememberSaveableStateHolder()
+    BackHandler(enabled = statisticsOpen) { statisticsOpen = false }
     val context = LocalContext.current
     val installedAtEpochMs = remember(context) {
         runCatching {
@@ -2064,11 +2069,14 @@ private fun LauncherSettingsOverlay(
             title = stringResource(R.string.launcher_settings_title),
             headerHeight = headerHeight,
             darkModeActive = darkModeActive,
-            onClose = onClose,
+            onClose = { if (statisticsOpen) statisticsOpen = false else onClose() },
         ) {
             LauncherSettingsTabs(
                 selectedTab = selectedTab,
-                onSelectedTabChanged = onSelectedTabChanged,
+                onSelectedTabChanged = {
+                    statisticsOpen = false
+                    onSelectedTabChanged(it)
+                },
                 modifier = Modifier.weight(1f).padding(start = 40.dp),
             )
         }
@@ -2080,15 +2088,20 @@ private fun LauncherSettingsOverlay(
                 .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 16.dp),
         ) {
             when (selectedTab) {
-                LauncherSettingsTab.TRIPS -> JourneyHistoryPanel(
-                    snapshot = journeyHistory,
-                    tripStatistics = tripStatistics,
-                    partialStatistics = partialStatistics,
-                    onEnabledChanged = onJourneyHistoryEnabledChanged,
-                    onDeleteRecord = onDeleteJourneyHistoryRecord,
-                    onClearAll = onClearJourneyHistory,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                LauncherSettingsTab.TRIPS -> if (statisticsOpen) {
+                    PartialStatisticsPanel(records = journeyHistory.records, onBack = { statisticsOpen = false })
+                } else historyState.SaveableStateProvider("journey-history") {
+                    JourneyHistoryPanel(
+                        snapshot = journeyHistory,
+                        tripStatistics = tripStatistics,
+                        partialStatistics = partialStatistics,
+                        onEnabledChanged = onJourneyHistoryEnabledChanged,
+                        onDeleteRecord = onDeleteJourneyHistoryRecord,
+                        onClearAll = onClearJourneyHistory,
+                        onOpenStatistics = { statisticsOpen = true },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 LauncherSettingsTab.MAP -> MapSettingsPanel(
                     diagnostics = diagnostics,
                     mapTileStyle = mapTileStyle,

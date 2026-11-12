@@ -75,6 +75,8 @@ disponibles del firmware. No sustituyen los indicadores originales del coche.
 
 ## Capturas
 
+Capturas del emulador con datos de ejemplo.
+
 ### Dashboard
 
 ![Dashboard de A5 Cockpit con mapa](docs/screenshots/es/dashboard.png)
@@ -102,6 +104,15 @@ disponibles del firmware. No sustituyen los indicadores originales del coche.
 **Viajes**
 
 ![Ajustes de viajes](docs/screenshots/es/settings-trips.png)
+
+**Estadísticas**
+
+Desde Viajes, abre Estadísticas para comparar parciales guardados: consumo estimado y CAN,
+velocidad media y detalle de distancia, tiempos y velocidad máxima. Puedes filtrar por
+fechas y tocar un parcial en la gráfica. Los datos se calculan al abrir el panel o cambiar
+el filtro, sin modificar el almacenamiento ni añadir trabajo en segundo plano.
+
+![Estadísticas de parciales guardados](docs/screenshots/es/settings-statistics.png)
 
 **Mapa**
 

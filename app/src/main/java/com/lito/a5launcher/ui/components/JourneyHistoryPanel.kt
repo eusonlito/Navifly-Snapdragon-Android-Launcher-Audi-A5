@@ -152,6 +152,7 @@ internal fun JourneyHistoryPanel(
     onEnabledChanged: (Boolean) -> Unit,
     onDeleteRecord: (String) -> Unit,
     onClearAll: () -> Unit,
+    onOpenStatistics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -394,7 +395,18 @@ internal fun JourneyHistoryPanel(
             }
 
             SettingsCard(Modifier.weight(2f).fillMaxHeight()) {
-                SettingsSectionTitle(stringResource(R.string.journey_history_title), SettingsIcons.List) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsSectionTitle(
+                        stringResource(R.string.journey_history_title), SettingsIcons.List,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SettingsActionButton(
+                        text = stringResource(R.string.history_statistics_title),
+                        controlHeight = SettingsDimensions.ActionHeight,
+                        icon = SettingsIcons.Chart,
+                        onClick = onOpenStatistics,
+                    )
+                    Spacer(Modifier.width(12.dp))
                     SettingsCountBadge(filtered.size.toString())
                 }
                 Spacer(Modifier.height(12.dp))
@@ -438,7 +450,7 @@ internal fun JourneyHistoryPanel(
 }
 
 @Composable
-private fun JourneyDateField(
+internal fun JourneyDateField(
     label: String,
     epochDay: Long?,
     formatter: DateTimeFormatter,
@@ -716,7 +728,7 @@ private fun historyFuelValue(value: Double, locale: Locale): String = stringReso
 private fun formatRecordDate(epochMs: Long, formatter: DateTimeFormatter): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(formatter)
 
-private fun showDatePicker(
+internal fun showDatePicker(
     context: android.content.Context,
     initialDate: LocalDate?,
     onDateSelected: (LocalDate) -> Unit,

@@ -74,6 +74,8 @@ firmware. They do not replace the vehicle's original instruments.
 
 ## Screenshots
 
+Emulator screenshots with sample data.
+
 ### Dashboard
 
 ![A5 Cockpit dashboard with map](docs/screenshots/dashboard.png)
@@ -101,6 +103,15 @@ firmware. They do not replace the vehicle's original instruments.
 **Trips**
 
 ![Trips settings](docs/screenshots/settings-trips.png)
+
+**Statistics**
+
+Open Statistics from Trips to compare saved partials: estimated and CAN consumption,
+average speed, and distance, time and maximum-speed details. Filter by date and tap a
+partial in the chart. Data is calculated when opening the panel or changing its filter,
+without changing storage or adding background processing.
+
+![Saved partial statistics](docs/screenshots/settings-statistics.png)
 
 **Map**
 

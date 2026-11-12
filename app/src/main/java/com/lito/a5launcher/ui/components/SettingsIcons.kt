@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
  * visual language without pulling the extended Material icon set into the APK.
  */
 internal object SettingsIcons {
+    val Chart by lazy { strokeIcon("Chart", "M3 21h18", "M6 17v-5", "M12 17V3", "M18 17V8") }
+    val Back by lazy { strokeIcon("Back", "M15 18l-6-6 6-6") }
     val Route by lazy {
         strokeIcon(
             "Route",
