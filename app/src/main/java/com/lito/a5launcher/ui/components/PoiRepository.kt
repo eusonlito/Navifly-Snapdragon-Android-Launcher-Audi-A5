@@ -14,6 +14,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.sin
 
 private val POI_IDENTIFIER_PATTERN = Regex("^[a-z0-9][a-z0-9_-]{0,63}$")
 
@@ -195,6 +198,57 @@ internal object PoiCategoryParser {
     }
 }
 
+private class PoiProximityIndex(sources: List<PoiSource>) {
+    private data class Cell(val category: String, val x: Int, val y: Int, val z: Int)
+    private data class Position(val category: String, val x: Double, val y: Double, val z: Double) {
+        val cell: Cell get() = Cell(category, floor(x / 50.0).toInt(), floor(y / 50.0).toInt(), floor(z / 50.0).toInt())
+    }
+
+    private val cells = HashMap<Cell, MutableList<Position>>()
+    // Convert the 50 m surface distance to a chord on the mean Earth sphere.
+    private val chordLimit = 2 * EARTH_RADIUS_METRES * sin(50.0 / (2 * EARTH_RADIUS_METRES))
+
+    init {
+        sources.forEach { source -> source.features.forEach { add(position(it)) } }
+    }
+
+    fun addIfDistinct(feature: PoiFeature): Boolean {
+        val point = position(feature)
+        val cell = point.cell
+        for (x in cell.x - 1..cell.x + 1) {
+            for (y in cell.y - 1..cell.y + 1) {
+                for (z in cell.z - 1..cell.z + 1) {
+                    val nearby = cells[Cell(point.category, x, y, z)] ?: continue
+                    if (nearby.any {
+                        val dx = point.x - it.x
+                        val dy = point.y - it.y
+                        val dz = point.z - it.z
+                        dx * dx + dy * dy + dz * dz < chordLimit * chordLimit
+                    }) return false
+                }
+            }
+        }
+        add(point)
+        return true
+    }
+
+    private fun add(point: Position) {
+        cells.getOrPut(point.cell) { ArrayList() }.add(point)
+    }
+
+    private fun position(feature: PoiFeature): Position {
+        val coordinates = feature.json.getJSONObject("geometry").getJSONArray("coordinates")
+        val longitude = Math.toRadians(coordinates.getDouble(0))
+        val latitude = Math.toRadians(coordinates.getDouble(1))
+        val radius = EARTH_RADIUS_METRES * cos(latitude)
+        return Position(feature.category, radius * cos(longitude), radius * sin(longitude), EARTH_RADIUS_METRES * sin(latitude))
+    }
+
+    companion object {
+        private const val EARTH_RADIUS_METRES = 6_371_008.8
+    }
+}
+
 internal class PoiRepository internal constructor(
     private val root: File,
 ) {
@@ -214,11 +268,19 @@ internal class PoiRepository internal constructor(
             val safeName = safeGeoJsonName(fileName)
             val bytes = readBoundedBytes(input, PoiGeoJsonParser.MAX_SOURCE_BYTES)
             val parsed = PoiGeoJsonParser.parse(safeName, bytes.inputStream())
-            val otherPoints = readSources(excluding = safeName).sumOf(PoiSource::pointCount)
-            require(otherPoints + parsed.pointCount <= PoiGeoJsonParser.MAX_TOTAL_POINTS) {
+            val otherSources = readSources(excluding = safeName)
+            val index = PoiProximityIndex(otherSources)
+            val accepted = parsed.features.filter(index::addIfDistinct)
+            require(otherSources.sumOf(PoiSource::pointCount) + accepted.size <= PoiGeoJsonParser.MAX_TOTAL_POINTS) {
                 "POI sources contain more than ${PoiGeoJsonParser.MAX_TOTAL_POINTS} points"
             }
-            atomicReplace(File(sourcesDirectory, safeName), bytes)
+            val filteredBytes = if (accepted.size == parsed.pointCount) bytes else {
+                JSONObject(bytes.toString(Charsets.UTF_8))
+                    .put("features", JSONArray(accepted.map(PoiFeature::json)))
+                    .toString().toByteArray(Charsets.UTF_8)
+            }
+            require(filteredBytes.size <= PoiGeoJsonParser.MAX_SOURCE_BYTES) { "File is too large" }
+            atomicReplace(File(sourcesDirectory, safeName), filteredBytes)
             readSnapshot()
         } }
 

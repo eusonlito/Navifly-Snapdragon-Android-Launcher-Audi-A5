@@ -80,6 +80,20 @@ Importar otro fichero con el mismo nombre sustituye la versión anterior de
 forma atómica. Desde Ajustes del Launcher se pueden añadir y eliminar fuentes,
 el catálogo de categorías e iconos de forma independiente.
 
+Al importar GeoJSON se omiten los puntos que estén a **menos de 50 metros** de
+otro punto de la **misma categoría**. Tienen prioridad las fuentes ya guardadas;
+dentro del archivo nuevo se conserva el primer punto aceptado. Las categorías
+se comparan normalizadas a minúsculas y los puntos sin categoría pertenecen a
+`poi-default`. Puntos de categorías distintas se conservan aunque coincidan.
+La distancia se calcula sobre la esfera terrestre, sin tener en cuenta altitud
+ni sentido de circulación.
+
+Al sustituir una fuente, su versión anterior queda fuera de la comparación.
+El filtro se ejecuta únicamente durante la importación y guarda el resultado:
+no añade cálculos al mapa durante los viajes ni limpia fuentes antiguas de forma
+retroactiva. Los puntos descartados no reaparecen al borrar otra fuente; para
+recuperarlos hay que volver a importar el archivo original.
+
 La relación de elementos instalados tiene desplazamiento propio para admitir
 catálogos largos sin desplazar los controles de importación ni desbordar el
 panel. Los resultados de cada importación se comunican mediante una
