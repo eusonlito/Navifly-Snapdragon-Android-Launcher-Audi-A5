@@ -2,6 +2,7 @@ package com.lito.a5launcher.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -109,8 +110,14 @@ internal fun PartialStatisticsPanel(records: List<JourneyHistoryRecord>, onBack:
                         val visibleRecords = partialStatisticsPage(data.records, page)
                         val selected = visibleRecords.firstOrNull { it.id == selectedId } ?: visibleRecords.last()
                         Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingsCard(Modifier.weight(2f).fillMaxHeight()) {
-                                ConsumptionChart(data.records, visibleRecords, page, { page = it }, selected.id, locale, shortDate) { selectedId = it }
+                            SettingsCard(
+                                Modifier.weight(2f).fillMaxHeight(),
+                                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
+                                footer = {
+                                    StatisticsPagination(page, (data.records.size + PARTIALS_PER_PAGE - 1) / PARTIALS_PER_PAGE) { page = it }
+                                },
+                            ) {
+                                ConsumptionChart(data.records, visibleRecords, selected.id, locale, shortDate) { selectedId = it }
                             }
                             SettingsCard(Modifier.weight(1f).fillMaxHeight()) {
                                 PartialDetail(selected, locale, shortDate)
@@ -134,7 +141,7 @@ private fun StatisticSummary(label: String, value: String, modifier: Modifier) {
 @Composable
 private fun ConsumptionChart(
     records: List<JourneyHistoryRecord>, visibleRecords: List<JourneyHistoryRecord>,
-    page: Int, onPage: (Int) -> Unit, selectedId: String, locale: Locale,
+    selectedId: String, locale: Locale,
     dateFormatter: DateTimeFormatter, onSelect: (String) -> Unit,
 ) {
     val maximum = remember(records) {
@@ -145,7 +152,6 @@ private fun ConsumptionChart(
         (ceil(records.maxOf { it.statistics.averageSpeedKmh } / 20.0) * 20.0).coerceAtLeast(80.0)
     }
     val speedColor = Color(0xFFCEC4FF)
-    val pages = (records.size + PARTIALS_PER_PAGE - 1) / PARTIALS_PER_PAGE
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             ChartLegend(stringResource(R.string.history_statistics_estimated), stringResource(R.string.history_statistics_consumption_unit), SettingsPalette.Accent)
@@ -185,11 +191,30 @@ private fun ConsumptionChart(
                 repeat(PARTIALS_PER_PAGE - visibleRecords.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SettingsActionButton(stringResource(R.string.history_statistics_older), 24.dp, fontSize = 9.sp, enabled = page < pages - 1) { onPage(page + 1) }
-            Text(stringResource(R.string.history_statistics_page, pages - page, pages), color = SettingsPalette.MutedText, fontSize = 9.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            SettingsActionButton(stringResource(R.string.history_statistics_newer), 24.dp, fontSize = 9.sp, enabled = page > 0) { onPage(page - 1) }
-        }
+    }
+}
+
+@Composable
+private fun StatisticsPagination(page: Int, pages: Int, onPage: (Int) -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.history_statistics_older).uppercase(locale),
+            color = if (page < pages - 1) SettingsPalette.Accent else SettingsPalette.SubtleText,
+            fontSize = 9.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f).fillMaxHeight()
+                .clickable(enabled = page < pages - 1, role = Role.Button) { onPage(page + 1) }
+                .padding(horizontal = 16.dp).wrapContentSize(Alignment.CenterStart),
+        )
+        Text(stringResource(R.string.history_statistics_page, pages - page, pages), color = SettingsPalette.MutedText, fontSize = 9.sp)
+        Text(
+            stringResource(R.string.history_statistics_newer).uppercase(locale),
+            color = if (page > 0) SettingsPalette.Accent else SettingsPalette.SubtleText,
+            fontSize = 9.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f).fillMaxHeight()
+                .clickable(enabled = page > 0, role = Role.Button) { onPage(page - 1) }
+                .padding(horizontal = 16.dp).wrapContentSize(Alignment.CenterEnd),
+        )
     }
 }
 

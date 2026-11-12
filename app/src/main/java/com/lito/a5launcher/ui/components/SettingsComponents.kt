@@ -89,6 +89,7 @@ internal val SettingsControlShape = RoundedCornerShape(SettingsDimensions.Contro
 internal fun SettingsCard(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(SettingsDimensions.CardPadding),
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(SettingsDimensions.CardRadius)
@@ -97,9 +98,18 @@ internal fun SettingsCard(
             .clip(shape)
             .background(SettingsPalette.Card)
             .border(1.dp, SettingsPalette.Border, shape)
-            .padding(contentPadding),
-        content = content,
-    )
+            .then(if (footer == null) Modifier.padding(contentPadding) else Modifier),
+    ) {
+        if (footer == null) {
+            content()
+        } else {
+            Column(Modifier.weight(1f).padding(contentPadding), content = content)
+            Column(Modifier.fillMaxWidth().background(SettingsPalette.Raised)) {
+                SettingsDivider()
+                footer()
+            }
+        }
+    }
 }
 
 /** Card heading: accent pictogram, uppercase title and an optional trailing slot. */
