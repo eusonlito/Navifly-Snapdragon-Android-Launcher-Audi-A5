@@ -32,7 +32,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -676,22 +676,28 @@ internal fun CockpitMap(
 @Composable
 private fun PoiApproachCard(approach: PoiApproach) {
     val color = remember(approach.color) { Color(android.graphics.Color.parseColor(approach.color)) }
+    val label = when (approach.category) {
+        "radar-fijo", "speed-camera" -> stringResource(R.string.poi_alert_fixed)
+        "radar-semaforo" -> stringResource(R.string.poi_alert_traffic_light)
+        "radar-stop" -> stringResource(R.string.poi_alert_stop)
+        "radar-tramo-inicio" -> stringResource(R.string.poi_alert_section_start)
+        "radar-tramo-fin" -> stringResource(R.string.poi_alert_section_end)
+        else -> approach.category.replace('-', ' ').replace('_', ' ').replaceFirstChar { it.titlecase() }
+    }
     Row(
-        Modifier.width(250.dp)
-            .background(Color(0xF010181D), RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFF344149), RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 9.dp)
+        Modifier.widthIn(max = 260.dp)
+            .background(Color(0xF010181D), RoundedCornerShape(10.dp))
+            .border(1.dp, Color(0xFF344149), RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
             .semantics(mergeDescendants = true) { },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(painterResource(R.drawable.ic_map_poi), contentDescription = null, tint = color, modifier = Modifier.size(26.dp))
-        Column(Modifier.weight(1f)) {
-            Text(approach.name, color = Color(0xFFD4DCE0), fontSize = 12.sp,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${approach.distanceMetres.roundToInt()} m", color = Color.White,
-                fontSize = 22.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold)
-        }
+        Icon(painterResource(R.drawable.ic_map_poi), contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+        Text(label, color = Color(0xFFD4DCE0), fontSize = 14.sp, lineHeight = 20.sp,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text("${approach.distanceMetres.roundToInt()} m", color = Color.White,
+            fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 

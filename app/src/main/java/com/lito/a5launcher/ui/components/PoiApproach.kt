@@ -10,22 +10,20 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 internal data class PoiApproach(
-    val name: String,
+    val category: String,
     val color: String,
     val distanceMetres: Double,
 )
 
 internal class PoiApproachIndex(snapshot: PoiSnapshot) {
-    private data class Point(val latitude: Double, val longitude: Double, val name: String, val color: String)
+    private data class Point(val latitude: Double, val longitude: Double, val category: String, val color: String)
 
     private val points = snapshot.sources.flatMap { source ->
         source.features.mapNotNull { feature ->
             val style = snapshot.categoryCatalog?.styles?.get(feature.category)
                 ?.takeIf { it.pulseEnabled } ?: return@mapNotNull null
             val coordinates = feature.json.getJSONObject("geometry").getJSONArray("coordinates")
-            val name = feature.json.getJSONObject("properties").optString("name")
-                .takeIf { it.isNotBlank() } ?: feature.category
-            Point(coordinates.getDouble(1), coordinates.getDouble(0), name, style.pulseColor)
+            Point(coordinates.getDouble(1), coordinates.getDouble(0), feature.category, style.pulseColor)
         }
     }.sortedBy(Point::latitude)
 
@@ -56,7 +54,7 @@ internal class PoiApproachIndex(snapshot: PoiSnapshot) {
                 cos(latitude) * sin(targetLatitude) - sin(latitude) * cos(targetLatitude) * cos(longitudeDelta),
             )).toFloat())
             if (distance > 0.001 && abs(shortestBearingDelta(heading, bearing)) > 90f) continue
-            nearest = PoiApproach(point.name, point.color, distance)
+            nearest = PoiApproach(point.category, point.color, distance)
         }
         return nearest
     }

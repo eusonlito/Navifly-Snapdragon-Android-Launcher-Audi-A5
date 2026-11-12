@@ -329,4 +329,9 @@
     <string name="history_statistics_older">Anteriores</string>
     <string name="history_statistics_newer">Siguientes</string>
     <string name="history_statistics_page">Página %1$d de %2$d</string>
+    <string name="poi_alert_fixed">Radar fijo</string>
+    <string name="poi_alert_traffic_light">Semáforo</string>
+    <string name="poi_alert_stop">STOP</string>
+    <string name="poi_alert_section_start">Inicio de tramo</string>
+    <string name="poi_alert_section_end">Fin de tramo</string>
 </resources>

@@ -70,9 +70,10 @@ se conserva para futuros usos.
 
 Las categorías con `pulseEnabled: true` activan también una tarjeta visual
 sobre el mapa para el POI más cercano a 1 km o menos que no quede detrás del
-coche (hasta 90° a cada lado del rumbo de marcha). Muestra su nombre y distancia
-en línea recta, sin sonido ni un ajuste adicional. La orientación de la cámara
-del mapa no afecta a la selección.
+coche (hasta 90° a cada lado del rumbo de marcha). Muestra su categoría y
+distancia en una sola línea, sin nombres de carreteras ni descripciones
+importadas. La distancia se mide en línea recta, sin sonido ni un ajuste
+adicional. La orientación de la cámara del mapa no afecta a la selección.
 
 La tarjeta necesita una posición GPS reciente y un rumbo obtenido en marcha;
 conserva ese rumbo al detenerse y se oculta si la posición caduca. El índice se
