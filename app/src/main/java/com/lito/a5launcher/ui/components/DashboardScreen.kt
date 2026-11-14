@@ -934,21 +934,16 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     },
                     onImportPoiSource = {
                         poiNotice = null
-                        poiGeoJsonPicker.launch(
-                            arrayOf(
-                                "application/geo+json",
-                                "application/json",
-                                "application/octet-stream",
-                            )
-                        )
+                        // Providers may report an unrelated MIME type; the importer validates name and content.
+                        poiGeoJsonPicker.launch(arrayOf("*/*"))
                     },
                     onImportPoiIcon = {
                         poiNotice = null
-                        poiIconPicker.launch(arrayOf("image/png"))
+                        poiIconPicker.launch(arrayOf("*/*"))
                     },
                     onImportPoiCategories = {
                         poiNotice = null
-                        poiCategoriesPicker.launch(arrayOf("application/json"))
+                        poiCategoriesPicker.launch(arrayOf("*/*"))
                     },
                     onDeletePoiSource = { name ->
                         coroutineScope.launch {

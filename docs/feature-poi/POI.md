@@ -128,10 +128,11 @@ panel. Los resultados de cada importación se comunican mediante una
 notificación flotante temporal; no se reserva una línea de estado dentro del
 panel.
 
-El selector admite tanto los MIME específicos de GeoJSON/JSON como
-`application/octet-stream`. Algunos proveedores SAF y los ficheros copiados por
-ADB asignan este último a la extensión `.geojson`; la aplicación mantiene la
-validación estricta de nombre y contenido después de la selección.
+Los selectores de fuentes, categorías e iconos muestran todos los archivos
+(`*/*`) porque algunos proveedores SAF declaran un MIME incorrecto. El selector
+nativo no permite filtrar por extensión. Después de seleccionar se valida el
+nombre (`.geojson`, `categories.json` o `.png`, respectivamente), el contenido
+y los límites de tamaño. Elegir otro tipo de archivo no modifica los POI guardados.
 
 ## Añadir otra fuente
 

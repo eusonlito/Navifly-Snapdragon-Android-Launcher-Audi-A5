@@ -11,6 +11,31 @@ import kotlin.io.path.createTempDirectory
 
 class PoiRepositoryTest {
     @Test
+    fun `unfiltered document selection still rejects wrong names and preserves stored data`() = runBlocking {
+        val root = createTempDirectory("poi-document-selection-").toFile()
+        try {
+            val repository = PoiRepository(root)
+            repository.importGeoJson("points.GEOJSON", VALID_GEOJSON.byteInputStream())
+            repository.importCategories("CATEGORIES.JSON", CATEGORIES_JSON.byteInputStream())
+            for (name in listOf("points.txt", "points.geojson.txt", "../points.geojson")) {
+                assertTrue(runCatching { repository.importGeoJson(name, VALID_GEOJSON.byteInputStream()) }.isFailure)
+            }
+            assertTrue(runCatching {
+                repository.importCategories("categories.txt", CATEGORIES_JSON.byteInputStream())
+            }.isFailure)
+            assertTrue(runCatching {
+                repository.importCategories("categories.json", "not JSON".byteInputStream())
+            }.isFailure)
+            assertEquals(VALID_GEOJSON, File(root, "sources/points.GEOJSON").readText())
+            assertEquals(CATEGORIES_JSON, File(root, "categories.json").readText())
+            assertEquals(2, repository.snapshot().totalPoints)
+            assertEquals(listOf("points.GEOJSON"), repository.snapshot().sources.map { it.fileName })
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `alert distances persist independently of imports and reject invalid values`() = runBlocking {
         val root = createTempDirectory("poi-alert-distances-").toFile()
         try {
