@@ -11,6 +11,31 @@ import kotlin.io.path.createTempDirectory
 
 class PoiRepositoryTest {
     @Test
+    fun `alert distances persist independently of imports and reject invalid values`() = runBlocking {
+        val root = createTempDirectory("poi-alert-distances-").toFile()
+        try {
+            val repository = PoiRepository(root)
+            repository.importCategories("categories.json", CATEGORIES_JSON.byteInputStream())
+            assertEquals(1_000, repository.snapshot().alertDistanceMetres("radar-fijo"))
+            repository.setAlertDistance("radar-fijo", 100)
+            assertEquals(100, PoiRepository(root).snapshot().alertDistanceMetres("radar-fijo"))
+            repository.setAlertDistance("radar-fijo", 5_000)
+            repository.importCategories("categories.json", CATEGORIES_JSON.byteInputStream())
+            repository.importGeoJson("points.geojson", VALID_GEOJSON.byteInputStream())
+            assertEquals(5_000, repository.snapshot().alertDistanceMetres("radar-fijo"))
+            for (invalid in listOf(0, 99, 101, 5_001, 5_100)) {
+                assertTrue(runCatching { repository.setAlertDistance("radar-fijo", invalid) }.isFailure)
+            }
+            assertTrue(runCatching { repository.setAlertDistance("missing", 1_000) }.isFailure)
+            assertEquals(5_000, repository.snapshot().alertDistanceMetres("radar-fijo"))
+            File(root, "alert-distances.json").writeText("""{"radar-fijo":99,"quiet":200,"bad":150.5}""")
+            assertEquals(mapOf("quiet" to 200), repository.snapshot().alertDistancesMetres)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `parses standard point GeoJSON and normalizes optional presentation`() {
         val source = PoiGeoJsonParser.parse("radares.geojson", VALID_GEOJSON.byteInputStream())
 

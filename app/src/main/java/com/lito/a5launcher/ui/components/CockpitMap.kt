@@ -61,6 +61,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -618,6 +619,7 @@ internal fun CockpitMap(
                 },
                 poiSnapshot = poiSnapshot,
                 poiRepository = poiRepository,
+                poiApproach = poiApproach,
                 statusLoading = statusLoading,
                 statusLoaded = statusLoaded,
                 statusError = statusError,
@@ -676,14 +678,7 @@ internal fun CockpitMap(
 @Composable
 private fun PoiApproachCard(approach: PoiApproach) {
     val color = remember(approach.color) { Color(android.graphics.Color.parseColor(approach.color)) }
-    val label = when (approach.category) {
-        "radar-fijo", "speed-camera" -> stringResource(R.string.poi_alert_fixed)
-        "radar-semaforo" -> stringResource(R.string.poi_alert_traffic_light)
-        "radar-stop" -> stringResource(R.string.poi_alert_stop)
-        "radar-tramo-inicio" -> stringResource(R.string.poi_alert_section_start)
-        "radar-tramo-fin" -> stringResource(R.string.poi_alert_section_end)
-        else -> approach.category.replace('-', ' ').replace('_', ' ').replaceFirstChar { it.titlecase() }
-    }
+    val label = poiCategoryLabel(approach.category)
     Row(
         Modifier.widthIn(max = 260.dp)
             .background(Color(0xF010181D), RoundedCornerShape(10.dp))
@@ -715,6 +710,7 @@ private fun CockpitMapView(
     markerColor: Color,
     poiSnapshot: PoiSnapshot,
     poiRepository: PoiRepository,
+    poiApproach: PoiApproach?,
     statusLoading: String,
     statusLoaded: String,
     statusError: String,
@@ -741,6 +737,8 @@ private fun CockpitMapView(
         MapViewSession("M-${UUID.randomUUID().toString().take(8)}")
     }
     var markerScreenPosition by remember(session) { mutableStateOf(Offset.Unspecified) }
+    val currentApproach by rememberUpdatedState(poiApproach)
+    var targetScreenPosition by remember(session) { mutableStateOf(Offset.Unspecified) }
     var markerScreenBearing by remember(session) { mutableFloatStateOf(0f) }
     var markerZoom by remember(session) { mutableDoubleStateOf(initialZoom) }
     var markerReferenceZoom by remember(session) { mutableDoubleStateOf(initialZoom) }
@@ -991,6 +989,11 @@ private fun CockpitMapView(
                             LatLng(rendered.latitude, rendered.longitude)
                         )
                         markerScreenPosition = Offset(point.x, point.y)
+                        targetScreenPosition = currentApproach?.let { target ->
+                            map.projection.toScreenLocation(LatLng(target.latitude, target.longitude)).let {
+                                Offset(it.x, it.y)
+                            }
+                        } ?: Offset.Unspecified
                         val camera = map.cameraPosition
                         markerScreenBearing = normalizeDegrees(
                             rendered.bearing - camera.bearing.toFloat()
@@ -1074,6 +1077,20 @@ private fun CockpitMapView(
                     session.view = null
                 }
             }
+        }
+
+        if (poiApproach != null && lifecycleActive) {
+            val lineColor = remember(poiApproach.color) { Color(android.graphics.Color.parseColor(poiApproach.color)) }
+            Canvas(Modifier.fillMaxSize().clipToBounds().drawWithCache {
+                val dashes = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx()))
+                onDrawBehind {
+                    val from = markerScreenPosition
+                    val to = targetScreenPosition
+                    if (from.x.isFinite() && from.y.isFinite() && to.x.isFinite() && to.y.isFinite()) {
+                        drawLine(lineColor, from, to, strokeWidth = 2.dp.toPx(), pathEffect = dashes)
+                    }
+                }
+            }) { }
         }
 
         MapVehicleMarker(

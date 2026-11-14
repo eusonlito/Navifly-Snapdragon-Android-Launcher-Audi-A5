@@ -335,4 +335,12 @@
     <string name="poi_alert_stop">STOP</string>
     <string name="poi_alert_section_start">Section start</string>
     <string name="poi_alert_section_end">Section end</string>
+    <string name="poi_alert_section">Average speed camera</string>
+    <string name="poi_alert_distances">Alert distances</string>
+    <string name="poi_no_categories">Import categories to configure alert distances</string>
+    <string name="poi_pulse_enabled">Pulse active</string>
+    <string name="poi_pulse_disabled">Pulse inactive</string>
+    <string name="poi_distance_decrease">Decrease distance for %1$s</string>
+    <string name="poi_distance_increase">Increase distance for %1$s</string>
+    <string name="poi_distance_save_failed">Could not save the alert distance</string>
 </resources>

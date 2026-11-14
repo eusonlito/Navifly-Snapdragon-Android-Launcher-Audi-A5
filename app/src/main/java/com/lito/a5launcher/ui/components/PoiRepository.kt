@@ -54,7 +54,9 @@ internal data class PoiSnapshot(
     val sources: List<PoiSource> = emptyList(),
     val icons: List<PoiIcon> = emptyList(),
     val categoryCatalog: PoiCategoryCatalog? = null,
+    val alertDistancesMetres: Map<String, Int> = emptyMap(),
 ) {
+    fun alertDistanceMetres(category: String): Int = alertDistancesMetres[category] ?: 1_000
     val totalPoints: Int get() = sources.sumOf(PoiSource::pointCount)
     val hasPulsingPoints: Boolean = sources.any { source ->
         source.features.any { categoryCatalog?.styles?.get(it.category)?.pulseEnabled == true }
@@ -257,11 +259,21 @@ internal class PoiRepository internal constructor(
     private val sourcesDirectory = File(root, "sources")
     private val iconsDirectory = File(root, "icons")
     private val categoriesFile = File(root, CATEGORIES_FILE_NAME)
+    private val alertDistancesFile = File(root, "alert-distances.json")
     private val transactionMutex = Mutex()
     private val bitmapCacheMutex = Mutex()
     private val bitmapCache = linkedMapOf<String, CachedPoiBitmap>()
 
     suspend fun snapshot(): PoiSnapshot = withContext(Dispatchers.IO) { readSnapshot() }
+
+    suspend fun setAlertDistance(category: String, metres: Int): PoiSnapshot =
+        withContext(Dispatchers.IO) { transactionMutex.withLock {
+            require(category in readCategories()?.styles.orEmpty()) { "Unknown POI category" }
+            require(metres in 100..5_000 && metres % 100 == 0) { "Invalid POI alert distance" }
+            val distances = readAlertDistances() + (category to metres)
+            atomicReplace(alertDistancesFile, JSONObject(distances).toString().toByteArray(Charsets.UTF_8))
+            readSnapshot()
+        } }
 
     suspend fun importGeoJson(fileName: String, input: InputStream): PoiSnapshot =
         withContext(Dispatchers.IO) { transactionMutex.withLock {
@@ -375,7 +387,20 @@ internal class PoiRepository internal constructor(
         sources = readSources(),
         icons = readIcons(),
         categoryCatalog = readCategories(),
+        alertDistancesMetres = readAlertDistances(),
     )
+
+    private fun readAlertDistances(): Map<String, Int> = runCatching {
+        val json = alertDistancesFile.inputStream().use {
+            JSONObject(readBoundedBytes(it, PoiCategoryParser.MAX_BYTES).toString(Charsets.UTF_8))
+        }
+        json.keys().asSequence().mapNotNull { category ->
+            val metres = json.opt(category) as? Int
+            if (POI_IDENTIFIER_PATTERN.matches(category) && metres != null &&
+                metres in 100..5_000 && metres % 100 == 0
+            ) category to metres else null
+        }.toMap()
+    }.getOrDefault(emptyMap())
 
     private fun readCategories(): PoiCategoryCatalog? = if (categoriesFile.isFile) {
         runCatching {

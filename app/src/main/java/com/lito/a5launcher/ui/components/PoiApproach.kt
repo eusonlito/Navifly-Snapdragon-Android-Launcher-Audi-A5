@@ -13,25 +13,29 @@ internal data class PoiApproach(
     val category: String,
     val color: String,
     val distanceMetres: Double,
+    val latitude: Double,
+    val longitude: Double,
 )
 
 internal class PoiApproachIndex(snapshot: PoiSnapshot) {
-    private data class Point(val latitude: Double, val longitude: Double, val category: String, val color: String)
+    private data class Point(val latitude: Double, val longitude: Double, val category: String, val color: String, val alertDistanceMetres: Int)
 
     private val points = snapshot.sources.flatMap { source ->
         source.features.mapNotNull { feature ->
             val style = snapshot.categoryCatalog?.styles?.get(feature.category)
                 ?.takeIf { it.pulseEnabled } ?: return@mapNotNull null
             val coordinates = feature.json.getJSONObject("geometry").getJSONArray("coordinates")
-            Point(coordinates.getDouble(1), coordinates.getDouble(0), feature.category, style.pulseColor)
+            Point(coordinates.getDouble(1), coordinates.getDouble(0), feature.category, style.pulseColor,
+                snapshot.alertDistanceMetres(feature.category))
         }
     }.sortedBy(Point::latitude)
+    private val maximumDistanceMetres = points.maxOfOrNull { it.alertDistanceMetres } ?: 0
 
     fun nearest(location: LocationState, nowElapsedMillis: Long): PoiApproach? {
         if (!location.gpsAvailable(nowElapsedMillis)) return null
         val position = location.activePosition(nowElapsedMillis) ?: return null
         val heading = position.travelBearing?.takeIf { it.isFinite() } ?: return null
-        val latitudeRange = Math.toDegrees(MAX_DISTANCE_METRES / 6_371_000.0)
+        val latitudeRange = Math.toDegrees(maximumDistanceMetres / 6_371_000.0)
         val minimumLatitude = position.latitude - latitudeRange
         val maximumLatitude = position.latitude + latitudeRange
         var low = 0
@@ -46,20 +50,16 @@ internal class PoiApproachIndex(snapshot: PoiSnapshot) {
             val point = points[index]
             if (point.latitude > maximumLatitude) break
             val distance = geodesicDistanceMetres(position.latitude, position.longitude, point.latitude, point.longitude)
-            if (distance > MAX_DISTANCE_METRES || distance >= (nearest?.distanceMetres ?: Double.POSITIVE_INFINITY)) continue
+            if (distance > point.alertDistanceMetres || distance >= (nearest?.distanceMetres ?: Double.POSITIVE_INFINITY)) continue
             val targetLatitude = Math.toRadians(point.latitude)
             val longitudeDelta = Math.toRadians(point.longitude - position.longitude)
             val bearing = normalizeDegrees(Math.toDegrees(atan2(
                 sin(longitudeDelta) * cos(targetLatitude),
                 cos(latitude) * sin(targetLatitude) - sin(latitude) * cos(targetLatitude) * cos(longitudeDelta),
             )).toFloat())
-            if (distance > 0.001 && abs(shortestBearingDelta(heading, bearing)) > 90f) continue
-            nearest = PoiApproach(point.category, point.color, distance)
+            if (distance > 0.001 && abs(shortestBearingDelta(heading, bearing)) > 45f) continue
+            nearest = PoiApproach(point.category, point.color, distance, point.latitude, point.longitude)
         }
         return nearest
-    }
-
-    companion object {
-        private const val MAX_DISTANCE_METRES = 1_000.0
     }
 }

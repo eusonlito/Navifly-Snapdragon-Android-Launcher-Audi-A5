@@ -918,6 +918,20 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     },
                     poiSnapshot = poiSnapshot,
                     poiNotice = poiNotice,
+                    onPoiDistanceChanged = { category, metres ->
+                        coroutineScope.async {
+                            runCatching { poiRepository.setAlertDistance(category, metres) }.fold(
+                                onSuccess = { poiSnapshot = it; true },
+                                onFailure = {
+                                    poiNotice = FloatingNotification(
+                                        resources.getString(R.string.poi_distance_save_failed),
+                                        FloatingNotificationTone.ERROR,
+                                    )
+                                    false
+                                },
+                            )
+                        }.await()
+                    },
                     onImportPoiSource = {
                         poiNotice = null
                         poiGeoJsonPicker.launch(
@@ -1986,6 +2000,7 @@ private fun LauncherSettingsOverlay(
     onExportDebugLogs: ((Boolean?) -> Unit) -> Unit,
     poiSnapshot: PoiSnapshot,
     poiNotice: FloatingNotification?,
+    onPoiDistanceChanged: suspend (String, Int) -> Boolean,
     onImportPoiSource: () -> Unit,
     onImportPoiIcon: () -> Unit,
     onImportPoiCategories: () -> Unit,
@@ -2012,8 +2027,9 @@ private fun LauncherSettingsOverlay(
     onClose: () -> Unit,
 ) {
     var statisticsOpen by rememberSaveable { mutableStateOf(false) }
+    var poiCategoriesOpen by rememberSaveable { mutableStateOf(false) }
     val historyState = rememberSaveableStateHolder()
-    BackHandler(enabled = statisticsOpen) { statisticsOpen = false }
+    BackHandler(enabled = statisticsOpen || poiCategoriesOpen) { statisticsOpen = false; poiCategoriesOpen = false }
     val context = LocalContext.current
     val installedAtEpochMs = remember(context) {
         runCatching {
@@ -2069,12 +2085,19 @@ private fun LauncherSettingsOverlay(
             title = stringResource(R.string.launcher_settings_title),
             headerHeight = headerHeight,
             darkModeActive = darkModeActive,
-            onClose = { if (statisticsOpen) statisticsOpen = false else onClose() },
+            onClose = {
+                when {
+                    statisticsOpen -> statisticsOpen = false
+                    poiCategoriesOpen -> poiCategoriesOpen = false
+                    else -> onClose()
+                }
+            },
         ) {
             LauncherSettingsTabs(
                 selectedTab = selectedTab,
                 onSelectedTabChanged = {
                     statisticsOpen = false
+                    poiCategoriesOpen = false
                     onSelectedTabChanged(it)
                 },
                 modifier = Modifier.weight(1f).padding(start = 40.dp),
@@ -2102,7 +2125,9 @@ private fun LauncherSettingsOverlay(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                LauncherSettingsTab.MAP -> MapSettingsPanel(
+                LauncherSettingsTab.MAP -> if (poiCategoriesOpen) {
+                    PoiCategorySettingsPanel(poiSnapshot, onPoiDistanceChanged, onBack = { poiCategoriesOpen = false })
+                } else MapSettingsPanel(
                     diagnostics = diagnostics,
                     mapTileStyle = mapTileStyle,
                     onMapTileStyleChanged = onMapTileStyleChanged,
@@ -2122,6 +2147,7 @@ private fun LauncherSettingsOverlay(
                     onImportPoiSource = onImportPoiSource,
                     onImportPoiIcon = onImportPoiIcon,
                     onImportPoiCategories = onImportPoiCategories,
+                    onOpenPoiCategories = { poiCategoriesOpen = true },
                     onDeletePoiSource = onDeletePoiSource,
                     onDeletePoiIcon = onDeletePoiIcon,
                     onDeletePoiCategories = onDeletePoiCategories,
@@ -2236,6 +2262,7 @@ private fun MapSettingsPanel(
     onImportPoiSource: () -> Unit,
     onImportPoiIcon: () -> Unit,
     onImportPoiCategories: () -> Unit,
+    onOpenPoiCategories: () -> Unit,
     onDeletePoiSource: (String) -> Unit,
     onDeletePoiIcon: (String) -> Unit,
     onDeletePoiCategories: () -> Unit,
@@ -2436,6 +2463,12 @@ private fun MapSettingsPanel(
                 PoiImportTile(stringResource(R.string.poi_import_png), SettingsIcons.Image, Modifier.weight(1f), onImportPoiIcon)
                 PoiImportTile(stringResource(R.string.poi_import_categories), SettingsIcons.Tag, Modifier.weight(1f), onImportPoiCategories)
             }
+            Spacer(Modifier.height(8.dp))
+            SettingsActionButton(
+                stringResource(R.string.poi_alert_distances), SettingsDimensions.ActionHeight,
+                modifier = Modifier.fillMaxWidth(), icon = SettingsIcons.Activity,
+                onClick = onOpenPoiCategories,
+            )
             Spacer(Modifier.height(10.dp))
             Text(
                 stringResource(

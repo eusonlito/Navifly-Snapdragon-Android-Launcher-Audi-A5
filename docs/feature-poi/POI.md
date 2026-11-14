@@ -69,11 +69,25 @@ genérico y se conserva el pulso configurado. El resto de propiedades GeoJSON
 se conserva para futuros usos.
 
 Las categorías con `pulseEnabled: true` activan también una tarjeta visual
-sobre el mapa para el POI más cercano a 1 km o menos que no quede detrás del
-coche (hasta 90° a cada lado del rumbo de marcha). Muestra su categoría y
+sobre el mapa para el POI más cercano dentro de la distancia de su categoría
+y hasta 45° a cada lado del rumbo de marcha (90° de apertura total). Muestra su categoría y
 distancia en una sola línea, sin nombres de carreteras ni descripciones
-importadas. La distancia se mide en línea recta, sin sonido ni un ajuste
-adicional. La orientación de la cámara del mapa no afecta a la selección.
+importadas. La distancia se mide en línea recta y se redondea al múltiplo de
+10 metros más cercano. Una línea discontinua del color de la categoría une
+la marca del coche con el POI avisado. No hay sonido. La orientación de la
+cámara del mapa no afecta a la selección.
+
+En Ajustes > Mapa > Puntos de interés > Distancias de aviso se configura cada
+categoría entre 0,1 y 5 km, en pasos de 0,1 km; por defecto se usa 1 km.
+La pantalla muestra el icono y pulso del catálogo, sin añadir otro interruptor
+de avisos. Las distancias se guardan localmente, separadas del catálogo, y se
+conservan al volver a importar fuentes o categorías.
+
+La exportación de TodoRadares utiliza `speed-camera` para fijos, semáforos
+y STOP; los inicios y finales de tramo utilizan `average-speed-camera`.
+Ambas pueden compartir `speed-camera.png`, como en el catálogo de RACE.
+Para corregir exportaciones anteriores hay que reimportar el GeoJSON corregido;
+la aplicación no convierte categorías antiguas ni migra fuentes guardadas.
 
 La tarjeta necesita una posición GPS reciente y un rumbo obtenido en marcha;
 conserva ese rumbo al detenerse y se oculta si la posición caduca. El índice se

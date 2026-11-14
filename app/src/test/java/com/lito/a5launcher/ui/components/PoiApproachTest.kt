@@ -21,6 +21,8 @@ class PoiApproachTest {
         assertEquals("radar", alert.category)
         assertEquals("#FF3030", alert.color)
         assertEquals(222.39, alert.distanceMetres, 0.01)
+        assertEquals(0.002, alert.latitude, 0.0)
+        assertEquals(0.0, alert.longitude, 0.0)
         assertEquals(111.195, index.nearest(location(heading = 180f), 1_000)!!.distanceMetres, 0.01)
     }
 
@@ -32,11 +34,31 @@ class PoiApproachTest {
     }
 
     @Test
-    fun `sideways points qualify but points behind do not including north wraparound`() {
-        assertNotNull(index(point("side", 0.001, 0.0)).nearest(location(), 1_000))
+    fun `only points within 45 degrees on either side qualify including north wraparound`() {
+        assertNull(index(point("side", 0.001, 0.0)).nearest(location(), 1_000))
         assertNull(index(point("rear", 0.001, -0.0001)).nearest(location(), 1_000))
-        assertNotNull(index(point("north", 0.0, 0.001)).nearest(location(heading = 359f), 1_000))
+        val north = index(point("north", 0.0, 0.001))
+        assertNotNull(north.nearest(location(heading = 359f), 1_000))
+        assertNotNull(north.nearest(location(heading = 45f), 1_000))
+        assertNotNull(north.nearest(location(heading = 315f), 1_000))
+        assertNull(north.nearest(location(heading = 45.01f), 1_000))
+        assertNull(north.nearest(location(heading = 314.99f), 1_000))
         assertNotNull(index(point("here", 0.0, 0.0)).nearest(location(heading = 180f), 1_000))
+    }
+
+    @Test
+    fun `each category uses its own distance and a nearer out of range point does not hide another`() {
+        val data = snapshot(point("near", 0.0, 0.002), point("far", 0.0, 0.02, "section"))
+        val catalog = data.categoryCatalog!!.copy(styles = data.categoryCatalog.styles +
+            ("section" to PoiCategoryStyle("radar", true, "#FF3030")))
+        val configured = data.copy(categoryCatalog = catalog, alertDistancesMetres = mapOf("radar" to 100, "section" to 5_000))
+        assertEquals("section", PoiApproachIndex(configured).nearest(location(), 1_000)?.category)
+        assertNull(PoiApproachIndex(configured.copy(alertDistancesMetres = mapOf("radar" to 100))).nearest(location(), 1_000))
+        val fiveKm = Math.toDegrees(5_000.0 / 6_371_000.0)
+        assertNotNull(PoiApproachIndex(snapshot(point("edge", fiveKm, 0.0)).copy(alertDistancesMetres = mapOf("radar" to 5_000)))
+            .nearest(location(heading = 90f), 1_000))
+        assertNull(PoiApproachIndex(snapshot(point("outside", fiveKm + 0.000001, 0.0)).copy(alertDistancesMetres = mapOf("radar" to 5_000)))
+            .nearest(location(heading = 90f), 1_000))
     }
 
     @Test

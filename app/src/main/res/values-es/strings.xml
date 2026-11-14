@@ -334,4 +334,12 @@
     <string name="poi_alert_stop">STOP</string>
     <string name="poi_alert_section_start">Inicio de tramo</string>
     <string name="poi_alert_section_end">Fin de tramo</string>
+    <string name="poi_alert_section">Radar de tramo</string>
+    <string name="poi_alert_distances">Distancias de aviso</string>
+    <string name="poi_no_categories">Importa las categorías para configurar las distancias de aviso</string>
+    <string name="poi_pulse_enabled">Pulso activo</string>
+    <string name="poi_pulse_disabled">Pulso inactivo</string>
+    <string name="poi_distance_decrease">Reducir distancia de %1$s</string>
+    <string name="poi_distance_increase">Aumentar distancia de %1$s</string>
+    <string name="poi_distance_save_failed">No se ha podido guardar la distancia de aviso</string>
 </resources>
