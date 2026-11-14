@@ -696,7 +696,7 @@ private fun PoiApproachCard(approach: PoiApproach) {
         Icon(painterResource(R.drawable.ic_map_poi), contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
         Text(label, color = Color(0xFFD4DCE0), fontSize = 14.sp, lineHeight = 20.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-        Text("${approach.distanceMetres.roundToInt()} m", color = Color.White,
+        Text("${(approach.distanceMetres / 10).roundToInt() * 10} m", color = Color.White,
             fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
