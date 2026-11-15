@@ -57,7 +57,7 @@ internal fun PoiCategorySettingsPanel(
                 SettingsEmptyState(SettingsIcons.Tag, stringResource(R.string.poi_no_categories), Modifier.fillMaxSize())
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(categories, key = { it.first }) { (category, style) ->
                     PoiCategoryDistanceRow(category, style, snapshot, onDistanceChanged)
                 }
@@ -94,47 +94,48 @@ private fun PoiCategoryDistanceRow(
             }
         }
     }
-    SettingsCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    SettingsCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             val image = bitmap
-            if (image != null) Image(image, contentDescription = null, modifier = Modifier.size(40.dp))
-            else Icon(SettingsIcons.Pin, contentDescription = null, tint = SettingsPalette.Accent, modifier = Modifier.size(40.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(label, color = SettingsPalette.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            if (image != null) Image(image, contentDescription = null, modifier = Modifier.size(32.dp))
+            else Icon(SettingsIcons.Pin, contentDescription = null, tint = SettingsPalette.Accent, modifier = Modifier.size(32.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label, color = SettingsPalette.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val pulseColor = remember(style.pulseColor) { Color(android.graphics.Color.parseColor(style.pulseColor)) }
                     Box(Modifier.size(8.dp).background(if (style.pulseEnabled) pulseColor else SettingsPalette.SubtleText, CircleShape))
                     Text(stringResource(if (style.pulseEnabled) R.string.poi_pulse_enabled else R.string.poi_pulse_disabled), color = SettingsPalette.MutedText, fontSize = 12.sp)
                 }
             }
-            Column(Modifier.weight(2f)) {
-                Text(String.format(locale, "%.1f km", metres / 1_000.0), color = SettingsPalette.Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val decrease = stringResource(R.string.poi_distance_decrease, label)
-                    val increase = stringResource(R.string.poi_distance_increase, label)
-                    SettingsActionButton("−", 48.dp, modifier = Modifier.width(48.dp).semantics { contentDescription = decrease }, enabled = !saving && metres > 100, fontSize = 22.sp) { save(metres - 100) }
-                    Slider(
-                        value = metres.toFloat(),
-                        onValueChange = { metres = (it / 100).roundToInt() * 100 },
-                        onValueChangeFinished = { save(metres) },
-                        valueRange = 100f..5_000f,
-                        steps = 48,
-                        enabled = !saving,
-                        colors = SliderDefaults.colors(
-                            thumbColor = SettingsPalette.Accent,
-                            activeTrackColor = SettingsPalette.Accent,
-                            inactiveTrackColor = SettingsPalette.Border,
-                            activeTickColor = Color.Transparent,
-                            inactiveTickColor = Color.Transparent,
-                        ),
-                        modifier = Modifier.weight(1f).semantics { contentDescription = label },
-                    )
-                    SettingsActionButton("+", 48.dp, modifier = Modifier.width(48.dp).semantics { contentDescription = increase }, enabled = !saving && metres < 5_000, fontSize = 22.sp) { save(metres + 100) }
-                }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 60.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(String.format(locale, "%.1f km", 0.1), color = SettingsPalette.MutedText, fontSize = 11.sp)
-                    Text(String.format(locale, "%.1f km", 5.0), color = SettingsPalette.MutedText, fontSize = 11.sp)
-                }
+            Row(Modifier.weight(2f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    String.format(locale, "%.1f km", metres / 1_000.0),
+                    color = SettingsPalette.Accent,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.width(88.dp),
+                )
+                val decrease = stringResource(R.string.poi_distance_decrease, label)
+                val increase = stringResource(R.string.poi_distance_increase, label)
+                SettingsActionButton("−", 48.dp, modifier = Modifier.width(48.dp).semantics { contentDescription = decrease }, enabled = !saving && metres > 100, fontSize = 22.sp) { save(metres - 100) }
+                Slider(
+                    value = metres.toFloat(),
+                    onValueChange = { metres = (it / 100).roundToInt() * 100 },
+                    onValueChangeFinished = { save(metres) },
+                    valueRange = 100f..5_000f,
+                    steps = 48,
+                    enabled = !saving,
+                    colors = SliderDefaults.colors(
+                        thumbColor = SettingsPalette.Accent,
+                        activeTrackColor = SettingsPalette.Accent,
+                        inactiveTrackColor = SettingsPalette.Border,
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent,
+                    ),
+                    modifier = Modifier.weight(1f).semantics { contentDescription = label },
+                )
+                SettingsActionButton("+", 48.dp, modifier = Modifier.width(48.dp).semantics { contentDescription = increase }, enabled = !saving && metres < 5_000, fontSize = 22.sp) { save(metres + 100) }
             }
         }
     }
