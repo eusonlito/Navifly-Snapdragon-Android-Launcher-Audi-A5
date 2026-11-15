@@ -91,13 +91,16 @@ enum class RefuelRejectionReason(val code: String) {
  * A single decrease large enough to look like a later refuel is rejected as an
  * ambiguous startup/sensor jump. Stationary increases up to five percent of tank
  * capacity are ignored; every larger increase requires driver confirmation after
- * two matching samples, regardless of its size.
+ * two samples, regardless of its size. At startup, two matching readings can
+ * also detect a fill while moving against the saved baseline.
  */
 class ConfirmedRefuelDetector(
     initialFuelLitres: Int? = null,
     initialPendingConfirmation: PendingRefuelConfirmation? = null,
 ) {
     private var baselineFuelLitres = initialFuelLitres?.takeIf { it > 0 }
+    private var startupComparisonPending = baselineFuelLitres != null
+    private var startupFuelLitres: Int? = null
     var pendingConfirmation: PendingRefuelConfirmation? = initialPendingConfirmation
         private set
     private var confirmationValidated = false
@@ -114,6 +117,7 @@ class ConfirmedRefuelDetector(
     @Synchronized
     fun observeDetailed(speedKmh: Int, fuelLitres: Int): ConfirmedFuelLevelChange? {
         if (fuelLitres <= 0) {
+            startupFuelLitres = null
             confirmationValidated = false
             val rejection = rejectPending(fuelLitres, RefuelRejectionReason.INVALID_READING)
             clearPending()
@@ -123,6 +127,12 @@ class ConfirmedRefuelDetector(
         if (baseline == null) {
             baselineFuelLitres = fuelLitres
             return ConfirmedFuelLevelChange.Initialized
+        }
+        val checkingStartupFuel = startupComparisonPending
+        if (checkingStartupFuel) {
+            // Once the initial level stabilizes, moving tank fluctuations must not reopen this check.
+            startupComparisonPending = startupFuelLitres != fuelLitres
+            startupFuelLitres = fuelLitres
         }
         val pending = pendingConfirmation
         if (pending != null) {
@@ -164,7 +174,7 @@ class ConfirmedRefuelDetector(
         clearPendingBaseline()
         val increaseLitres = fuelLitres - baseline
         if (
-            (speedKmh > MAX_STATIONARY_SPEED_KMH && pendingConfirmation == null) ||
+            (speedKmh > MAX_STATIONARY_SPEED_KMH && pendingConfirmation == null && !checkingStartupFuel) ||
             refuelFraction(increaseLitres) <= MAX_IGNORED_REFUEL_FRACTION
         ) {
             val rejection = rejectPending(
@@ -180,7 +190,11 @@ class ConfirmedRefuelDetector(
         }
 
         val previousCandidate = pendingFuelLitres
-        pendingSamples = if (previousCandidate == null || fuelLitres < previousCandidate) {
+        val movingStartup = checkingStartupFuel && speedKmh > MAX_STATIONARY_SPEED_KMH &&
+            pendingConfirmation == null
+        pendingSamples = if (previousCandidate == null || fuelLitres < previousCandidate ||
+            (movingStartup && fuelLitres != previousCandidate)
+        ) {
             1
         } else {
             pendingSamples + 1
@@ -196,6 +210,7 @@ class ConfirmedRefuelDetector(
         )
         pendingConfirmation = confirmation
         confirmationValidated = true
+        startupComparisonPending = false
         clearPending()
         return ConfirmedFuelLevelChange.ConfirmationRequired(confirmation)
     }
@@ -220,6 +235,8 @@ class ConfirmedRefuelDetector(
     fun adoptFuelLevel(fuelLitres: Int) {
         if (fuelLitres <= 0) return
         baselineFuelLitres = fuelLitres
+        startupComparisonPending = false
+        startupFuelLitres = null
         pendingConfirmation = null
         confirmationValidated = false
         clearPending()

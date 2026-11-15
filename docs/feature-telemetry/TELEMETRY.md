@@ -315,14 +315,22 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    misma velocidad CAN y se conserva entre reinicios del dispositivo. El detector
    clasifica los aumentos usando la capacidad real de 63 litros. Un cambio de
    hasta el 5 % se ignora; cualquier aumento superior requiere dos muestras
-   consecutivas con el coche detenido y la confirmación del conductor. No existe
+   consecutivas con el coche detenido y la confirmación del conductor.
+   Al arrancar con un nivel anterior guardado, también se permite detectar el
+   repostaje en marcha: se comparan las lecturas iniciales con esa referencia y
+   se exigen dos lecturas válidas consecutivas iguales. Así se cubre el encendido
+   del dispositivo después de salir de la gasolinera. Esta comprobación inicial
+   se cierra al estabilizarse el nivel, haya o no repostaje, y no se reabre por
+   oscilaciones o lecturas inválidas posteriores durante el viaje. Un cero inicial
+   no cuenta como lectura válida; si no hay referencia guardada, la primera
+   lectura sólo establece el nivel de partida. No existe
    reinicio automático por repostaje, independientemente del tamaño del cambio.
    El aviso es deliberadamente genérico y no expone las lecturas enteras del
    aforador. La confirmación pendiente se guarda de forma síncrona y se conserva
    entre reinicios del dispositivo. Al restaurarla, el aviso permanece oculto
    hasta recibir dos muestras CAN válidas que confirmen el aumento actual; el
    cero inicial o la ausencia de eventos no permiten confirmar ni reiniciar el
-   parcial. Un aviso ya confirmado en parado puede revalidarse aunque el coche
+   parcial. Un aviso pendiente puede revalidarse aunque el coche
    haya empezado a circular. Mientras espera respuesta, el candidato se actualiza
    con el combustible recibido para no adoptar un nivel antiguo y pedir otra
    confirmación por el mismo repostaje. Una lectura cero oculta el aviso hasta

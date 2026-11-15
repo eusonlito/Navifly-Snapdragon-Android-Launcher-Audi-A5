@@ -957,6 +957,8 @@ class TelemetryDecoderTest {
     fun distanceSinceRefuelDoesNotResetForFuelIncreaseWhileMoving() {
         val tracker = DistanceSinceRefuelTracker(initialDistanceKm = 25.0, initialFuelLitres = 35)
 
+        tracker.advance(50, 35, 0)
+        tracker.advance(50, 35, 500)
         tracker.advance(50, 50, 1_000)
         val moving = tracker.advance(50, 50, 2_000)
         tracker.advance(0, 50, 3_000)
@@ -998,7 +1000,7 @@ class TelemetryDecoderTest {
     fun realRefuelCandidateRejectionHasReasonButOrdinaryNoiseDoesNot() {
         val detector = ConfirmedRefuelDetector(initialFuelLitres = 35)
 
-        assertNull(detector.observeDetailed(0, 36))
+        repeat(2) { assertNull(detector.observeDetailed(0, 36)) }
         assertNull(detector.observeDetailed(0, 39))
         val rejected = detector.observeDetailed(20, 39)
 
