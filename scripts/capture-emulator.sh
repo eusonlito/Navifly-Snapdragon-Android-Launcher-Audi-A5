@@ -18,6 +18,8 @@ SETTLE_SECONDS=12
 KEEP_EMULATOR=false
 OFFLINE=false
 AVD=""
+THEME="CLASSIC"
+COLOR_MODE="LIGHT"
 
 usage() {
     cat <<'EOF'
@@ -38,6 +40,8 @@ Opciones:
   --outside DECIMAS   Temperatura exterior en décimas °C (245 = 24,5 °C)
   --settle SEGUNDOS   Espera antes de capturar (12)
   --avd NOMBRE        AVD concreto; por defecto usa el único disponible
+  --theme NOMBRE      Tema de la home: CLASSIC, HORIZON, FACETS o TELEMETRY (CLASSIC)
+  --color-mode MODO   Modo de color del mapa: LIGHT, DARK o AUTOMATIC (LIGHT)
   --offline           Captura explícita sin red para validar caché y avisos
   --keep-emulator     No detener el emulador al terminar
   -h, --help          Mostrar esta ayuda
@@ -57,6 +61,8 @@ while (($#)); do
         --outside) OUTSIDE_TENTHS=$2; shift 2 ;;
         --settle) SETTLE_SECONDS=$2; shift 2 ;;
         --avd) AVD=$2; shift 2 ;;
+        --theme) THEME=$2; shift 2 ;;
+        --color-mode) COLOR_MODE=$2; shift 2 ;;
         --offline) OFFLINE=true; shift ;;
         --keep-emulator) KEEP_EMULATOR=true; shift ;;
         -h|--help) usage; exit 0 ;;
@@ -67,7 +73,9 @@ done
 for value in "$SPEED" "$RPM" "$FUEL" "$ODOMETER" "$OUTSIDE_TENTHS" "$SETTLE_SECONDS"; do
     [[ $value =~ ^-?[0-9]+$ ]] || { echo "Valor entero no válido: $value" >&2; exit 2; }
 done
-((SPEED > 0 && SPEED <= 280)) || { echo "La velocidad debe estar entre 1 y 280" >&2; exit 2; }
+((SPEED > 0 && SPEED <= 212)) || { echo "La velocidad debe estar entre 1 y 212" >&2; exit 2; }
+[[ $THEME =~ ^(CLASSIC|HORIZON|FACETS|TELEMETRY)$ ]] || { echo "Tema no válido: $THEME" >&2; exit 2; }
+[[ $COLOR_MODE =~ ^(LIGHT|DARK|AUTOMATIC)$ ]] || { echo "Modo de color no válido: $COLOR_MODE" >&2; exit 2; }
 ((RPM >= 900 && RPM <= 6000)) || { echo "Las RPM deben estar entre 900 y 6000" >&2; exit 2; }
 ((FUEL >= 0 && FUEL <= 63)) || { echo "El combustible debe estar entre 0 y 63" >&2; exit 2; }
 ((ODOMETER > 0 && ODOMETER <= 16777215)) || { echo "Odómetro fuera del rango de 24 bits" >&2; exit 2; }
@@ -198,7 +206,7 @@ fi
 "$ADB" -s "$SERIAL" shell pm grant "$PACKAGE" android.permission.ACCESS_COARSE_LOCATION
 "$ADB" -s "$SERIAL" shell am force-stop "$PACKAGE"
 
-PREFERENCES='<?xml version="1.0" encoding="utf-8" standalone="yes" ?><map><string name="map_color_mode">LIGHT</string><string name="map_tile_style">POSITRON</string><boolean name="map_debug" value="false" /></map>'
+PREFERENCES="<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?><map><string name=\"map_color_mode\">$COLOR_MODE</string><string name=\"map_tile_style\">POSITRON</string><string name=\"home_theme\">$THEME</string><boolean name=\"map_debug\" value=\"false\" /></map>"
 printf '%s' "$PREFERENCES" | "$ADB" -s "$SERIAL" shell \
     "run-as $PACKAGE sh -c 'mkdir -p shared_prefs; cat > shared_prefs/launcher_settings.xml'"
 "$ADB" -s "$SERIAL" shell \
@@ -218,4 +226,4 @@ dimensions=$(file "$OUTPUT")
 expected_consumption=$(python3 -c "print(f'{4.8 + ($RPM / 1800.0) * 1.5:.1f}')")
 echo "Captura creada: $OUTPUT"
 echo "Escena: ${SPEED} km/h · ${RPM} rpm · consumo aproximado ${expected_consumption} · odómetro ${ODOMETER}"
-echo "GPS: ${LATITUDE}, ${LONGITUDE} · mapa LIGHT/POSITRON · red $([[ $OFFLINE == true ]] && echo OFFLINE || echo CONECTADA)"
+echo "GPS: ${LATITUDE}, ${LONGITUDE} · tema $THEME · mapa $COLOR_MODE/POSITRON · red $([[ $OFFLINE == true ]] && echo OFFLINE || echo CONECTADA)"

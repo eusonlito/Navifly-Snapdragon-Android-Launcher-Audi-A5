@@ -86,19 +86,19 @@ class MapColorModeTest {
 
     @Test
     fun darkPaletteMakesEachRoadClassProgressivelyMoreVisible() {
-        assertEquals("#46535C", darkLineColor("highway_path"))
-        assertEquals("#5E6C75", darkLineColor("highway_minor"))
-        assertEquals("#94A3AC", darkLineColor("highway_major_inner"))
-        assertEquals("#C1CCD2", darkLineColor("highway_motorway_inner"))
-        assertEquals("#252E34", darkLineColor("highway_motorway_casing"))
+        assertEquals("#46535C", MapPalette.ClassicDark.lineColor("highway_path"))
+        assertEquals("#5E6C75", MapPalette.ClassicDark.lineColor("highway_minor"))
+        assertEquals("#94A3AC", MapPalette.ClassicDark.lineColor("highway_major_inner"))
+        assertEquals("#C1CCD2", MapPalette.ClassicDark.lineColor("highway_motorway_inner"))
+        assertEquals("#252E34", MapPalette.ClassicDark.lineColor("highway_motorway_casing"))
     }
 
     @Test
     fun darkPaletteSeparatesMapFeaturesFromLand() {
-        assertEquals("#102B38", darkFillColor("water"))
-        assertEquals("#1B2922", darkFillColor("landuse_park"))
-        assertEquals("#283137", darkFillColor("building"))
-        assertEquals("#1A2025", darkFillColor("landuse_residential"))
-        assertEquals(null, darkFillColor("unknown_layer"))
+        assertEquals("#102B38", MapPalette.ClassicDark.fillColor("water"))
+        assertEquals("#1B2922", MapPalette.ClassicDark.fillColor("landuse_park"))
+        assertEquals("#283137", MapPalette.ClassicDark.fillColor("building"))
+        assertEquals("#1A2025", MapPalette.ClassicDark.fillColor("landuse_residential"))
+        assertEquals(null, MapPalette.ClassicDark.fillColor("unknown_layer"))
     }
 }

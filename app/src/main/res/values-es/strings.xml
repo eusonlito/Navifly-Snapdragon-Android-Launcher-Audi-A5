@@ -96,6 +96,13 @@
     <string name="dashboard_refuel_distance">Parcial</string>
     <string name="dashboard_range">Autonomía</string>
     <string name="dashboard_odometer">Odómetro</string>
+    <string name="dashboard_fuel">Combustible</string>
+    <string name="dashboard_witnesses">Testigos</string>
+    <string name="system_theme">Tema</string>
+    <string name="home_theme_classic">Clásico</string>
+    <string name="home_theme_horizon">Horizonte</string>
+    <string name="home_theme_facets">Facetas</string>
+    <string name="home_theme_telemetry">Telemetría</string>
     <string name="system_application">Aplicación</string>
     <string name="system_version">Versión</string>
     <string name="system_build">Compilación</string>

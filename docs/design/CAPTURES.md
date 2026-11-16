@@ -79,6 +79,19 @@ recuperación de caché y los estados degradados.
   --output screenshots/escena-36kmh.png
 ```
 
+Para los temas de la home y el modo de color del mapa:
+
+```bash
+./scripts/capture-emulator.sh --theme TELEMETRY --color-mode DARK \
+  --output screenshots/telemetria-noche.png
+```
+
+`--theme` acepta `CLASSIC`, `HORIZON`, `FACETS` o `TELEMETRY` (por defecto
+`CLASSIC`) y `--color-mode` acepta `LIGHT`, `DARK` o `AUTOMATIC` (por defecto
+`LIGHT`). Las capturas públicas de cada tema son
+`docs/screenshots/{,es/}theme-*.png`; el idioma se cambia antes con
+`adb shell cmd locale set-app-locales com.lito.a5launcher --locales en-US`.
+
 Las combinaciones de velocidad y RPM deben corresponder a una relación válida
 del estimador para evitar una marcha transitoria o `N`. El consumo mostrado se
 calcula en ejecución a partir de ambas lecturas; no es un texto prefijado.

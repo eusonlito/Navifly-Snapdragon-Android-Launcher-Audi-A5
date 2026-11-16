@@ -21,6 +21,7 @@ el historial no se mezclen.
 | [Imágenes](design/IMAGES.md) | Recursos gráficos e iconografía | Vigente |
 | [Ideas](IDEAS.md) | Mejoras candidatas de funcionalidad, interfaz y UX | Propuestas |
 | [Dashboard OEM](feature-oem-dashboard/PLAN.md) | Plan y contrato visual Precision GT | En desarrollo |
+| [Temas de la home](feature-home-themes/README.md) | Clásico, Horizonte, Facetas y Telemetría | Vigente |
 | [Ideación del arranque](ideation/2026-08-12-animacion-inicio-launcher-ideation.html) | Alternativas evaluadas y autocheque panorámico elegido | Referencia |
 
 ## Funcionalidades

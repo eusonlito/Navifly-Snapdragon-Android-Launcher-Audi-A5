@@ -64,6 +64,7 @@ import com.lito.a5launcher.ui.components.SettingsSectionTitle
 import com.lito.a5launcher.ui.components.SettingsSegmentedSelector
 import com.lito.a5launcher.ui.components.settingsFieldSurface
 import com.lito.a5launcher.ui.components.CommandSurface
+import com.lito.a5launcher.ui.components.OemCockpitTokens
 import com.lito.a5launcher.ui.components.SettingsDimensions
 import com.lito.a5launcher.ui.components.SettingsPalette
 import com.lito.a5launcher.ui.components.FLOATING_NOTIFICATION_VISIBLE_MS
@@ -80,13 +81,20 @@ fun AssistantRobotButton(
     iconSize: Dp,
     active: Boolean,
     onClick: () -> Unit,
+    plateColor: Color = OemCockpitTokens.GraphitePressed,
+    horizontalPadding: Dp = 16.dp,
 ) {
     val activeScale by animateFloatAsState(
         targetValue = if (active) 1.06f else 1f,
         animationSpec = tween(160),
         label = "assistantCommandState",
     )
-    CommandSurface(buttonSize, onClick) {
+    CommandSurface(
+        buttonSize,
+        onClick,
+        plateColor = plateColor,
+        horizontalPadding = horizontalPadding,
+    ) {
         Image(
             painter = painterResource(R.drawable.assistant_robot),
             contentDescription = stringResource(R.string.assistant_voice),

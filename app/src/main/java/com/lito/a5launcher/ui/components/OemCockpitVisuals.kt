@@ -199,6 +199,8 @@ internal fun CommandSurface(
     buttonSize: Dp,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    plateColor: Color = OemCockpitTokens.GraphitePressed,
+    horizontalPadding: Dp = 16.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -218,7 +220,7 @@ internal fun CommandSurface(
             .wrapContentWidth(unbounded = true)
             .clip(RoundedCornerShape(8.dp))
             .drawBehind {
-                drawRect(OemCockpitTokens.GraphitePressed.copy(alpha = plateAlpha.value))
+                drawRect(plateColor.copy(alpha = plateColor.alpha * plateAlpha.value))
             }
             .clickable(
                 enabled = enabled,
@@ -229,7 +231,7 @@ internal fun CommandSurface(
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = horizontalPadding),
             contentAlignment = Alignment.Center,
             content = content,
         )

@@ -66,6 +66,9 @@ enum class DialType(val unit: String) {
     RPM("x1000"),
 }
 
+internal const val SPEED_DIAL_MAX_KMH = 240
+private const val SPEED_LABEL_STEP = 20
+
 internal fun dialTargetFraction(value: Int, maxValue: Int): Float =
     if (maxValue > 0) value.coerceIn(0, maxValue).toFloat() / maxValue else 0f
 
@@ -131,8 +134,9 @@ internal fun ProgressRingIndicator(
                     val arcTopLeft = Offset(center.x - arcRadius, center.y - arcRadius)
                     val arcSize = Size(arcRadius * 2f, arcRadius * 2f)
                     val arcStroke = 6.dp.toPx()
-                    val labelIntervals = if (isRpm) 6 else 14
-                    val tickCount = if (isRpm) 48 else 56
+                    // RPM labels every 1000; speed labels every 20 km/h with a tick every 5.
+                    val labelIntervals = if (isRpm) 6 else (maxValue / SPEED_LABEL_STEP).coerceAtLeast(1)
+                    val tickCount = if (isRpm) 48 else labelIntervals * 4
                     val ticksPerLabel = tickCount / labelIntervals
                     val outerTickRadius = radius * .952f
                     val labelRadius = radius * .755f
@@ -201,7 +205,7 @@ internal fun ProgressRingIndicator(
                         )
                         DialLabelGeometry(
                             fraction = fraction,
-                            text = if (isRpm) index.toString() else (index * 20).toString(),
+                            text = if (isRpm) index.toString() else (index * SPEED_LABEL_STEP).toString(),
                             center = Offset(
                                 center.x + labelRadius * cos(radians).toFloat(),
                                 center.y + labelRadius * sin(radians).toFloat(),

@@ -400,6 +400,15 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
 Los tamaños de esferas y vehículo se derivan del alto disponible. No deben volver
 a introducirse anchos estructurales fijos pensados para una densidad concreta.
 
+### Temas de la home
+
+La home admite cuatro temas (Clásico, Horizonte, Facetas y Telemetría) que se
+eligen en la tarjeta **Aplicación** de Ajustes → Sistema, mediante un selector
+segmentado situado sobre el de idioma. Las reglas de cada tema, los márgenes
+comunes y la reordenación por tema están en
+[`../feature-home-themes/README.md`](../feature-home-themes/README.md).
+Clásico sigue siendo la referencia de esta sección.
+
 ### Validación visual
 
 Después de cada cambio relevante se debe:

@@ -55,17 +55,19 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -177,10 +179,10 @@ enum class MapTileStyle(
     DARK("Dark", "dark", "https://tiles.openfreemap.org/styles/dark"),
 }
 
-enum class MapColorMode(val displayName: String) {
-    AUTOMATIC("AUTOMÁTICO"),
-    LIGHT("CLARO"),
-    DARK("OSCURO"),
+enum class MapColorMode {
+    AUTOMATIC,
+    LIGHT,
+    DARK,
 }
 
 internal fun resolveMapTileStyle(
@@ -225,68 +227,26 @@ internal data class DelayedVehicleLightsState(
     }
 }
 
-/** OpenFreeMap's near-black defaults need more separation on the vehicle display. */
-private object CockpitDarkPalette {
-    const val BACKGROUND = "#151A1E"
-    const val WATER = "#102B38"
-    const val LAND = "#1A2025"
-    const val GREEN = "#1B2922"
-    const val BUILDING = "#283137"
-    const val PATH = "#46535C"
-    const val MINOR_ROAD = "#5E6C75"
-    const val MAJOR_ROAD = "#94A3AC"
-    const val MOTORWAY = "#C1CCD2"
-    const val ROAD_CASING = "#252E34"
-    const val RAILWAY = "#45515A"
-    const val BOUNDARY = "#586770"
-    const val LABEL = "#D6DDE1"
-    const val LABEL_HALO = "#11161A"
-}
-
-internal fun darkFillColor(layerId: String): String? = when (layerId) {
-    "water" -> CockpitDarkPalette.WATER
-    "landcover_wood", "landuse_park" -> CockpitDarkPalette.GREEN
-    "building" -> CockpitDarkPalette.BUILDING
-    "landcover_ice_shelf", "landcover_glacier", "landuse_residential",
-    "aeroway-area", "road_area_pier" -> CockpitDarkPalette.LAND
-    else -> null
-}
-
-internal fun darkLineColor(layerId: String): String? = when {
-    layerId == "waterway" -> CockpitDarkPalette.WATER
-    layerId == "highway_path" -> CockpitDarkPalette.PATH
-    layerId == "highway_minor" -> CockpitDarkPalette.MINOR_ROAD
-    layerId.contains("highway_major") && layerId.contains("casing") ->
-        CockpitDarkPalette.ROAD_CASING
-    layerId.contains("highway_major") -> CockpitDarkPalette.MAJOR_ROAD
-    layerId.contains("highway_motorway") && layerId.contains("casing") ->
-        CockpitDarkPalette.ROAD_CASING
-    layerId.contains("highway_motorway") -> CockpitDarkPalette.MOTORWAY
-    layerId.startsWith("railway") -> CockpitDarkPalette.RAILWAY
-    layerId.startsWith("boundary") -> CockpitDarkPalette.BOUNDARY
-    else -> null
-}
-
-private fun applyCockpitDarkPalette(style: Style): Int {
+private fun applyMapPalette(style: Style, palette: MapPalette): Int {
     var changedLayers = 0
     style.layers.forEach { layer ->
         when (layer) {
             is BackgroundLayer -> {
-                layer.setProperties(backgroundColor(CockpitDarkPalette.BACKGROUND))
+                layer.setProperties(backgroundColor(palette.background))
                 changedLayers++
             }
-            is FillLayer -> darkFillColor(layer.id)?.let { color ->
+            is FillLayer -> palette.fillColor(layer.id)?.let { color ->
                 layer.setProperties(fillColor(color))
                 changedLayers++
             }
-            is LineLayer -> darkLineColor(layer.id)?.let { color ->
+            is LineLayer -> palette.lineColor(layer.id)?.let { color ->
                 layer.setProperties(lineColor(color))
                 changedLayers++
             }
             is SymbolLayer -> {
                 layer.setProperties(
-                    textColor(CockpitDarkPalette.LABEL),
-                    textHaloColor(CockpitDarkPalette.LABEL_HALO),
+                    textColor(palette.label),
+                    textHaloColor(palette.labelHalo),
                     textHaloWidth(1.2f),
                 )
                 changedLayers++
@@ -401,6 +361,11 @@ private class MapViewSession(val id: String) {
     var userGestureActive = false
     var paddedWidth = 0
     var paddedHeight = 0
+    var paddedViewport: MapViewportSpec? = null
+    var loadStyle: (() -> Unit)? = null
+    var styleLoaded = false
+    var appliedPalette: MapPalette? = null
+    var poiIconBitmaps: Map<String, Bitmap> = emptyMap()
 }
 
 @Composable
@@ -415,6 +380,9 @@ internal fun CockpitMap(
     cacheLimit: MapCacheLimit = MapCacheLimit.GB_2,
     cacheGeneration: Int = 0,
     debugEnabled: Boolean = false,
+    colors: MapThemeColors = MapThemeColors.Classic,
+    viewport: MapViewportSpec = MapViewportSpec(),
+    topOverlay: @Composable () -> Unit = {},
     onDiagnosticsChanged: (MapDiagnostics) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -596,10 +564,11 @@ internal fun CockpitMap(
         )
     }
 
+    val mapShape = RoundedCornerShape(viewport.cornerRadius)
     Box(
         modifier
-            .clipToBounds()
-            .background(Color(0xFF071014))
+            .clip(mapShape)
+            .background(colors.loadingBackground)
     ) {
         if (rendererStarted) {
             CockpitMapView(
@@ -612,11 +581,10 @@ internal fun CockpitMap(
                 debugEnabled = debugEnabled,
                 lifecycleActive = lifecycleActive,
                 networkAvailable = networkAvailable,
-                markerColor = when {
-                    !networkAvailable -> Color(0xFFFF3B30)
-                    !gpsAvailable -> Color(0xFFFFC107)
-                    else -> Color(0xFF00E5FF)
-                },
+                markerState = mapMarkerState(networkAvailable, gpsAvailable),
+                palette = mapPaletteFor(effectiveTileStyle),
+                loadingBackground = colors.loadingBackground,
+                viewport = viewport,
                 poiSnapshot = poiSnapshot,
                 poiRepository = poiRepository,
                 poiApproach = poiApproach,
@@ -634,64 +602,77 @@ internal fun CockpitMap(
             )
         }
 
-        Text(
-            text = "© OpenStreetMap · © OpenMapTiles",
-            color = Color.White.copy(alpha = .42f),
-            fontSize = 7.sp,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 3.dp),
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    start = viewport.obscuredLeft,
+                    top = viewport.obscuredTop,
+                    end = viewport.obscuredRight,
+                    bottom = viewport.obscuredBottom,
+                ),
         ) {
-            if (!networkAvailable || !gpsAvailable || debugEnabled) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!networkAvailable) StatusBadge(noConnection)
-                    if (!gpsAvailable) StatusBadge(if (hasKnownPosition) noGpsSignal else noGps)
-                    if (debugEnabled) StatusBadge(mapStatus)
-                }
-            }
-            poiApproach?.let { PoiApproachCard(it) }
-        }
-
-        if (rendererStarted && !cameraTracking.isFollowing) {
-            RecenterMapButton(
-                onClick = {
-                    if (cameraTracking.recenter()) {
-                        diagnostic("CÁMARA | seguimiento restaurado")
-                    }
-                },
+            Text(
+                text = "© OpenStreetMap · © OpenMapTiles",
+                color = colors.attribution,
+                fontSize = 7.sp,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 18.dp),
+                    .padding(bottom = 3.dp),
             )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                topOverlay()
+                if (!networkAvailable || !gpsAvailable || debugEnabled) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!networkAvailable) StatusBadge(noConnection, colors)
+                        if (!gpsAvailable) StatusBadge(if (hasKnownPosition) noGpsSignal else noGps, colors)
+                        if (debugEnabled) StatusBadge(mapStatus, colors)
+                    }
+                }
+                poiApproach?.let { PoiApproachCard(it, colors) }
+            }
+
+            if (rendererStarted && !cameraTracking.isFollowing) {
+                RecenterMapButton(
+                    onClick = {
+                        if (cameraTracking.recenter()) {
+                            diagnostic("CÁMARA | seguimiento restaurado")
+                        }
+                    },
+                    colors = colors,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 18.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun PoiApproachCard(approach: PoiApproach) {
+private fun PoiApproachCard(approach: PoiApproach, colors: MapThemeColors) {
     val color = remember(approach.color) { Color(android.graphics.Color.parseColor(approach.color)) }
     val label = poiCategoryLabel(approach.category)
     Row(
         Modifier.widthIn(max = 260.dp)
-            .background(Color(0xF010181D), RoundedCornerShape(10.dp))
-            .border(1.dp, Color(0xFF344149), RoundedCornerShape(10.dp))
+            .background(colors.cardBackground, RoundedCornerShape(10.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(10.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp)
             .semantics(mergeDescendants = true) { },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(painterResource(R.drawable.ic_map_poi), contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-        Text(label, color = Color(0xFFD4DCE0), fontSize = 14.sp, lineHeight = 20.sp,
+        Text(label, color = colors.cardText, fontSize = 14.sp, lineHeight = 20.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-        Text("${(approach.distanceMetres / 10).roundToInt() * 10} m", color = Color.White,
+        Text("${(approach.distanceMetres / 10).roundToInt() * 10} m", color = colors.cardValue,
             fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
@@ -707,7 +688,10 @@ private fun CockpitMapView(
     debugEnabled: Boolean,
     lifecycleActive: Boolean,
     networkAvailable: Boolean,
-    markerColor: Color,
+    markerState: MapMarkerState,
+    palette: MapPalette?,
+    loadingBackground: Color,
+    viewport: MapViewportSpec,
     poiSnapshot: PoiSnapshot,
     poiRepository: PoiRepository,
     poiApproach: PoiApproach?,
@@ -738,6 +722,10 @@ private fun CockpitMapView(
     }
     var markerScreenPosition by remember(session) { mutableStateOf(Offset.Unspecified) }
     val currentApproach by rememberUpdatedState(poiApproach)
+    val currentPalette by rememberUpdatedState(palette)
+    val currentPoiSnapshot by rememberUpdatedState(poiSnapshot)
+    val currentViewport by rememberUpdatedState(viewport)
+    val density = LocalDensity.current
     var targetScreenPosition by remember(session) { mutableStateOf(Offset.Unspecified) }
     var markerScreenBearing by remember(session) { mutableFloatStateOf(0f) }
     var markerZoom by remember(session) { mutableDoubleStateOf(initialZoom) }
@@ -746,13 +734,13 @@ private fun CockpitMapView(
         cameraTracking.recenter()
     }
     Box(
-        modifier = modifier.background(Color(0xFF071014)),
+        modifier = modifier.background(loadingBackground),
     ) {
         key(cacheGeneration, tileStyle, zoomPreferenceKey) {
             AndroidView(
                 factory = { viewContext ->
                     FrameLayout(viewContext).apply host@{
-                        setBackgroundColor(android.graphics.Color.rgb(7, 16, 20))
+                        setBackgroundColor(loadingBackground.toArgb())
                         val created = runCatching {
                             MapLibre.getInstance(viewContext.applicationContext)
                             onDiagnostic(
@@ -763,7 +751,7 @@ private fun CockpitMapView(
                                 .createFromAttributes(viewContext)
                                 .textureMode(true)
                             MapView(viewContext, mapOptions).apply mapView@{
-                                setBackgroundColor(android.graphics.Color.rgb(7, 16, 20))
+                                setBackgroundColor(loadingBackground.toArgb())
                                 isForceDarkAllowed = false
                                 onCreate(Bundle())
                                 onDiagnostic(
@@ -843,12 +831,9 @@ private fun CockpitMapView(
                                             }
                                         }
                                     }
-                                    configureVectorCache(
-                                        viewContext,
-                                        cacheLimit,
-                                        onDiagnostic,
-                                    ) {
+                                    val loadStyle: () -> Unit = {
                                         session.styleLoadJob?.cancel()
+                                        session.styleLoaded = false
                                         session.styleLoadJob = coroutineScope.launch {
                                             val resolution = withContext(Dispatchers.IO) {
                                                 styleCache.resolve(
@@ -864,22 +849,25 @@ private fun CockpitMapView(
                                                 )
                                             }
                                             val onStyleLoaded: (Style) -> Unit = { style ->
-                                                if (tileStyle == MapTileStyle.DARK) {
-                                                    val changedLayers = applyCockpitDarkPalette(style)
+                                                val stylePalette = currentPalette
+                                                if (stylePalette != null) {
+                                                    val changedLayers = applyMapPalette(style, stylePalette)
                                                     onDiagnostic(
-                                                        "${session.id} PALETA NOCTURNA | " +
+                                                        "${session.id} PALETA | " +
                                                         "capas adaptadas=$changedLayers"
                                                     )
                                                 }
+                                                session.appliedPalette = stylePalette
                                                 installPoiLayers(
                                                     viewContext,
                                                     style,
-                                                    poiSnapshot,
-                                                    emptyMap(),
+                                                    currentPoiSnapshot,
+                                                    session.poiIconBitmaps,
                                                     session,
                                                     coroutineScope,
                                                     onDiagnostic,
                                                 )
+                                                session.styleLoaded = true
                                                 onDiagnostic(
                                                     "${session.id} ESTILO CARGADO | " +
                                                         "origen=${resolution.origin}"
@@ -900,11 +888,18 @@ private fun CockpitMapView(
                                             }
                                         }
                                     }
+                                    session.loadStyle = loadStyle
+                                    configureVectorCache(
+                                        viewContext,
+                                        cacheLimit,
+                                        onDiagnostic,
+                                        loadStyle,
+                                    )
                                     addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                                        updateMapLibrePadding(session, map, width, height)
+                                        updateMapLibrePadding(session, map, width, height, currentViewport, density.density)
                                     }
                                     if (width > 0 && height > 0) {
-                                        updateMapLibrePadding(session, map, width, height)
+                                        updateMapLibrePadding(session, map, width, height, currentViewport, density.density)
                                     }
                                     onDiagnostic(
                                         "${session.id} MAPLIBRE LISTO | tamaño=${width}x${height}" +
@@ -936,11 +931,25 @@ private fun CockpitMapView(
                 update = { host ->
                     val view = host.getChildAt(0) as? MapView ?: return@AndroidView
                     session.map?.let {
-                        updateMapLibrePadding(session, it, view.width, view.height)
+                        updateMapLibrePadding(session, it, view.width, view.height, currentViewport, density.density)
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+
+        LaunchedEffect(session, palette) {
+            withTimeoutOrNull(8_000L) { session.mapReady.await() } ?: return@LaunchedEffect
+            if (session.styleLoaded && session.appliedPalette != palette) {
+                onDiagnostic("${session.id} PALETA | recarga de estilo por cambio de tema")
+                session.loadStyle?.invoke()
+            }
+        }
+
+        LaunchedEffect(session, viewport) {
+            val map = withTimeoutOrNull(8_000L) { session.mapReady.await() } ?: return@LaunchedEffect
+            val view = session.view ?: return@LaunchedEffect
+            updateMapLibrePadding(session, map, view.width, view.height, viewport, density.density)
         }
 
         LaunchedEffect(session, motionSmoother, lifecycleActive) {
@@ -1013,6 +1022,7 @@ private fun CockpitMapView(
                 return@LaunchedEffect
             }
             val iconBitmaps = poiRepository.loadReferencedIconBitmaps(poiSnapshot)
+            session.poiIconBitmaps = iconBitmaps
             val map = withTimeoutOrNull(8_000L) { session.mapReady.await() }
                 ?: return@LaunchedEffect
             map.getStyle { style ->
@@ -1094,7 +1104,7 @@ private fun CockpitMapView(
         }
 
         MapVehicleMarker(
-            color = markerColor,
+            state = markerState,
             modifier = Modifier
                 .size(38.dp)
                 .graphicsLayer {
@@ -1220,13 +1230,28 @@ private fun updateMapLibrePadding(
     map: MapLibreMap,
     width: Int,
     height: Int,
+    viewport: MapViewportSpec,
+    density: Float,
 ) {
     if (width <= 0 || height <= 0) return
-    if (session.paddedWidth == width && session.paddedHeight == height) return
+    if (
+        session.paddedWidth == width &&
+        session.paddedHeight == height &&
+        session.paddedViewport == viewport
+    ) return
     session.paddedWidth = width
     session.paddedHeight = height
+    session.paddedViewport = viewport
+    val padding = mapFocalPadding(
+        width = width.toFloat(),
+        height = height.toFloat(),
+        obscuredLeft = viewport.obscuredLeft.value * density,
+        obscuredTop = viewport.obscuredTop.value * density,
+        obscuredRight = viewport.obscuredRight.value * density,
+        obscuredBottom = viewport.obscuredBottom.value * density,
+    )
     val camera = CameraPosition.Builder(map.cameraPosition)
-        .padding(0.0, (height * .60f).toDouble(), 0.0, 0.0)
+        .padding(padding.left, padding.top, padding.right, padding.bottom)
         .build()
     map.moveCamera(CameraUpdateFactory.newCameraPosition(camera))
 }
@@ -1375,6 +1400,7 @@ private fun Throwable.diagnosticDescription(): String =
 @Composable
 private fun RecenterMapButton(
     onClick: () -> Unit,
+    colors: MapThemeColors,
     modifier: Modifier = Modifier,
 ) {
     val contentDescription = stringResource(R.string.map_recenter)
@@ -1382,8 +1408,8 @@ private fun RecenterMapButton(
         modifier = modifier
             .size(44.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xEE071014))
-            .border(1.dp, Color.White.copy(alpha = .34f), RoundedCornerShape(12.dp))
+            .background(colors.controlBackground)
+            .border(1.dp, colors.controlBorder, RoundedCornerShape(12.dp))
             .semantics { this.contentDescription = contentDescription }
             .clickable(
                 role = Role.Button,
@@ -1394,9 +1420,9 @@ private fun RecenterMapButton(
     ) {
         androidx.compose.foundation.Canvas(Modifier.size(25.dp)) {
             val stroke = 1.8.dp.toPx()
-            val cyan = Color(0xFF00C8E0)
+            val cyan = colors.controlAccent
             drawCircle(
-                color = Color.White.copy(alpha = .92f),
+                color = colors.controlIcon,
                 radius = size.minDimension * .31f,
                 style = Stroke(width = stroke),
             )
@@ -1414,7 +1440,7 @@ private fun RecenterMapButton(
                 Offset(-1f, 0f),
             ).forEach { direction ->
                 drawLine(
-                    color = Color.White.copy(alpha = .92f),
+                    color = colors.controlIcon,
                     start = centre + direction * inner,
                     end = centre + direction * outer,
                     strokeWidth = stroke,
@@ -1425,11 +1451,11 @@ private fun RecenterMapButton(
 }
 
 @Composable
-private fun StatusBadge(text: String) {
+private fun StatusBadge(text: String, colors: MapThemeColors) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(Color(0xCC261E13))
+            .background(colors.badgeBackground)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1437,12 +1463,12 @@ private fun StatusBadge(text: String) {
         Icon(
             imageVector = Icons.Filled.LocationOn,
             contentDescription = null,
-            tint = Color(0xFFFF9D32),
+            tint = colors.badgeIcon,
             modifier = Modifier.size(14.dp),
         )
         Text(
             text = text,
-            color = Color(0xFFFFC16F),
+            color = colors.badgeText,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -1451,13 +1477,13 @@ private fun StatusBadge(text: String) {
 
 @Composable
 private fun MapVehicleMarker(
-    color: Color,
+    state: MapMarkerState,
     modifier: Modifier = Modifier,
 ) {
-    val markerResource = when (color) {
-        Color(0xFFFF3B30) -> R.drawable.map_position_waze_no_network
-        Color(0xFFFFC107) -> R.drawable.map_position_waze_no_gps
-        else -> R.drawable.map_position_waze
+    val markerResource = when (state) {
+        MapMarkerState.NO_NETWORK -> R.drawable.map_position_waze_no_network
+        MapMarkerState.NO_GPS -> R.drawable.map_position_waze_no_gps
+        MapMarkerState.OK -> R.drawable.map_position_waze
     }
     Image(
         painter = painterResource(markerResource),

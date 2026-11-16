@@ -61,7 +61,10 @@ No instales esta versión esperando compatibilidad con:
 - Puntos de interés GeoJSON importables, con categorías, iconos y pulsos
   configurables.
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
-- Barra superior y bloques de viaje reordenables manteniendo pulsado.
+- Cuatro temas para la home (Clásico, Horizonte, Facetas y Telemetría), elegibles
+  en Ajustes → Sistema, con versión de día y de noche.
+- Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
+  guarda su propio orden de bloques.
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.
 - Asistente IA opcional mediante OpenAI o Gemini, con Google Places para
   búsquedas cercanas y navegación mediante Waze.
@@ -80,6 +83,20 @@ Capturas del emulador con datos de ejemplo.
 ### Dashboard
 
 ![Dashboard de A5 Cockpit con mapa](docs/screenshots/es/dashboard.png)
+
+### Temas de la home
+
+Horizonte:
+
+![Tema Horizonte](docs/screenshots/es/theme-horizon.png)
+
+Facetas:
+
+![Tema Facetas](docs/screenshots/es/theme-facets.png)
+
+Telemetría:
+
+![Tema Telemetría](docs/screenshots/es/theme-telemetry.png)
 
 ### Estadísticas de viajes
 

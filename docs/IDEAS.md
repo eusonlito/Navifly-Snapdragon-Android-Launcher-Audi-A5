@@ -139,7 +139,7 @@ En Ajustes, cada proveedor mostraría disponibilidad, clave validada y modelo en
 
 | # | Idea | Reason Rejected |
 |---:|---|---|
-| 1 | Añadir muchos temas visuales completos | Fragmentaría el sistema visual y multiplicaría las pruebas; es preferible perfeccionar una dirección OEM y, como máximo, variar acento o intensidad. |
+| 1 | Añadir muchos temas visuales completos | Fragmentaría el sistema visual y multiplicaría las pruebas; es preferible perfeccionar una dirección OEM y, como máximo, variar acento o intensidad. **Recuperada 2026-11 por decisión del propietario:** ver [Temas de la home](feature-home-themes/README.md). |
 | 2 | Recuperar una barra lateral de navegación | Ya se descartó por ocupar demasiado ancho útil en la pantalla panorámica y reducir el mapa. |
 | 3 | Mostrar climatización o control de crucero | EventCenter no proporciona datos fiables para esas funciones; implicaría enseñar información inventada o incompleta. |
 | 4 | Sustituir la vista nativa de cámara/PDC | Está fuera del alcance actual y exigiría controlar una ruta privilegiada del sistema con riesgo operativo. |

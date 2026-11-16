@@ -33,6 +33,8 @@ Uso: ./scripts/emulator.sh --replay RUTA_JSONL [--files DIRECTORIO]
   -h, --help           Muestra esta ayuda.
 
 El replay es obligatorio y debe apuntar a un JSONL local no versionado.
+Usa la GPU del equipo; A5_EMULATOR_GPU=swiftshader_indirect fuerza el
+renderizado por software si el equipo no tiene GPU compatible.
 EOF
 }
 
@@ -216,9 +218,12 @@ else
     echo "  - Densidad lógica: $DISPLAY_DENSITY dpi"
     echo ""
 
-    # Arrancar proceso en background
+    # Arrancar proceso en background. El mapa redibuja continuamente a
+    # 2400x896: con renderizado por software (SwiftShader) la ventana deja de
+    # responder, así que se usa la GPU del equipo salvo que se indique otra.
     "$EMULATOR" \
         -avd "$SELECTED_AVD" \
+        -gpu "${A5_EMULATOR_GPU:-host}" \
         -skin "$DISPLAY_SIZE" \
         -dpi-device "$DISPLAY_DENSITY" \
         -allow-host-audio \

@@ -102,6 +102,7 @@ import com.lito.a5launcher.location.LocationRepository
 import com.lito.a5launcher.assistant.AssistantState
 import com.lito.a5launcher.assistant.AssistantStatusPanel
 import com.lito.a5launcher.ui.theme.*
+import com.lito.a5launcher.ui.home.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -118,7 +119,6 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private const val TOP_COMMAND_ORDER_KEY = "top_command_order"
-private const val FOOTER_BLOCK_ORDER_KEY = "footer_block_order"
 internal enum class TopCommandItem {
     ASSISTANT,
     NAVIGATION,
@@ -150,67 +150,14 @@ internal fun parseTopCommandOrder(serialized: String?): List<TopCommandItem> {
     return stored + DefaultTopCommandOrder.filterNot(stored::contains)
 }
 
-internal fun parseFooterBlockOrder(serialized: String?): List<FooterBlockItem> {
+internal fun parseFooterBlockOrder(
+    serialized: String?,
+    defaults: List<FooterBlockItem> = DefaultFooterBlockOrder,
+): List<FooterBlockItem> {
     val stored = serialized.orEmpty().split(',').mapNotNull { name ->
         FooterBlockItem.entries.firstOrNull { it.name == name }
     }.distinct()
-    return stored + DefaultFooterBlockOrder.filterNot(stored::contains)
-}
-
-internal fun moveFooterBlock(
-    order: List<FooterBlockItem>,
-    item: FooterBlockItem,
-    direction: Int,
-): List<FooterBlockItem> {
-    if (direction == 0) return order
-    val from = order.indexOf(item)
-    if (from < 0) return order
-    val to = (from + direction.coerceIn(-1, 1)).coerceIn(0, order.lastIndex)
-    if (from == to) return order
-    return order.toMutableList().apply {
-        val moved = removeAt(from)
-        add(to, moved)
-    }
-}
-
-/**
- * Distance between the centres of two adjacent footer blocks. A drag swaps only
- * after passing that centre, then subtracts exactly this distance so the drawn
- * block remains aligned with the finger after layouts with unequal widths.
- */
-internal fun footerSwapDistancePx(
-    order: List<FooterBlockItem>,
-    item: FooterBlockItem,
-    direction: Int,
-    widths: Map<FooterBlockItem, Int>,
-    dividerWidthPx: Int = 0,
-): Float? {
-    val from = order.indexOf(item)
-    val targetIndex = from + direction.coerceIn(-1, 1)
-    if (from < 0 || targetIndex !in order.indices) return null
-    val currentWidth = widths[item] ?: return null
-    val targetWidth = widths[order[targetIndex]] ?: return null
-    return (currentWidth + targetWidth) / 2f + dividerWidthPx
-}
-
-internal fun moveVisibleTopCommand(
-    order: List<TopCommandItem>,
-    item: TopCommandItem,
-    direction: Int,
-    visibleItems: Set<TopCommandItem>,
-): List<TopCommandItem> {
-    if (direction == 0 || item !in visibleItems) return order
-    val visible = order.filter(visibleItems::contains)
-    val fromVisible = visible.indexOf(item)
-    val toVisible = (fromVisible + direction.coerceIn(-1, 1)).coerceIn(0, visible.lastIndex)
-    if (fromVisible < 0 || fromVisible == toVisible) return order
-    val target = visible[toVisible]
-    val from = order.indexOf(item)
-    val to = order.indexOf(target)
-    return order.toMutableList().apply {
-        this[from] = target
-        this[to] = item
-    }
+    return stored + defaults.filterNot(stored::contains)
 }
 
 private sealed interface LauncherUpdateState {
@@ -240,23 +187,25 @@ internal fun fuelSegmentTone(activeSegments: Int): FuelSegmentTone = when (activ
 
 @Composable
 fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier) {
-    val speed by viewModel.speed.collectAsStateWithLifecycle()
-    val rpm by viewModel.rpm.collectAsStateWithLifecycle()
-    val doors by viewModel.doorStatus.collectAsStateWithLifecycle()
-    val fuel by viewModel.fuel.collectAsStateWithLifecycle()
-    val mileage by viewModel.mileage.collectAsStateWithLifecycle()
-    val range by viewModel.range.collectAsStateWithLifecycle()
-    val outside by viewModel.outsideTemp.collectAsStateWithLifecycle()
-    val gear by viewModel.gear.collectAsStateWithLifecycle()
-    val tripStatistics by viewModel.tripStatistics.collectAsStateWithLifecycle()
-    val partialStatistics by viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val speedState = viewModel.speed.collectAsStateWithLifecycle()
+    val rpmState = viewModel.rpm.collectAsStateWithLifecycle()
+    val doorsState = viewModel.doorStatus.collectAsStateWithLifecycle()
+    val fuelState = viewModel.fuel.collectAsStateWithLifecycle()
+    val mileageState = viewModel.mileage.collectAsStateWithLifecycle()
+    val rangeState = viewModel.range.collectAsStateWithLifecycle()
+    val outsideState = viewModel.outsideTemp.collectAsStateWithLifecycle()
+    val gearState = viewModel.gear.collectAsStateWithLifecycle()
+    val tripStatisticsState = viewModel.tripStatistics.collectAsStateWithLifecycle()
+    val tripStatistics by tripStatisticsState
+    val partialStatisticsState = viewModel.partialStatistics.collectAsStateWithLifecycle()
+    val partialStatistics by partialStatisticsState
     val totalStatistics by viewModel.totalStatistics.collectAsStateWithLifecycle()
     val journeyHistory by viewModel.journeyHistory.collectAsStateWithLifecycle()
     val pendingRefuelConfirmation by
         viewModel.pendingRefuelConfirmation.collectAsStateWithLifecycle()
     val navigationLaunchLocked by viewModel.navigationLaunchLocked.collectAsStateWithLifecycle()
-    val seatbelt by viewModel.seatbelt.collectAsStateWithLifecycle()
-    val brake by viewModel.parkingBrake.collectAsStateWithLifecycle()
+    val seatbeltState = viewModel.seatbelt.collectAsStateWithLifecycle()
+    val brakeState = viewModel.parkingBrake.collectAsStateWithLifecycle()
     val lightsOn by viewModel.lightsOn.collectAsStateWithLifecycle()
     val functionalEventLogAccess by viewModel.functionalEventLogAccess.collectAsStateWithLifecycle()
     val dashboardLocale = LocalConfiguration.current.locales[0]
@@ -267,11 +216,14 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             kotlinx.coroutines.delay(30_000)
         }
     }
-    val time = remember(clockNow, dashboardLocale) {
-        SimpleDateFormat("HH:mm", dashboardLocale).format(Date(clockNow))
+    // Derived holders: only the clock text recomposes when the minute changes.
+    val timeState = remember(dashboardLocale) {
+        derivedStateOf { SimpleDateFormat("HH:mm", dashboardLocale).format(Date(clockNow)) }
     }
-    val date = remember(clockNow, dashboardLocale) {
-        DateFormat.getDateInstance(DateFormat.FULL, dashboardLocale).format(Date(clockNow))
+    val dateState = remember(dashboardLocale) {
+        derivedStateOf {
+            DateFormat.getDateInstance(DateFormat.FULL, dashboardLocale).format(Date(clockNow))
+        }
     }
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -286,16 +238,24 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var statisticsPanel by remember { mutableStateOf<StatisticsPanelScope?>(null) }
     var showManualPartialResetConfirmation by remember { mutableStateOf(false) }
     var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.TRIPS) }
-    var topCommandOrder by remember {
+    val topCommandOrderState = remember {
         mutableStateOf(parseTopCommandOrder(launcherPreferences.getString(TOP_COMMAND_ORDER_KEY, null)))
     }
+    var topCommandOrder by topCommandOrderState
 
     LaunchedEffect(pendingRefuelConfirmation) {
         if (pendingRefuelConfirmation != null) showManualPartialResetConfirmation = false
     }
-    var footerBlockOrder by remember {
-        mutableStateOf(parseFooterBlockOrder(launcherPreferences.getString(FOOTER_BLOCK_ORDER_KEY, null)))
+    var homeTheme by remember {
+        mutableStateOf(parseHomeTheme(launcherPreferences.getString(HOME_THEME_KEY, null)))
     }
+    // Each theme arranges the blocks differently, so each keeps its own order.
+    fun storedFooterBlockOrder(theme: HomeTheme) = parseFooterBlockOrder(
+        launcherPreferences.getString(footerBlockOrderKey(theme), null),
+        defaultFooterBlockOrder(theme),
+    )
+    val footerBlockOrderState = remember { mutableStateOf(storedFooterBlockOrder(homeTheme)) }
+    var footerBlockOrder by footerBlockOrderState
     var mapDebugEnabled by remember {
         mutableStateOf(launcherPreferences.getBoolean("map_debug", false))
     }
@@ -354,6 +314,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var mapCacheSizeBytes by remember { mutableLongStateOf(0L) }
     var debugLogStats by remember { mutableStateOf(MapDebugLogStats(0, 0L)) }
     var mapDiagnostics by remember { mutableStateOf(MapDiagnostics()) }
+    // Diagnostics change on every GPS fix; only the log path may restart effects here.
+    val mapDebugLogPath by remember { derivedStateOf { mapDiagnostics.debugLogPath } }
     val coroutineScope = rememberCoroutineScope()
     val launchNavigation = { viewModel.launchWaze() }
     val poiRepository = remember { PoiRepository(context.applicationContext) }
@@ -564,7 +526,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     LaunchedEffect(
         showLauncherSettings,
         maintenanceSizeGeneration,
-        mapDiagnostics.debugLogPath,
+        mapDebugLogPath,
     ) {
         if (showLauncherSettings) {
             val sizes = withContext(Dispatchers.IO) {
@@ -578,239 +540,165 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
         }
     }
 
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        val screenWidth = maxWidth
-        val commandBarHeight = maxHeight * .125f
-        val dialSize = (maxHeight - commandBarHeight * 2f).coerceAtMost(maxWidth * .305f)
-        val commandButtonSize = maxHeight * .095f
-        val commandIconSize = maxHeight * .067f
-        val headerTextSize = (maxHeight.value * .040f).sp
-        val vitalsHeight = commandBarHeight
-        val vitalsLabelSize = (maxHeight.value * .024f).sp
-        val vitalsValueSize = (maxHeight.value * .038f).sp
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            CockpitBackdrop(
-                Modifier.graphicsLayer {
-                    alpha = oemStartupPresentation(startupProgress.value).contentAlpha
-                },
-            )
-
-            Column(Modifier.fillMaxSize()) {
-                TopCommandBar(
-                    date = date,
-                    time = time,
-                    outside = outside,
-                    onNavigation = launchNavigation,
-                    navigationEnabled = !navigationLaunchLocked,
-                    onAssistant = startAssistantTurn,
-                    assistantEnabled = assistantController.settings.provider != AssistantProvider.DISABLED,
-                    assistantActive = assistantUi.status !is AssistantState.Disabled &&
-                        assistantUi.status !is AssistantState.Ready,
-                    onApps = { showApps = true },
-                    onRecents = viewModel::openRecentApps,
-                    onMmi = viewModel::launchOriginalMMI,
-                    onSettings = viewModel::launchSettings,
-                    onLauncherSettings = {
-                        launcherSettingsTab = LauncherSettingsTab.TRIPS
-                        showLauncherSettings = true
-                    },
-                    commandOrder = topCommandOrder,
-                    onCommandOrderChanged = { order ->
-                        if (order !== topCommandOrder) {
-                            topCommandOrder = order
-                            launcherPreferences.edit {
-                                putString(TOP_COMMAND_ORDER_KEY, order.joinToString(",") { it.name })
-                            }
-                        }
-                    },
-                    barHeight = commandBarHeight,
-                    buttonSize = commandButtonSize,
-                    iconSize = commandIconSize,
-                    textSize = headerTextSize,
-                    modifier = Modifier
-                        .graphicsLayer {
-                            alpha = oemStartupPresentation(startupProgress.value).contentAlpha
-                        }
-                        .zIndex(2f),
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .zIndex(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CockpitMap(
-                        modifier = Modifier.fillMaxSize(),
-                        tileStyle = mapTileStyle,
-                        colorMode = mapColorMode,
-                        vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
-                        cacheLimit = mapCacheLimit,
-                        cacheGeneration = cacheGeneration,
-                        poiSnapshot = poiSnapshot,
-                        poiRepository = poiRepository,
-                        locationRepository = locationRepository,
-                        debugEnabled = mapDebugEnabled,
-                        onDiagnosticsChanged = { mapDiagnostics = it },
-                    )
-
-                    Canvas(Modifier.fillMaxSize()) {
-                        val hiddenAlpha = 1f -
-                            oemStartupPresentation(startupProgress.value).contentAlpha
-                        if (hiddenAlpha > 0f) {
-                            drawRect(Color.Black.copy(alpha = hiddenAlpha))
-                        }
+    val homeTokens = remember(homeTheme, darkModeActive) { homeTokensFor(homeTheme, darkModeActive) }
+    val homeTokensState = rememberUpdatedState(homeTokens)
+    val darkModeActiveState = rememberUpdatedState(darkModeActive)
+    val assistantEnabledState = rememberUpdatedState(
+        assistantController.settings.provider != AssistantProvider.DISABLED,
+    )
+    val currentStartAssistantTurn by rememberUpdatedState(startAssistantTurn)
+    val homeState = remember {
+        HomeState(
+            speed = speedState,
+            rpm = rpmState,
+            gear = gearState,
+            doors = doorsState,
+            fuel = fuelState,
+            mileage = mileageState,
+            range = rangeState,
+            outside = outsideState,
+            seatbeltAlert = derivedStateOf { !seatbeltState.value },
+            parkingBrake = brakeState,
+            // The original footer lit the witness with the effective dark mode.
+            lightsActive = darkModeActiveState,
+            trip = tripStatisticsState,
+            partial = partialStatisticsState,
+            time = timeState,
+            date = dateState,
+            startupProgress = startupProgress,
+            topCommandOrder = topCommandOrderState,
+            footerBlockOrder = footerBlockOrderState,
+            assistantEnabled = assistantEnabledState,
+            assistantActive = derivedStateOf {
+                assistantUi.status !is AssistantState.Disabled &&
+                    assistantUi.status !is AssistantState.Ready
+            },
+            navigationEnabled = derivedStateOf { !navigationLaunchLocked },
+        )
+    }
+    val homeActions = remember(viewModel) {
+        HomeActions(
+            onNavigation = launchNavigation,
+            onAssistant = { currentStartAssistantTurn() },
+            onApps = { showApps = true },
+            onLauncherSettings = {
+                launcherSettingsTab = LauncherSettingsTab.TRIPS
+                showLauncherSettings = true
+            },
+            onDeviceSettings = viewModel::launchSettings,
+            onRecents = viewModel::openRecentApps,
+            onMmi = viewModel::launchOriginalMMI,
+            onStatistics = { scope ->
+                statisticsPanel = toggleStatisticsPanel(current = statisticsPanel, requested = scope)
+            },
+            onTopCommandOrderChanged = { order ->
+                if (order !== topCommandOrder) {
+                    topCommandOrder = order
+                    launcherPreferences.edit {
+                        putString(TOP_COMMAND_ORDER_KEY, order.joinToString(",") { it.name })
                     }
-
+                }
+            },
+            onFooterBlockOrderChanged = { order ->
+                if (order !== footerBlockOrder) {
+                    footerBlockOrder = order
+                    launcherPreferences.edit {
+                        putString(footerBlockOrderKey(homeTheme), order.joinToString(",") { it.name })
+                    }
+                }
+            },
+        )
+    }
+    // A single movable map: switching themes moves the MapView instead of rebuilding it.
+    val mapContent = remember {
+        movableContentOf { mapModifier: Modifier, viewport: MapViewportSpec ->
+            CockpitMap(
+                modifier = mapModifier,
+                tileStyle = mapTileStyle,
+                colorMode = mapColorMode,
+                vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
+                cacheLimit = mapCacheLimit,
+                cacheGeneration = cacheGeneration,
+                poiSnapshot = poiSnapshot,
+                poiRepository = poiRepository,
+                locationRepository = locationRepository,
+                debugEnabled = mapDebugEnabled,
+                colors = homeTokensState.value.map,
+                viewport = viewport,
+                topOverlay = {
                     AssistantStatusPanel(
                         state = assistantUi.status,
                         audioLevel = assistantUi.audioLevel,
                         action = assistantUi.action,
                         heardText = assistantUi.heardText,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 14.dp)
-                            .graphicsLayer {
-                                alpha = oemStartupPresentation(startupProgress.value).contentAlpha
-                            }
-                            .zIndex(3f),
+                        modifier = Modifier.graphicsLayer {
+                            alpha = oemStartupPresentation(startupProgress.value).contentAlpha
+                        },
                     )
-
-                    statisticsPanel?.let { scope ->
-                        key(scope) {
-                            JourneyStatisticsPanel(
-                                title = stringResource(
-                                    when (scope) {
-                                        StatisticsPanelScope.TRIP -> R.string.trip_statistics_title
-                                        StatisticsPanelScope.PARTIAL -> R.string.partial_statistics_title
-                                        StatisticsPanelScope.TOTAL -> R.string.total_statistics_title
-                                    },
-                                ),
-                                statistics = when (scope) {
-                                    StatisticsPanelScope.TRIP -> tripStatistics
-                                    StatisticsPanelScope.PARTIAL -> partialStatistics
-                                    StatisticsPanelScope.TOTAL -> totalStatistics
+                },
+                onDiagnosticsChanged = { mapDiagnostics = it },
+            )
+        }
+    }
+    val homeSlots = remember {
+        HomeSlots(
+            map = { mapModifier, viewport -> mapContent(mapModifier, viewport) },
+            mapOverlay = {
+                statisticsPanel?.let { scope ->
+                    key(scope) {
+                        JourneyStatisticsPanel(
+                            title = stringResource(
+                                when (scope) {
+                                    StatisticsPanelScope.TRIP -> R.string.trip_statistics_title
+                                    StatisticsPanelScope.PARTIAL -> R.string.partial_statistics_title
+                                    StatisticsPanelScope.TOTAL -> R.string.total_statistics_title
                                 },
-                                history = remember(journeyHistory.records, scope) {
-                                    statisticsPanelHistory(journeyHistory.records, scope)
-                                },
-                                startedAtEpochMs = when (scope) {
-                                    StatisticsPanelScope.TRIP -> journeyHistory.tripStartedAtEpochMs
-                                    StatisticsPanelScope.PARTIAL -> journeyHistory.partialStartedAtEpochMs
-                                    StatisticsPanelScope.TOTAL -> null
-                                },
-                                locale = dashboardLocale,
-                                darkModeActive = darkModeActive,
-                                onClose = { statisticsPanel = null },
-                                onReset = if (scope == StatisticsPanelScope.PARTIAL) {
-                                    { showManualPartialResetConfirmation = true }
-                                } else null,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                    }
-
-                    CockpitMapIntegrationOverlay(
-                        dialDiameter = dialSize,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    Box(Modifier.fillMaxSize()) {
-                        Box(
-                            Modifier
-                                .align(Alignment.CenterStart)
-                                .offset(
-                                    x = screenWidth * OEM_LEFT_DIAL_CENTER_FRACTION - dialSize / 2f,
-                                )
-                                .size(dialSize),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ProgressRingIndicator(
-                                modifier = Modifier.size(dialSize),
-                                value = speed,
-                                maxValue = 280,
-                                dialType = DialType.SPEED,
-                                label = "",
-                                startupProgress = startupProgress,
-                            )
-                        }
-                        Box(
-                            Modifier
-                                .align(Alignment.CenterStart)
-                                .offset(
-                                    x = screenWidth * OEM_RIGHT_DIAL_CENTER_FRACTION - dialSize / 2f,
-                                )
-                                .size(dialSize),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ProgressRingIndicator(
-                                modifier = Modifier.size(dialSize),
-                                value = rpm,
-                                maxValue = 6000,
-                                dialType = DialType.RPM,
-                                label = "",
-                                centerGear = gear,
-                                startupProgress = startupProgress,
-                            )
-                        }
+                            ),
+                            statistics = when (scope) {
+                                StatisticsPanelScope.TRIP -> tripStatistics
+                                StatisticsPanelScope.PARTIAL -> partialStatistics
+                                StatisticsPanelScope.TOTAL -> totalStatistics
+                            },
+                            history = remember(journeyHistory.records, scope) {
+                                statisticsPanelHistory(journeyHistory.records, scope)
+                            },
+                            startedAtEpochMs = when (scope) {
+                                StatisticsPanelScope.TRIP -> journeyHistory.tripStartedAtEpochMs
+                                StatisticsPanelScope.PARTIAL -> journeyHistory.partialStartedAtEpochMs
+                                StatisticsPanelScope.TOTAL -> null
+                            },
+                            locale = LocalConfiguration.current.locales[0],
+                            darkModeActive = darkModeActiveState.value,
+                            onClose = { statisticsPanel = null },
+                            onReset = if (scope == StatisticsPanelScope.PARTIAL) {
+                                { showManualPartialResetConfirmation = true }
+                            } else null,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                 }
+            },
+        )
+    }
 
-                CompactVitals(
-                    fuel = fuel,
-                    mileage = mileage,
-                    range = range,
-                    tripStatistics = tripStatistics,
-                    partialStatistics = partialStatistics,
-                    barHeight = vitalsHeight,
-                    labelSize = vitalsLabelSize,
-                    valueSize = vitalsValueSize,
-                    doors = doors,
-                    seatbeltAlert = !seatbelt,
-                    parkingBrake = brake,
-                    lightsActive = darkModeActive,
-                    blockOrder = footerBlockOrder,
-                    onTripStatistics = {
-                        statisticsPanel = toggleStatisticsPanel(
-                            current = statisticsPanel,
-                            requested = StatisticsPanelScope.TRIP,
-                        )
-                    },
-                    onPartialStatistics = {
-                        statisticsPanel = toggleStatisticsPanel(
-                            current = statisticsPanel,
-                            requested = StatisticsPanelScope.PARTIAL,
-                        )
-                    },
-                    onTotalStatistics = {
-                        statisticsPanel = toggleStatisticsPanel(
-                            current = statisticsPanel,
-                            requested = StatisticsPanelScope.TOTAL,
-                        )
-                    },
-                    onBlockOrderChanged = { order ->
-                        if (order !== footerBlockOrder) {
-                            footerBlockOrder = order
-                            launcherPreferences.edit {
-                                putString(FOOTER_BLOCK_ORDER_KEY, order.joinToString(",") { it.name })
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .graphicsLayer {
-                            alpha = oemStartupPresentation(startupProgress.value).contentAlpha
-                        }
-                        .zIndex(2f),
-                )
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        val commandBarHeight = maxHeight * .125f
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            CompositionLocalProvider(LocalHomeTokens provides homeTokens) {
+                when (homeTheme) {
+                    HomeTheme.CLASSIC -> ClassicHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.HORIZON -> HorizonHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.FACETS -> FacetsHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.TELEMETRY -> TelemetryHomeLayout(homeState, homeActions, homeSlots)
+                }
             }
 
             AnimatedVisibility(
@@ -841,6 +729,12 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 LauncherSettingsOverlay(
                     headerHeight = commandBarHeight,
                     darkModeActive = darkModeActive,
+                    homeTheme = homeTheme,
+                    onHomeThemeChanged = { theme ->
+                        homeTheme = theme
+                        footerBlockOrder = storedFooterBlockOrder(theme)
+                        launcherPreferences.edit { putString(HOME_THEME_KEY, theme.name) }
+                    },
                     selectedTab = launcherSettingsTab,
                     onSelectedTabChanged = { launcherSettingsTab = it },
                     diagnostics = mapDiagnostics,
@@ -1051,788 +945,12 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
 }
 
-@Composable
-private fun TopCommandBar(
-    date: String,
-    time: String,
-    outside: Double,
-    onNavigation: () -> Unit,
-    navigationEnabled: Boolean,
-    onAssistant: () -> Unit,
-    assistantEnabled: Boolean,
-    assistantActive: Boolean,
-    onApps: () -> Unit,
-    onRecents: () -> Unit,
-    onMmi: () -> Unit,
-    onSettings: () -> Unit,
-    onLauncherSettings: () -> Unit,
-    commandOrder: List<TopCommandItem>,
-    onCommandOrderChanged: (List<TopCommandItem>) -> Unit,
-    barHeight: androidx.compose.ui.unit.Dp,
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    textSize: androidx.compose.ui.unit.TextUnit,
-    modifier: Modifier = Modifier,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    val visibleCommands = remember(commandOrder, assistantEnabled) {
-        commandOrder.filter { assistantEnabled || it != TopCommandItem.ASSISTANT }
-    }
-    val commandDragThreshold = buttonSize * .55f
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(barHeight)
-            .background(Color.Black),
-    ) {
-        Row(
-            Modifier.fillMaxSize().padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start,
-        ) {
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                Text(
-                    text = time,
-                    color = Color.White,
-                    fontSize = textSize,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-                Text(
-                    text = "·",
-                    color = Color.White,
-                    fontSize = textSize * .48f,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                )
-                Text(
-                    text = date,
-                    color = Color.White,
-                    fontSize = textSize * .62f,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                )
-            }
-        }
-        Box(
-            Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Row(
-                modifier = Modifier.wrapContentWidth(unbounded = true),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                visibleCommands.forEachIndexed { index, item ->
-                    key(item) {
-                        ReorderableCommandSlot(
-                            item = item,
-                            dragThreshold = commandDragThreshold,
-                            onMove = { direction ->
-                                onCommandOrderChanged(
-                                    moveVisibleTopCommand(
-                                        order = commandOrder,
-                                        item = item,
-                                        direction = direction,
-                                        visibleItems = visibleCommands.toSet(),
-                                    ),
-                                )
-                            },
-                        ) {
-                            when (item) {
-                                TopCommandItem.ASSISTANT -> AssistantRobotButton(
-                                    buttonSize = buttonSize,
-                                    iconSize = iconSize,
-                                    active = assistantActive,
-                                    onClick = onAssistant,
-                                )
-                                TopCommandItem.NAVIGATION -> NavigationCommandButton(
-                                    buttonSize,
-                                    iconSize,
-                                    navigationEnabled,
-                                    onNavigation,
-                                )
-                                TopCommandItem.APPS -> AppsCommandButton(
-                                    buttonSize,
-                                    iconSize,
-                                    onApps,
-                                )
-                                TopCommandItem.LAUNCHER_SETTINGS -> LauncherSettingsCommandButton(
-                                    buttonSize,
-                                    iconSize,
-                                    onLauncherSettings,
-                                )
-                                TopCommandItem.DEVICE_SETTINGS -> CommandButton(
-                                    Icons.Default.Settings,
-                                    stringResource(R.string.device_settings_description),
-                                    buttonSize,
-                                    iconSize,
-                                    .88f,
-                                    onSettings,
-                                )
-                                TopCommandItem.RECENTS -> RecentAppsCommandButton(
-                                    buttonSize,
-                                    iconSize,
-                                    onRecents,
-                                )
-                                TopCommandItem.MMI -> CarCommandButton(
-                                    buttonSize,
-                                    iconSize * 1.05f,
-                                    onMmi,
-                                )
-                            }
-                        }
-                    }
-                    if (index != visibleCommands.lastIndex) {
-                        Box(
-                            Modifier
-                                .width(1.dp)
-                                .height(iconSize * .68f),
-                        ) {
-                            Box(Modifier.fillMaxSize().background(OemCockpitTokens.Titanium.copy(alpha = .18f)))
-                        }
-                    }
-                }
-            }
-        }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            Text(
-                if (outside.isFinite()) String.format(locale, "%.1f°C", outside) else "—",
-                color = Color.White,
-                fontSize = textSize,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        }
-    }
-}
-
-@Composable
-private fun ReorderableCommandSlot(
-    item: TopCommandItem,
-    dragThreshold: androidx.compose.ui.unit.Dp,
-    onMove: (Int) -> Unit,
-    content: @Composable () -> Unit,
-) {
-    var dragging by remember { mutableStateOf(false) }
-    var dragDistance by remember { mutableFloatStateOf(0f) }
-    val currentOnMove by rememberUpdatedState(onMove)
-    Box(
-        Modifier
-            .graphicsLayer {
-                translationX = dragDistance
-                scaleX = if (dragging) 1.08f else 1f
-                scaleY = if (dragging) 1.08f else 1f
-            }
-            .zIndex(if (dragging) 4f else 0f)
-            .pointerInput(item, dragThreshold) {
-                val threshold = dragThreshold.toPx()
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        dragging = true
-                        dragDistance = 0f
-                    },
-                    onDragCancel = {
-                        dragging = false
-                        dragDistance = 0f
-                    },
-                    onDragEnd = {
-                        dragging = false
-                        dragDistance = 0f
-                    },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        dragDistance += amount.x
-                        when {
-                            dragDistance > threshold -> {
-                                currentOnMove(1)
-                                dragDistance -= threshold * 1.8f
-                            }
-                            dragDistance < -threshold -> {
-                                currentOnMove(-1)
-                                dragDistance += threshold * 1.8f
-                            }
-                        }
-                    },
-                )
-            }
-            .then(
-                if (dragging) {
-                    Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(OemCockpitTokens.GraphitePressed)
-                } else {
-                    Modifier
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun LauncherSettingsCommandButton(
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit,
-) {
-    CommandSurface(buttonSize, onClick) {
-        Canvas(Modifier.size(iconSize * .72f)) {
-            val strokeWidth = 1.2.dp.toPx()
-            val knobRadius = 2.8.dp.toPx()
-            val lineInset = strokeWidth / 2f
-            val positions = listOf(
-                .30f to .15f,
-                .68f to .50f,
-                .42f to .85f,
-            )
-            positions.forEach { (knobX, lineY) ->
-                drawLine(
-                    color = Color.White,
-                    start = Offset(lineInset, size.height * lineY),
-                    end = Offset(size.width - lineInset, size.height * lineY),
-                    strokeWidth = strokeWidth,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                )
-                drawCircle(
-                    color = Color.Black,
-                    radius = knobRadius + strokeWidth,
-                    center = Offset(size.width * knobX, size.height * lineY),
-                )
-                drawCircle(
-                    color = Color.White,
-                    radius = knobRadius,
-                    center = Offset(size.width * knobX, size.height * lineY),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CommandButton(
-    icon: ImageVector,
-    label: String,
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    opticalScale: Float,
-    onClick: () -> Unit,
-) {
-    CommandSurface(buttonSize, onClick) {
-        Icon(
-            icon,
-            label,
-            tint = Color.White,
-            modifier = Modifier.size(iconSize * opticalScale),
-        )
-    }
-}
-
-@Composable
-private fun NavigationCommandButton(
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    CommandSurface(buttonSize, onClick, enabled = enabled) {
-        Canvas(
-            Modifier.size(
-                width = iconSize * .56f,
-                height = iconSize * .84f,
-            ),
-        ) {
-            val width = size.width
-            val height = size.height
-            val capHeight = width
-            val center = Offset(width / 2f, capHeight / 2f)
-            val pin = Path().apply {
-                moveTo(width / 2f, 0f)
-                cubicTo(width * .79f, 0f, width, capHeight * .25f, width, capHeight * .52f)
-                cubicTo(width, height * .66f, width * .67f, height * .85f, width / 2f, height)
-                cubicTo(width * .33f, height * .85f, 0f, height * .66f, 0f, capHeight * .52f)
-                cubicTo(0f, capHeight * .25f, width * .21f, 0f, width / 2f, 0f)
-                close()
-            }
-            drawPath(pin, Color.White)
-            drawCircle(Color.Black, radius = width * .16f, center = center)
-        }
-    }
-}
-
-@Composable
-private fun CarCommandButton(
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit
-) {
-    CommandSurface(buttonSize, onClick) {
-        Canvas(
-            Modifier.size(
-                width = iconSize * 1.28f,
-                height = iconSize * .48f,
-            )
-        ) {
-            val ringsColor = Color.White
-            val strokeWidth = size.height * .09f
-            val ringDiameter = size.width * .26f
-            val ringRadius = ringDiameter / 2f
-            val ringSpacing = size.width * .21f
-            val leftInset = size.width * .055f
-            val centerY = size.height / 2f
-
-            repeat(4) { index ->
-                drawCircle(
-                    color = ringsColor,
-                    radius = ringRadius,
-                    center = Offset(
-                        x = leftInset + ringRadius + index * ringSpacing,
-                        y = centerY,
-                    ),
-                    style = Stroke(width = strokeWidth),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppsCommandButton(
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit,
-) {
-    CommandSurface(buttonSize, onClick) {
-        Canvas(Modifier.size(iconSize * .72f)) {
-            val stroke = Stroke(
-                width = 1.8.dp.toPx(),
-                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                join = androidx.compose.ui.graphics.StrokeJoin.Round,
-            )
-            val inset = stroke.width / 2f
-            val available = size.minDimension - stroke.width
-            val gap = available * .18f
-            val cell = (available - gap) / 2f
-            listOf(
-                Offset(inset, inset),
-                Offset(inset + cell + gap, inset),
-                Offset(inset, inset + cell + gap),
-                Offset(inset + cell + gap, inset + cell + gap),
-            ).forEach { origin ->
-                drawRoundRect(
-                    Color.White,
-                    topLeft = origin,
-                    size = Size(cell, cell),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(cell * .12f),
-                    style = stroke,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecentAppsCommandButton(
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit,
-) {
-    CommandSurface(buttonSize, onClick) {
-        Canvas(Modifier.size(iconSize * .74f)) {
-            val stroke = Stroke(width = 1.8.dp.toPx())
-            val corner = 2.dp.toPx()
-            val inset = stroke.width / 2f
-            drawRoundRect(
-                color = Color.White.copy(alpha = .55f),
-                topLeft = Offset(size.width * .22f, inset),
-                size = Size(size.width * .78f - inset, size.height * .72f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner),
-                style = stroke,
-            )
-            drawRoundRect(
-                color = Color.White,
-                topLeft = Offset(inset, size.height * .28f),
-                size = Size(size.width * .78f, size.height * .72f - inset),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner),
-                style = stroke,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CockpitBackdrop(modifier: Modifier = Modifier) {
-    Canvas(modifier.fillMaxSize()) {
-        val cyan = Color(0xFF4CEEFF)
-        for (i in 0..24) {
-            val x = size.width * i / 24f
-            drawLine(
-                cyan.copy(alpha = .022f),
-                Offset(size.width / 2, size.height * .40f),
-                Offset(x, size.height),
-                1f,
-            )
-        }
-        drawLine(
-            cyan.copy(alpha = .12f),
-            Offset(size.width * .08f, size.height * .40f),
-            Offset(size.width * .92f, size.height * .40f),
-            1.dp.toPx(),
-        )
-    }
-}
-
-@Composable
-private fun BottomStatusPanel(
-    doors: DoorStatus,
-    seatbeltAlert: Boolean,
-    parkingBrake: Boolean,
-    lightsActive: Boolean,
-) {
-    Row(
-        modifier = Modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        DoorStatusWitness(doors)
-        StatusWitness(seatbeltAlert, WitnessType.Seatbelt)
-        StatusWitness(parkingBrake, WitnessType.Parking)
-        StatusWitness(lightsActive, WitnessType.Lights)
-    }
-}
-
-private enum class WitnessType { Seatbelt, Parking, Lights }
-private enum class DoorRegion { FrontLeft, FrontRight, RearLeft, RearRight }
-
-@Composable
-private fun DoorStatusWitness(doors: DoorStatus) {
-    val alertColor = Color(0xFFFF3B3B)
-    val inactiveColor = Color(0xFF263036)
-    val anyOpen = doors.driverOpen || doors.passengerOpen ||
-        doors.rearLeftOpen || doors.rearRightOpen || doors.hoodOpen || doors.trunkOpen
-
-    val pulse = rememberWitnessPulse(anyOpen)
-    Box(
-        modifier = Modifier.size(30.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        WitnessPulseRing(pulse, alertColor)
-        // Exact complete SVG supplied for this witness. It is the inactive
-        // base, so no independently scaled door can alter its silhouette.
-        Icon(
-            painter = painterResource(R.drawable.ic_witness_door),
-            contentDescription = null,
-            tint = inactiveColor,
-            modifier = Modifier.size(30.dp),
-        )
-        // The body has its own wider viewport; the four door layers preserve
-        // their original scale and separation.
-        Icon(
-            painter = painterResource(R.drawable.ic_witness_door_body),
-            contentDescription = null,
-            tint = if (anyOpen) alertColor else inactiveColor,
-            modifier = Modifier.size(30.dp),
-        )
-        // The top-down SVG is mirrored relative to the CAN left/right naming.
-        if (doors.driverOpen) DoorLayer(DoorRegion.FrontRight, alertColor)
-        if (doors.passengerOpen) DoorLayer(DoorRegion.FrontLeft, alertColor)
-        if (doors.rearLeftOpen) DoorLayer(DoorRegion.RearRight, alertColor)
-        if (doors.rearRightOpen) DoorLayer(DoorRegion.RearLeft, alertColor)
-    }
-}
-
-@Composable
-private fun DoorLayer(region: DoorRegion, color: Color) {
-    Icon(
-        painter = painterResource(R.drawable.ic_witness_door),
-        contentDescription = null,
-        tint = color,
-        modifier = Modifier
-            .size(30.dp)
-            .drawWithContent doorLayer@{
-                // Coordinates come directly from the 717 × 717 VectorDrawable.
-                // Each active door is therefore a clipped portion of the exact
-                // same path used by the inactive base—never a scaled copy.
-                val bodyLeft = size.width * (171f / 717f)
-                val bodyRight = size.width * (546f / 717f)
-                val splitY = size.height * 0.55f
-                when (region) {
-                    DoorRegion.FrontLeft -> clipRect(0f, 0f, bodyLeft, splitY) { this@doorLayer.drawContent() }
-                    DoorRegion.FrontRight -> clipRect(bodyRight, 0f, size.width, splitY) { this@doorLayer.drawContent() }
-                    DoorRegion.RearLeft -> clipRect(0f, splitY, bodyLeft, size.height) { this@doorLayer.drawContent() }
-                    DoorRegion.RearRight -> clipRect(bodyRight, splitY, size.width, size.height) { this@doorLayer.drawContent() }
-                }
-            },
-    )
-}
-
-@Composable
-private fun StatusWitness(active: Boolean, type: WitnessType) {
-    val color = when {
-        !active -> Color(0xFF263036)
-        type == WitnessType.Lights -> Color(0xFF42D36B)
-        else -> Color(0xFFFF3B3B)
-    }
-    val icon = when (type) {
-        WitnessType.Seatbelt -> R.drawable.ic_witness_seatbelt
-        WitnessType.Parking -> R.drawable.ic_witness_parking_brake
-        WitnessType.Lights -> R.drawable.ic_witness_lights
-    }
-    val iconSize = if (type == WitnessType.Seatbelt) 34.dp else 38.dp
-    val pulse = rememberWitnessPulse(active)
-    Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
-        WitnessPulseRing(pulse, color)
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(iconSize),
-        )
-    }
-}
-
-@Composable
-private fun rememberWitnessPulse(active: Boolean): Animatable<Float, AnimationVector1D> {
-    val pulse = remember { Animatable(0f) }
-    var previousActive by remember { mutableStateOf(active) }
-    LaunchedEffect(active) {
-        val shouldPulse = active && !previousActive
-        previousActive = active
-        if (shouldPulse) {
-            pulse.snapTo(1f)
-            pulse.animateTo(0f, tween(220))
-        } else {
-            pulse.snapTo(0f)
-        }
-    }
-    return pulse
-}
-
-@Composable
-private fun BoxScope.WitnessPulseRing(
-    progress: Animatable<Float, AnimationVector1D>,
-    color: Color,
-) {
-    Canvas(Modifier.matchParentSize().graphicsLayer {
-        val value = progress.value
-        scaleX = 1f + (1f - value) * .18f
-        scaleY = 1f + (1f - value) * .18f
-        alpha = value
-    }) {
-        drawCircle(
-            color = color.copy(alpha = .42f),
-            radius = size.minDimension * .49f,
-            style = Stroke(1.5.dp.toPx()),
-        )
-    }
-}
-
-@Composable
-private fun CompactVitals(
-    fuel: Int,
-    mileage: Int,
-    range: Int,
-    tripStatistics: JourneyStatisticsSnapshot,
-    partialStatistics: JourneyStatisticsSnapshot,
-    barHeight: androidx.compose.ui.unit.Dp,
-    labelSize: androidx.compose.ui.unit.TextUnit,
-    valueSize: androidx.compose.ui.unit.TextUnit,
-    doors: DoorStatus,
-    seatbeltAlert: Boolean,
-    parkingBrake: Boolean,
-    lightsActive: Boolean,
-    blockOrder: List<FooterBlockItem>,
-    onTripStatistics: () -> Unit,
-    onPartialStatistics: () -> Unit,
-    onTotalStatistics: () -> Unit,
-    onBlockOrderChanged: (List<FooterBlockItem>) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    val footerWidths = remember { mutableStateMapOf<FooterBlockItem, Int>() }
-    val footerDividerWidthPx = with(LocalDensity.current) { 1.dp.roundToPx() }
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(barHeight)
-            .background(Color.Black),
-    ) {
-        Row(
-            Modifier.fillMaxSize().padding(vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            blockOrder.forEachIndexed { index, item ->
-                key(item) {
-                    FooterReorderableSlot(
-                        item = item,
-                        order = blockOrder,
-                        widths = footerWidths,
-                        dividerWidthPx = footerDividerWidthPx,
-                        onMove = onBlockOrderChanged,
-                        modifier = if (item == FooterBlockItem.WITNESSES) Modifier.weight(1f) else Modifier,
-                    ) {
-                        when (item) {
-                        FooterBlockItem.TIME -> FooterBlock(
-                            modifier = Modifier.clickable(onClick = onTripStatistics),
-                        ) {
-                            MiniValue(stringResource(R.string.dashboard_time), formatTripDuration(tripStatistics.elapsedMs), false, labelSize, valueSize)
-                        }
-                        FooterBlockItem.TRIP -> FooterBlock(
-                            modifier = Modifier.clickable(onClick = onTripStatistics),
-                        ) {
-                            MiniValue(stringResource(R.string.dashboard_trip), formatOneDecimal(tripStatistics.distanceKm, locale), false, labelSize, valueSize)
-                        }
-                        FooterBlockItem.CONSUMPTION -> FooterBlock(
-                            modifier = Modifier.clickable(onClick = onTripStatistics),
-                        ) {
-                            MiniValue(
-                                stringResource(R.string.dashboard_consumption),
-                                if (tripStatistics.calculatedConsumption.isFinite()) {
-                                    String.format(locale, "%.1f", tripStatistics.calculatedConsumption)
-                                } else "—",
-                                false,
-                                labelSize,
-                                valueSize,
-                            )
-                        }
-                        FooterBlockItem.REFUEL_DISTANCE -> FooterBlock(
-                            modifier = Modifier.clickable(onClick = onPartialStatistics),
-                        ) {
-                            MiniValue(stringResource(R.string.dashboard_refuel_distance), formatOneDecimal(partialStatistics.distanceKm, locale), false, labelSize, valueSize)
-                        }
-                        FooterBlockItem.RANGE -> FooterBlock {
-                            MiniValue(
-                                stringResource(R.string.dashboard_range),
-                                if (range > 0) formatDashboardInteger(range, locale) else "—",
-                                range in 1..79,
-                                labelSize,
-                                valueSize,
-                            )
-                        }
-                        FooterBlockItem.FUEL -> FooterBlock { FuelValue(fuel, valueSize) }
-                        FooterBlockItem.WITNESSES -> Box(
-                            Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            BottomStatusPanel(doors, seatbeltAlert, parkingBrake, lightsActive)
-                        }
-                        FooterBlockItem.ODOMETER -> FooterBlock(
-                            modifier = Modifier.clickable(onClick = onTotalStatistics),
-                        ) {
-                            MiniValue(
-                                stringResource(R.string.dashboard_odometer),
-                                if (mileage > 0) formatDashboardInteger(mileage, locale) else "—",
-                                false,
-                                labelSize,
-                                valueSize,
-                            )
-                        }
-                        }
-                    }
-                }
-                if (index != blockOrder.lastIndex) FooterDivider()
-            }
-        }
-
-    }
-}
-
 internal enum class StatisticsPanelScope { TRIP, PARTIAL, TOTAL }
 
 internal fun toggleStatisticsPanel(
     current: StatisticsPanelScope?,
     requested: StatisticsPanelScope,
 ): StatisticsPanelScope? = requested.takeUnless { it == current }
-
-@Composable
-private fun FooterReorderableSlot(
-    item: FooterBlockItem,
-    order: List<FooterBlockItem>,
-    widths: MutableMap<FooterBlockItem, Int>,
-    dividerWidthPx: Int,
-    onMove: (List<FooterBlockItem>) -> Unit,
-    modifier: Modifier,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    var dragging by remember { mutableStateOf(false) }
-    var dragDistance by remember { mutableFloatStateOf(0f) }
-    val currentOnMove by rememberUpdatedState(onMove)
-    val currentOrder by rememberUpdatedState(order)
-    val currentWidths by rememberUpdatedState(widths)
-    var dragOrder by remember { mutableStateOf(order) }
-    Box(
-        modifier
-            .fillMaxHeight()
-            .onSizeChanged { widths[item] = it.width }
-            .graphicsLayer {
-                translationX = dragDistance
-                scaleX = if (dragging) 1.035f else 1f
-                scaleY = if (dragging) 1.035f else 1f
-            }
-            .zIndex(if (dragging) 4f else 0f)
-            .pointerInput(item) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        dragging = true
-                        dragDistance = 0f
-                        dragOrder = currentOrder
-                    },
-                    onDragCancel = {
-                        dragging = false
-                        dragDistance = 0f
-                    },
-                    onDragEnd = {
-                        dragging = false
-                        dragDistance = 0f
-                    },
-                    onDrag = { change, amount ->
-                        change.consume()
-                        dragDistance += amount.x
-                        val rightDistance = footerSwapDistancePx(
-                            // Keep the active drag order local so an immediate
-                            // second pointer event sees the block's new neighbour.
-                            dragOrder,
-                            item,
-                            1,
-                            currentWidths,
-                            dividerWidthPx,
-                        )
-                        val leftDistance = footerSwapDistancePx(
-                            dragOrder,
-                            item,
-                            -1,
-                            currentWidths,
-                            dividerWidthPx,
-                        )
-                        when {
-                            rightDistance != null && dragDistance > rightDistance -> {
-                                dragOrder = moveFooterBlock(dragOrder, item, 1)
-                                currentOnMove(dragOrder)
-                                dragDistance -= rightDistance
-                            }
-                            leftDistance != null && dragDistance < -leftDistance -> {
-                                dragOrder = moveFooterBlock(dragOrder, item, -1)
-                                currentOnMove(dragOrder)
-                                dragDistance += leftDistance
-                            }
-                        }
-                    },
-                )
-            }
-            .then(
-                if (dragging) Modifier.background(OemCockpitTokens.GraphitePressed) else Modifier,
-            ),
-        contentAlignment = Alignment.Center,
-        content = content,
-    )
-}
 
 internal fun formatTripDuration(elapsedRealtimeMs: Long): String {
     val totalMinutes = elapsedRealtimeMs.coerceAtLeast(0L) / 60_000L
@@ -1850,132 +968,11 @@ internal fun formatOneDecimal(
 ): String = String.format(locale, "%.1f", value.takeIf { it.isFinite() } ?: 0.0)
 
 @Composable
-private fun FooterCell(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxHeight(), contentAlignment = Alignment.Center) { content() }
-}
-
-@Composable
-private fun FooterBlock(
-    modifier: Modifier = Modifier,
-    horizontalPadding: androidx.compose.ui.unit.Dp = 26.dp,
-    content: @Composable () -> Unit,
-) {
-    FooterCell(modifier.padding(horizontal = horizontalPadding), content)
-}
-
-@Composable
-private fun FooterDivider() {
-    Box(
-        Modifier
-            .fillMaxHeight(.68f)
-            .width(1.dp)
-            .background(Color.White.copy(alpha = .12f))
-    )
-}
-
-@Composable
-private fun FuelValue(
-    fuel: Int,
-    valueSize: androidx.compose.ui.unit.TextUnit,
-) {
-    val activeSegments = fuelSegments(fuel)
-    val segmentTone = fuelSegmentTone(activeSegments)
-    val contentColor = when (segmentTone) {
-        FuelSegmentTone.RED -> SLineRed
-        FuelSegmentTone.YELLOW -> Color(0xFFFFC400)
-        FuelSegmentTone.NORMAL -> Color.White
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            FuelPumpIcon(
-                color = contentColor.copy(alpha = if (segmentTone == FuelSegmentTone.NORMAL) .62f else 1f),
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(Modifier.width(9.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                repeat(10) { index ->
-                    val segmentActive = index < activeSegments
-                    val segmentColor = when {
-                        !segmentActive -> Color(0xFF273037)
-                        segmentTone == FuelSegmentTone.RED -> SLineRed
-                        segmentTone == FuelSegmentTone.YELLOW -> Color(0xFFFFC400)
-                        else -> Color(0xFF00DDF4)
-                    }
-                    Box(
-                        Modifier
-                            .size(9.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(segmentColor)
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Text(
-                fuel.toString(),
-                color = contentColor,
-                fontSize = valueSize,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FuelPumpIcon(color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier.drawWithCache {
-        val stroke = Stroke(width = size.width * .085f)
-        val hose = Path().apply {
-            moveTo(size.width * .65f, size.height * .25f)
-            quadraticTo(size.width * .86f, size.height * .30f, size.width * .82f, size.height * .55f)
-            lineTo(size.width * .82f, size.height * .68f)
-        }
-        onDrawBehind {
-            drawRect(
-                color,
-                topLeft = Offset(size.width * .17f, size.height * .12f),
-                size = Size(size.width * .48f, size.height * .68f),
-                style = stroke,
-            )
-            drawLine(color, Offset(size.width * .12f, size.height * .82f), Offset(size.width * .72f, size.height * .82f), stroke.width)
-            drawLine(color, Offset(size.width * .25f, size.height * .30f), Offset(size.width * .57f, size.height * .30f), stroke.width)
-            drawPath(hose, color, style = stroke)
-        }
-    }) { }
-}
-
-private fun formatDashboardInteger(value: Int, locale: Locale): String =
-    NumberFormat.getIntegerInstance(locale).format(value)
-
-@Composable
-private fun MiniValue(
-    label: String,
-    value: String,
-    warning: Boolean,
-    labelSize: androidx.compose.ui.unit.TextUnit,
-    valueSize: androidx.compose.ui.unit.TextUnit
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            label.uppercase(LocalConfiguration.current.locales[0]),
-            color = Color.White.copy(alpha = .50f),
-            fontSize = labelSize,
-            lineHeight = labelSize,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            value,
-            color = if (warning) SLineRed else Color.White,
-            fontSize = valueSize,
-            lineHeight = valueSize,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
 private fun LauncherSettingsOverlay(
     headerHeight: androidx.compose.ui.unit.Dp,
     darkModeActive: Boolean,
+    homeTheme: HomeTheme,
+    onHomeThemeChanged: (HomeTheme) -> Unit,
     selectedTab: LauncherSettingsTab,
     onSelectedTabChanged: (LauncherSettingsTab) -> Unit,
     diagnostics: MapDiagnostics,
@@ -2161,6 +1158,8 @@ private fun LauncherSettingsOverlay(
                     modifier = Modifier.fillMaxSize(),
                 )
                 LauncherSettingsTab.SYSTEM -> SystemSettingsPanel(
+                    homeTheme = homeTheme,
+                    onHomeThemeChanged = onHomeThemeChanged,
                     buildDate = buildDate,
                     installedDate = installedDate,
                     languageLabels = languageLabels,
@@ -2523,6 +1522,8 @@ private fun MapSettingsPanel(
 
 @Composable
 private fun SystemSettingsPanel(
+    homeTheme: HomeTheme,
+    onHomeThemeChanged: (HomeTheme) -> Unit,
     buildDate: String,
     installedDate: String,
     languageLabels: Map<AppLanguage, String>,
@@ -2565,6 +1566,16 @@ private fun SystemSettingsPanel(
                 divider = false,
             )
             Spacer(Modifier.weight(1f))
+            val themeLabels = HomeTheme.entries.associateWith { stringResource(it.labelRes) }
+            SettingsSectionTitle(stringResource(R.string.system_theme), SettingsIcons.Palette)
+            Spacer(Modifier.height(10.dp))
+            SegmentedSettingsSelector(
+                options = HomeTheme.entries,
+                selected = homeTheme,
+                label = { theme -> themeLabels.getValue(theme) },
+                onSelected = onHomeThemeChanged,
+            )
+            Spacer(Modifier.height(SettingsDimensions.SectionGap))
             SettingsSectionTitle(stringResource(R.string.system_language), SettingsIcons.Globe)
             Spacer(Modifier.height(10.dp))
             SegmentedSettingsSelector(

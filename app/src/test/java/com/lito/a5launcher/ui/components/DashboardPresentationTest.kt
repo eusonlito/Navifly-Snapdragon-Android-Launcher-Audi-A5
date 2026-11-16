@@ -5,6 +5,8 @@ import org.junit.Test
 import com.lito.a5launcher.JourneyHistoryKind
 import com.lito.a5launcher.JourneyHistoryRecord
 import com.lito.a5launcher.JourneyStatisticsSnapshot
+import com.lito.a5launcher.ui.home.moveVisibleItem
+import com.lito.a5launcher.ui.home.reorderSwapDistancePx
 import java.util.Locale
 import java.util.TimeZone
 
@@ -140,7 +142,7 @@ class DashboardPresentationTest {
                 TopCommandItem.RECENTS,
                 TopCommandItem.MMI,
             ),
-            moveVisibleTopCommand(
+            moveVisibleItem(
                 DefaultTopCommandOrder,
                 TopCommandItem.NAVIGATION,
                 direction = 1,
@@ -179,11 +181,11 @@ class DashboardPresentationTest {
                 FooterBlockItem.WITNESSES,
                 FooterBlockItem.ODOMETER,
             ),
-            moveFooterBlock(DefaultFooterBlockOrder, FooterBlockItem.TRIP, 1),
+            moveVisibleItem(DefaultFooterBlockOrder, FooterBlockItem.TRIP, 1, DefaultFooterBlockOrder.toSet()),
         )
         assertEquals(
             DefaultFooterBlockOrder,
-            moveFooterBlock(DefaultFooterBlockOrder, FooterBlockItem.TIME, -1),
+            moveVisibleItem(DefaultFooterBlockOrder, FooterBlockItem.TIME, -1, DefaultFooterBlockOrder.toSet()),
         )
     }
 
@@ -197,22 +199,22 @@ class DashboardPresentationTest {
 
         assertEquals(
             180f,
-            footerSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TIME, 1, widths)!!,
+            reorderSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TIME, 1, widths)!!,
             0.001f,
         )
         assertEquals(
             180f,
-            footerSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TRIP, -1, widths)!!,
+            reorderSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TRIP, -1, widths)!!,
             0.001f,
         )
         assertEquals(
             220f,
-            footerSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TRIP, 1, widths)!!,
+            reorderSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TRIP, 1, widths)!!,
             0.001f,
         )
         assertEquals(
             null,
-            footerSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TIME, -1, widths),
+            reorderSwapDistancePx(DefaultFooterBlockOrder, FooterBlockItem.TIME, -1, widths),
         )
     }
 

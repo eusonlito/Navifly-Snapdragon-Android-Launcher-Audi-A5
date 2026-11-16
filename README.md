@@ -60,7 +60,10 @@ Do not install this build expecting compatibility with:
 - Importable GeoJSON points of interest with configurable categories, icons and
   pulses.
 - Speed-camera POI markers supplied through the user's local files.
-- Reorderable top actions and trip blocks using a long press.
+- Four home themes (Classic, Horizon, Facets and Telemetry), selectable in
+  Settings → System, each with day and night variants.
+- Reorderable top actions and trip blocks using a long press; each theme keeps
+  its own block order.
 - Application launcher, app switcher, settings and original Audi MMI access.
 - Optional OpenAI or Gemini AI Assistant, with Google Places for nearby searches
   and Waze navigation.
@@ -79,6 +82,20 @@ Emulator screenshots with sample data.
 ### Dashboard
 
 ![A5 Cockpit dashboard with map](docs/screenshots/dashboard.png)
+
+### Home Themes
+
+Horizon:
+
+![Horizon theme](docs/screenshots/theme-horizon.png)
+
+Facets:
+
+![Facets theme](docs/screenshots/theme-facets.png)
+
+Telemetry:
+
+![Telemetry theme](docs/screenshots/theme-telemetry.png)
 
 ### Trip Statistics
 
