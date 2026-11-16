@@ -47,8 +47,9 @@ unzip -p "$test_dir/bootanimation.zip" part0/frame-00000.png > "$test_dir/frame-
 frame_properties=$(identify -format '%wx%h %[opaque]' "$test_dir/frame-check.png" | \
   tr '[:upper:]' '[:lower:]')
 [[ "$frame_properties" == "2400x896 true" ]]
+# ImageMagick 6 prints "0"; ImageMagick 7 prints "0 (0)". Keep the absolute count.
 pixel_difference=$(compare -metric AE "$test_dir/frame-check.png" \
-  "$test_dir/logo-check.bmp" null: 2>&1 || true)
+  "$test_dir/logo-check.bmp" null: 2>&1 | awk 'NF { value = $1 } END { print value }' || true)
 [[ "$pixel_difference" == "0" ]]
 
 # A 4:3 source must have equal-coloured side padding rather than being cropped.
