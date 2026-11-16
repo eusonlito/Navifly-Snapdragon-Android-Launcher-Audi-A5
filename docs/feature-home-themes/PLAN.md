@@ -46,7 +46,7 @@ generarlos.
 
 ## Validación
 
-- Pruebas JUnit en `app/src/test/.../ui/home/`: análisis de preferencias,
+- Pruebas JUnit del paquete `com.lito.a5launcher.ui.home`: análisis de preferencias,
   tokens, orden por tema, reordenación, escalas, luces de cambio, colores de
   combustible y lecturas de bloques.
 - Clásico comparado píxel a píxel con la captura previa: sólo cambian los

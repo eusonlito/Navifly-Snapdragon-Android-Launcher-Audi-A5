@@ -42,15 +42,18 @@ puntos de interés, Asistente IA y animación de arranque.
 
 ## Código
 
+Ficheros del paquete `com.lito.a5launcher.ui.home`, salvo el último, que está en
+`com.lito.a5launcher.ui.components`:
+
 | Fichero | Responsabilidad |
 |---|---|
-| `ui/home/HomeTheme.kt` | Enumeración, tokens de cada tema, clave de preferencias y orden por tema |
-| `ui/home/HomeState.kt` | Estado observable compartido por todos los temas |
-| `ui/home/HomeReorder.kt` | Reordenación lineal y en cuadrícula con pulsación larga |
-| `ui/home/HomeCommands.kt`, `HomeBlocks.kt`, `HomePanels.kt` | Botones, bloques, testigos, paneles y textos comunes |
-| `ui/home/LinearGauge.kt` | Barras horizontales, bandas verticales y luces de cambio |
-| `ui/home/*HomeLayout.kt` | Una disposición por tema |
-| `ui/components/MapTheming.kt` | Paleta oscura del mapa y área visible para centrar el vehículo |
+| `HomeTheme.kt` | Enumeración, tokens de cada tema, clave de preferencias y orden por tema |
+| `HomeState.kt` | Estado observable compartido por todos los temas |
+| `HomeReorder.kt` | Reordenación lineal y en cuadrícula con pulsación larga |
+| `HomeCommands.kt`, `HomeBlocks.kt`, `HomePanels.kt` | Botones, bloques, testigos, paneles y textos comunes |
+| `LinearGauge.kt` | Barras horizontales, bandas verticales y luces de cambio |
+| `*HomeLayout.kt` | Una disposición por tema |
+| `MapTheming.kt` | Paleta oscura del mapa y área visible para centrar el vehículo |
 
 Preferencias en `launcher_settings`: `home_theme`, `footer_block_order`
 (Clásico), `footer_block_order_<tema>` (resto) y `top_command_order`.
