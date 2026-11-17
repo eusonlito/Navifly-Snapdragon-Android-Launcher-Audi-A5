@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -40,7 +41,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -139,7 +139,7 @@ internal fun FacetsHomeLayout(
                 h = h,
             )
         }
-        // RPM is the mirrored L, with the gear beside its reading.
+        // RPM is the mirrored L, with the gear below its reading.
         FacetsLCard(
             cardModifier.align(Alignment.CenterEnd).offset(x = -margin).width(metrics.rpmWidth),
             state,
@@ -149,14 +149,14 @@ internal fun FacetsHomeLayout(
             mirrored = true,
             leg = { FacetsRpmBand(state, bandWidth, Modifier.fillMaxSize()) },
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                GearBox(state, metrics.gearSize, (h.value * .075f).sp)
-                Spacer(Modifier.width(metrics.padding))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 FacetsReading(
                     value = { formatDialValue(state.rpm.value, DialType.RPM) },
                     unit = "x1000",
                     h = h,
                 )
+                Spacer(Modifier.height(metrics.padding))
+                GearBox(state, metrics.gearSize, (h.value * .075f).sp)
             }
         }
 
@@ -234,9 +234,10 @@ private fun rememberFacetsCardMetrics(h: Dp, bandWidth: Dp): FacetsCardMetrics {
     val tokens = LocalHomeTokens.current
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
-    return remember(h, bandWidth, tokens, density) {
+    val textStyle = LocalTextStyle.current.merge(TightTextStyle)
+    return remember(h, bandWidth, tokens, density, textStyle) {
         fun width(text: String, size: TextUnit, weight: FontWeight, family: FontFamily?): Dp = with(density) {
-            measurer.measure(text, TextStyle(fontSize = size, fontWeight = weight, fontFamily = family))
+            measurer.measure(text, textStyle.copy(fontSize = size, fontWeight = weight, fontFamily = family))
                 .size.width.toDp()
         }
         fun cap(size: TextUnit): Dp = with(density) { size.toDp() * CAP_HEIGHT_RATIO }
@@ -269,8 +270,8 @@ private fun rememberFacetsCardMetrics(h: Dp, bandWidth: Dp): FacetsCardMetrics {
             rpmLeg = padding * 2f + bandWidth + rpmLabels,
             speedFoot = DpSize(speedReading + padding * 2f, readingHeight + padding * 2f),
             rpmFoot = DpSize(
-                gearSize + padding + rpmReading + padding * 2f,
-                maxOf(gearSize, readingHeight) + padding * 2f,
+                maxOf(gearSize, rpmReading) + padding * 2f,
+                readingHeight + padding + gearSize + padding * 2f,
             ),
         )
     }
