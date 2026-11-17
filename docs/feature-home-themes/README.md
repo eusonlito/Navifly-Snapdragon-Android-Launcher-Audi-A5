@@ -64,8 +64,3 @@ Ficheros del paquete `com.lito.a5launcher.ui.home`, salvo el último, que está 
 
 Preferencias en `launcher_settings`: `home_theme`, `footer_block_order`
 (Clásico), `footer_block_order_<tema>` (resto) y `top_command_order`.
-
-## Documentos
-
-- [Plan y decisiones](PLAN.md)
-- [Mockups aprobados y prompts](mockups/)

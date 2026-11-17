@@ -1,18 +1,18 @@
 # Mapa integrado
 
-> El comportamiento objetivo de la siguiente versión está definido en
-> `MAP.md`. Este documento conserva la investigación y el historial técnico de
-> los prototipos existentes.
+> La especificación de comportamiento está en [MAP.md](MAP.md). Este documento
+> describe la implementación vigente (MapLibre Native).
 
 ## Conclusión
 
 El mapa en vivo entre las esferas de velocidad y RPM utiliza:
 
-* **Renderizador:** MapLibre Native 13.4.1 alojado en un `AndroidView`, con
+* **Renderizador:** MapLibre Native 13.7.1 alojado en un `AndroidView`, con
   renderizado GPU de geometría vectorial mediante `TextureView`.
 * **Cartografía:** datos de OpenStreetMap mediante OpenFreeMap/OpenMapTiles.
-* **Estilo:** seleccionable entre Positron, Liberty y Bright;
-  las tres opciones son claras y no cambian con el tema oscuro del launcher.
+* **Estilo:** estilo claro seleccionable entre Positron, Liberty y Bright; el
+  estilo Dark se aplica según el modo de color (Automático, Claro u Oscuro) con
+  una paleta propia (`MapTheming`). Los temas de home no cambian el estilo.
 * **Posición:** proveedor de ubicación de Android; no depende de los eventos CAN.
 * **Navegación:** el mapa es exclusivamente informativo; no calcula rutas ni se
   conecta con la sesión de Waze.
@@ -30,8 +30,7 @@ misma composición que los relojes superpuestos y conserva el tamaño real del
 layout. El diagnóstico registra el tipo de renderer, `pixelRatio` y densidad
 para detectar futuras regresiones específicas del dispositivo.
 
-La composición resultante se validó a 2400x896 en
-`map-textureview-full-width-2400x896.png`. El mapa conserva geometría y texto
+La composición se validó a 2400x896 en el emulador. El mapa conserva geometría y texto
 nítidos a todo el ancho, y SurfaceFlinger no expone una superficie MapLibre
 independiente susceptible de ser reescalada por el compositor del fabricante.
 
@@ -60,19 +59,22 @@ No debe prometer:
 
 ## Encaje visual
 
-El mapa implementado ocupa todo el ancho y alto del área central entre la
-cabecera y el pie. Es una superficie rectangular situada por debajo de los dos relojes.
-Cada esfera incorpora detrás un fondo circular un 6 % mayor, concéntrico con el
-reloj y con el mismo degradado radial que su interior. No existe desplazamiento
-horizontal del círculo: su centro coincide exactamente con el centro de la
-velocidad o las RPM. La ampliación protege las cifras y genera los dos límites
-curvos convexos sin introducir discos negros ajenos al acabado del reloj.
+El mapa ocupa el área central entre la cabecera y el pie y se sitúa por debajo
+de los instrumentos. Cada tema de home indica qué bordes tapan sus paneles
+(`MapViewportSpec`: márgenes obscurecidos y radio de esquina) y la cámara centra
+el vehículo en el área restante, al 50 % horizontal y 80 % vertical de esa
+zona. En el tema Clásico, `CockpitMapIntegrationOverlay` pinta un exterior
+negro que sigue la circunferencia de cada esfera y genera los dos límites
+curvos sin alterar el mapa; los otros tres temas usan paneles rectangulares
+sobre el mapa o lo enmarcan (Telemetría). Los paneles de estadísticas de viaje
+sustituyen al mapa en todos los temas.
 
-La interacción debe ser mínima para evitar distracciones:
+La interacción es mínima para evitar distracciones:
 
 * sin controles de zoom ni brújula propios;
-* zoom mediante pellizco;
-* marcador fijo al 50 % horizontal y 80 % vertical;
+* zoom mediante pellizco, rotación con dos dedos y arrastre, con un botón para
+  volver a la posición actual (véase MAP.md, modo exploración);
+* marcador fijo al 50 % horizontal y 80 % vertical del área visible;
 * textos grandes y pocos elementos cartográficos.
 
 ## Implementación
@@ -125,71 +127,40 @@ La interacción debe ser mínima para evitar distracciones:
   mosaicos presentes en caché siguen disponibles.
 * Los avisos pueden aparecer simultáneamente y se actualizan sin reiniciar el
   mapa.
-* Un quinto icono de la cabecera abre los ajustes propios del launcher. Desde
-  ellos se puede activar el diagnóstico del mapa y consultar estado de carga,
-  red, GPS, coordenadas, proveedor, límite de caché y último error. La pantalla
-  usa tres paneles uniformes sin scroll ni encabezados internos; el diagnóstico
-  es una opción convencional y todos los tamaños de caché aparecen en una sola
-  línea. El nombre del fichero de debug sólo aparece cuando ya existe.
-* Al activar el diagnóstico se crea internamente
-  `map-debug-AAAAmmdd-HHMMSS.log`. Registra cambios de red,
+* Los ajustes del launcher incluyen la sección Mapa, con cuatro tarjetas:
+  apariencia (color, estilo y límite de caché), estado (mapa, red, GPS,
+  coordenadas, proveedor y último error), caché y logs (con el interruptor de
+  diagnóstico) y puntos de interés (véase [POI.md](../feature-poi/POI.md)).
+* Al activar el diagnóstico se crea internamente, en `filesDir/map-debug-logs`,
+  `map-debug-AAAAmmdd-HHMMSS-mmm.log`. Registra cambios de red,
   GPS, fase de inicialización, descarga del estilo y errores sin guardar eventos
   CAN ni una línea por cada frame.
+* Para probar el mapa en el emulador, `scripts/replay-emulator-gps.py`
+  reproduce las posiciones GPS de un log real respetando su temporización
+  (reloj monotónico del log; si falta, las marcas de tiempo antiguas). El replay
+  de la propia app está en [TELEMETRY.md](../feature-telemetry/TELEMETRY.md).
 * El APK incluye `libmaplibre.so` para las ABI soportadas, pero no incorpora
   JavaScript ni WebView. El Navifly utiliza la variante ARM64.
 
 ## Estado de la validación
 
-### Composición a ancho completo del 29 de julio de 2026
+La superficie vectorial se validó el 29 de julio de 2026 en el emulador Navifly
+2400x896: estilo, glyphs y teselas MVT cargaron sin costuras, el proceso se
+mantuvo estable y no hubo errores fatales de Android o MapLibre. La
+validación del driver OpenGL, del arranque como `HOME`, de varias
+suspensiones/reanudaciones y de un viaje prolongado en el Navifly real no está
+documentada en el repositorio.
 
-La superficie vectorial se validó en el emulador Navifly 2400x896 ocupando todo
-el área central, por debajo de las dos esferas opacas. El mapa cargó estilo,
-glyphs y teselas sin costuras; el proceso permaneció estable y no se registraron
-errores fatales de Android o MapLibre. La captura
-`captura local full-width-vector-map-audi-rings-2400x896.png` conserva la evidencia
-visual. El APK ARM64 optimizado superó tests, Lint release y R8.
+Los ajustes permiten cambiar el estilo con efecto inmediato, borrar los
+mosaicos almacenados, descargar todos los logs en un único ZIP (el destino se
+elige antes con el selector de documentos de Android) y borrar los logs
+`map-debug-*.log`. También modifican el límite de caché hasta 5 GB; al
+reducirlo, la poda se ejecuta con la siguiente composición del mapa. Los
+botones muestran la ocupación actual de la caché vectorial y de los logs, y
+ambas limpiezas informan del número de elementos eliminados. Los logs se
+conservan en el almacenamiento interno hasta que se descargan o se limpian.
 
-### Migración vectorial del 29 de julio de 2026
-
-MapLibre se reintrodujo con un ciclo de vida explícito, inicialización
-diferida, límite de caché aplicado antes del estilo y timeout de ocho segundos
-para `getMapAsync`. OpenFreeMap Positron cargó correctamente en el emulador
-2400x896: estilo, glyphs y teselas MVT respondieron por HTTPS, el mapa se
-renderizó sin costuras y el proceso permaneció estable. El padding de cámara se
-aplica una sola vez por tamaño para que recomposiciones Compose no cancelen
-precargas.
-
-Esta validación no sustituye la prueba en el Navifly. Deben verificarse allí el
-driver OpenGL, el arranque como `HOME`, varias suspensiones/reanudaciones y un
-viaje prolongado antes de considerar cerrada la migración.
-
-### Reinicio del 27 de julio de 2026
-
-La instrumentación inicial introdujo una incompatibilidad Kotlin/Java en
-`DiagnosticMapTileProvider`: declaró como no nulo el `Drawable` de
-`mapTileRequestCompleted`, aunque osmdroid puede invocar ese callback con
-`null` mientras el descargador encadena sus proveedores. La comprobación de
-Kotlin lanzaba una `NullPointerException` en el hilo `downloader`; al ser la
-aplicación `HOME`, Android volvía a iniciarla y producía el bucle observado.
-
-El callback acepta y registra ahora explícitamente el valor nulo. La propiedad
-del `MapView` también se mantiene en una sesión estable no observable por
-Compose y sólo se libera cuando esa sesión abandona realmente la composición.
-El logger es único por proceso y los registros identifican PID, actividad,
-composición y sesión de mapa.
-
-La corrección se reprodujo y validó en el emulador: mismo PID durante más de
-35 segundos, cero excepciones del descargador, tiles CARTO visibles y estado
-`MAPA CARGADO`.
-
-Las capturas reales `captura local 2026-07-25 17.26.07.png`,
-`captura local 2026-07-25 20.08.38.png` y `captura local 2026-07-25 22.42.09.png`
-mostraron únicamente la superficie beige inicial de MapLibre y el marcador
-Compose. El registro `registro local map-debug-20260725-211037.log.txt` confirma red y
-GPS activos y dos esperas agotadas en `getMapAsync()`: el bloqueo sucede antes
-de descargar o aplicar el estilo.
-
-La inicialización activa se ha endurecido de la siguiente forma:
+### Inicialización endurecida de MapLibre
 
 1. `MapView.onCreate()` se ejecuta antes de solicitar el mapa y el resto de su
    ciclo de vida se sincroniza desde el observador de Android.
@@ -206,64 +177,8 @@ La inicialización activa se ha endurecido de la siguiente forma:
 7. Los tiles, TileJSON, fuentes y sprites continúan perteneciendo a la caché
    ambiental de MapLibre; no se descarga una región offline.
 
-La prueba del 26 de julio con MapLibre 13.0.2 y el arranque del renderizador
-diferido hasta `View.post` provocó un reinicio nativo continuo del proceso en el
-Navifly. El registro repite una inicialización completa cada 0,8–1 segundo y se
-corta siempre en `ESPERANDO RENDERIZADOR`, sin excepción Java. Se ha restaurado
-11.11.0 y el ciclo de vida estable para impedir que una incompatibilidad del
-renderizador bloquee el launcher principal. Esa versión nueva no debe
-reintroducirse sin aislarla primero del proceso `HOME`.
-
-La prueba posterior con MapLibre GL JS tampoco llegó a abrir el HTML local en
-el WebView del firmware: el registro permaneció en `CARGANDO HTML`, Android
-contabilizó cero tráfico y la superficie del WebView tapó la cabecera Compose.
-Por ello también se descartó esa integración.
-
-El prototipo posterior descargaba directamente PNG `@2x` y aplicaba una matriz
-Compose a cada tile. La prueba real mostró costuras, traslaciones incorrectas al
-girar y estados de carga falsos, por lo que fue retirado. La solución activa
-en aquel momento delegaba cámara y pirámide raster en osmdroid y utilizaba PNG
-de 256 px de CARTO.
-El diagnóstico informa `MAPA ACTIVO` cuando el `MapView` está creado y
-`ERROR MAPA` si el contenedor no puede construirlo; no afirma que todos los
-tiles de red estén descargados. Al no existir `SurfaceView`, `GLSurfaceView` ni
-WebView, el mapa permanece dentro de los límites de su vista Android.
-
-Cada transición del ajuste `Debug del mapa` de desactivado a activado crea un
-fichero nuevo con milisegundos en el nombre. Nunca reutiliza el URI de una
-captura anterior. La ruta del nuevo fichero se propaga inmediatamente al panel
-de ajustes, sin depender de que después cambie el GPS, la red o el mapa.
-
-Los ajustes permiten cambiar el estilo con efecto inmediato, borrar los
-mosaicos almacenados, descargar todos los logs en un único ZIP eligiendo antes
-el destino con el selector de documentos de Android y borrar todos los logs
-`map-debug-*.log` creados por la
-aplicación. También permiten modificar el límite de caché hasta 5 GB; al
-reducirlo, la poda se ejecuta inmediatamente con la siguiente composición del
-mapa. Los propios botones muestran la ocupación actual de la caché vectorial y
-de los logs con unidades legibles, y se actualizan al abrir los ajustes y tras
-cada descarga o limpieza. Los ficheros permanecen en el almacenamiento interno
-hasta que se descargan o se limpian. Los logs antiguos que pudieran existir en
-`Descargas/A5Cockpit` quedan fuera de esta gestión y pueden descartarse. Ambas
-limpiezas informan del número de elementos eliminados.
-
-La aplicación y el APK compilan correctamente sin código nativo específico de
-ARM64 o x86_64. El encaje visual final y el rendimiento quedan pendientes de
-validar en el Navifly real.
-
-Los scripts de compilación conservan sus artefactos en el directorio `out` de cada proyecto.
-
-## Opciones descartadas inicialmente
-
-* **Google Maps SDK:** integración Compose madura y compatible con el dispositivo,
-  pero exige proyecto Google Cloud, clave API y facturación habilitada. No aporta
-  una ventaja necesaria para una vista auxiliar.
-* **Servidor raster público de OpenStreetMap:** los datos OSM son libres, pero sus
-  servidores públicos no permiten descarga masiva ni mapas offline y no ofrecen
-  garantía de servicio.
-* **Mapa offline completo desde el primer prototipo:** MapLibre soporta regiones
-  offline, pero hay que usar una fuente que autorice la descarga o preparar
-  mosaicos propios. Se evaluará después de validar rendimiento y legibilidad.
+El diagnóstico informa el estado del mapa (cargando, cargado, error o error de
+inicialización) a partir del estado real de MapLibre.
 
 ## Diagnóstico en fichero
 

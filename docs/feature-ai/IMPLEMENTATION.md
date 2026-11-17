@@ -21,7 +21,8 @@ La integración vive bajo `com.lito.a5launcher.assistant` y se divide en:
 
 El dashboard sólo construye el controlador, presenta los componentes y solicita
 el permiso de micrófono. `TelemetryService` y `CockpitMap` no dependen del
-asistente ni han sido modificados.
+asistente; el único punto compartido es `LocationRepository` (paquete
+`location`), del que leen tanto el mapa como el asistente.
 
 La elección `Desactivado`, `OpenAI` o `Google Gemini` se persiste al pulsar el
 segmento izquierdo y es independiente del editor de credenciales. El panel
@@ -114,6 +115,18 @@ la limitación queda registrada en `SECURITY.md`.
 Realtime. Gemini sí ofrece consultas actuales con grounding. OpenAI resuelve
 navegación y conversación con el conocimiento del modelo, sin presentar una
 búsqueda web en vivo como realizada.
+
+Desde el 2026-10-22 Gemini usa `gemini-3.8-live` con detección automática de
+voz desactivada: la captura local envía `activityStart` y `activityEnd`, la
+función `navigate_to` es `BLOCKING` y el historial se aporta como contexto sin
+pedir respuesta. OpenAI transcribe con `gpt-transcribe` y solicita la respuesta
+sólo tras recibir la transcripción del usuario, para conservarla en el
+historial aunque una navegación cierre el turno.
+
+La posición que usa Places procede del `LocationRepository` compartido con el
+mapa (posición validada por precisión y saltos). Sin posición válida, una
+búsqueda cercana se rechaza localmente con un mensaje de ubicación no
+disponible; las coordenadas no se incluyen en el prompt enviado al proveedor.
 
 La conexión OpenAI utiliza la forma GA de `/v1/realtime`: autenticación Bearer y
 sin la cabecera retirada `OpenAI-Beta`. El modelo configurado es

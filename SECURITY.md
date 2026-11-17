@@ -19,10 +19,17 @@ quotas and provider restrictions.
 
 ## Sideloading and updates
 
-The built-in updater opens Android's document picker and package installer. The
-user is responsible for selecting a trusted APK and reviewing Android's install
-confirmation. Release artifacts produced by the public build use a debug key
-for local testing and are not authenticated public releases.
+The built-in updater queries the latest GitHub Release of this repository,
+downloads `A5Cockpit.apk` and verifies it against the published
+`A5Cockpit.apk.sha256` checksum before handing it to Android's package
+installer. It can also install a local APK chosen through Android's document
+picker; the user is then responsible for selecting a trusted APK. In both cases
+the application checks that the APK belongs to A5 Cockpit, and Android verifies
+the signature and asks for confirmation before installing.
+
+Release APKs published on GitHub Releases are signed with the project's stable
+release key, which is kept outside the repository. Local builds without release
+credentials use the machine's debug key and are not authenticated releases.
 
 ## Vehicle safety
 

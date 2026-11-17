@@ -1,8 +1,7 @@
 # Índice de documentación
 
 Este directorio es la fuente documental de `a5-launcher`. Los documentos se
-agrupan por dominio para que las especificaciones vigentes, las tareas activas y
-el historial no se mezclen.
+agrupan por dominio y describen lo que contiene la última versión.
 
 ## Arquitectura y plataforma
 
@@ -19,10 +18,7 @@ el historial no se mezclen.
 | [Diseño](design/DESIGN.md) | Geometría, estilo OEM Futuristic y responsive | Vigente |
 | [Capturas](design/CAPTURES.md) | Escena canónica y herramienta externa de captura | Vigente |
 | [Imágenes](design/IMAGES.md) | Recursos gráficos e iconografía | Vigente |
-| [Ideas](IDEAS.md) | Mejoras candidatas de funcionalidad, interfaz y UX | Propuestas |
-| [Dashboard OEM](feature-oem-dashboard/PLAN.md) | Plan y contrato visual Precision GT | En desarrollo |
 | [Temas de la home](feature-home-themes/README.md) | Clásico, Horizonte, Facetas y Telemetría | Vigente |
-| [Ideación del arranque](ideation/2026-08-12-animacion-inicio-launcher-ideation.html) | Alternativas evaluadas y autocheque panorámico elegido | Referencia |
 
 ## Funcionalidades
 
@@ -31,15 +27,10 @@ el historial no se mezclen.
 | Documento | Contenido | Estado |
 |---|---|---|
 | [Índice](feature-map/README.md) | Documentación completa de la feature | Vigente |
-| [Tarea](feature-map/TASK.md) | Objetivo, requisitos y restricciones | Vigente |
-| [Plan](feature-map/PLAN.md) | Implementación de la interfaz vectorial | Histórico |
 | [Especificación](feature-map/MAP.md) | Comportamiento y criterios de aceptación | Vigente |
-| [Implementación e historial](feature-map/MAPS.md) | Decisiones, incidencias y validaciones | Mixto |
-| [MapLibre](feature-map/MAPLIBRE.md) | Elección técnica y referencias del motor vectorial | Referencia |
+| [Implementación](feature-map/MAPS.md) | Implementación vigente, diagnóstico y validación | Vigente |
 
-La implementación activa es MapLibre Native 13.4.1 con OpenFreeMap. Las
-secciones fechadas de `MAPS.md` sobre osmdroid, WebView o MapLibre 13.0.2 son
-historial de prototipos y no describen el renderer actual.
+La implementación activa es MapLibre Native 13.7.1 con OpenFreeMap.
 
 ### Puntos de Interés
 
@@ -54,15 +45,14 @@ historial de prototipos y no describen el renderer actual.
 | Documento | Contenido | Estado |
 |---|---|---|
 | [Telemetría](feature-telemetry/README.md) | Eventos CAN, fuentes y cálculos | Vigente |
-| [Registros funcionales](feature-functional-event-logs/PLAN.md) | Diario de decisiones, consulta y gestión | Implementado |
 | [Telemetría nativa](feature-native-telemetry/README.md) | Firmware, EventCenter, protocolo MCU y viabilidad | En investigación |
 | [Inicio del dispositivo](feature-boot/README.md) | Boot animation y boot logo | Referencia |
 
-## Tareas y planes activos
+## Asistente de voz
 
 | Documento | Contenido | Estado |
 |---|---|---|
-| [Integración de IA](feature-ai/README.md) | Tarea, plan, implementación, seguridad, pruebas y progreso | En desarrollo |
+| [Integración de IA](feature-ai/README.md) | Implementación, seguridad y pruebas | Vigente (falta validar la voz en el coche) |
 
 ## Referencias
 
@@ -70,15 +60,5 @@ historial de prototipos y no describen el renderer actual.
 |---|---|---|
 | [Recursos de terceros](reference/THIRD_PARTY_ASSETS.md) | Procedencia y licencias de recursos | Vigente |
 
-## Calidad e historial
-
-| Documento | Contenido | Estado |
-|---|---|---|
-| [Auditoría técnica - Agosto de 2026](audit/AUDIT-2026-08.md) | Revisión integral actual, riesgos y prioridades de mejora | Vigente |
-| [Auditoría](history/AUDIT.md) | Fotografía técnica del 28-07-2026 | Histórico |
-| [Remediación](history/REMEDIATION.md) | Correcciones derivadas de la auditoría | Histórico verificado |
-| [Plan inicial](history/PLAN-HISTORICAL.md) | Evolución temprana del proyecto | Histórico |
-
-Para decisiones nuevas prevalecen los documentos marcados como vigentes y el
-código actual. Los documentos históricos se conservan para explicar decisiones
-y prototipos descartados.
+La documentación describe únicamente la última versión publicada; no se conserva
+historial de planes ni de decisiones anteriores (para eso está `git log`).

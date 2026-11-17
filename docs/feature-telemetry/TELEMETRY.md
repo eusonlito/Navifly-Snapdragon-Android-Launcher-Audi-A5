@@ -214,7 +214,10 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    historiales ni aumenta el almacenamiento con la duración del viaje.
 
    Los bloques `Viaje`, `Parcial` y `Odómetro` sustituyen temporalmente el mapa por un panel
-   negro con estadísticas de su propio ámbito, sin destruir la sesión de mapa:
+   con el fondo, el acento y las cifras del tema de inicio activo (no un panel
+   negro fijo), que cubre toda el área del mapa y deja una separación fija respecto
+   a los paneles de cada tema. Muestra estadísticas de su propio ámbito en tres
+   columnas (ruta, velocidad y combustible), sin destruir la sesión de mapa:
    distancia, tiempo total y en movimiento, velocidad media total, velocidad
    media mientras circula, velocidad máxima, combustible estimado, combustible
    gastado y consumos estimado y CAN. Pulsar de nuevo el mismo bloque cierra su
@@ -259,8 +262,7 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    es la fecha y hora actuales y se actualiza mientras el panel está abierto;
    en los registros anteriores se utiliza el fin guardado. No se muestra un
    contador de páginas ni el texto «En curso» en este panel. Las fechas se
-   centran entre las flechas; en el total, la cabecera incorpora 12 dp adicionales
-   de separación antes de los datos.
+   muestran bajo el título, a la izquierda de las flechas y de los iconos de acción.
    Cada apertura o cambio de
    ámbito empieza en la página actual, sin recordar la página cerrada. El
    reinicio del parcial sólo se ofrece en su página actual. La `X`, el botón
@@ -284,7 +286,20 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    cumplen los filtros de tipo y fechas activos; sin filtros incluye todo el
    historial y los dos elementos abiertos. El documento conserva instantes Unix,
    estado abierto/cerrado y todos los acumuladores estadísticos sin aplicar
-   formatos dependientes del idioma o la zona horaria.
+   formatos dependientes del idioma o la zona horaria. El JSON incluye
+   `schema` (1), `exportedAtEpochMs`, `count`, los `filters` aplicados
+   (`type`, `fromEpochMs`, `untilEpochMsExclusive`) y la lista `records`; cada
+   registro lleva `id`, `kind` (`trip` o `partial`), `open`, `startedAtEpochMs`,
+   `endedAtEpochMs` y `statistics`.
+
+   La pestaña `Viajes` ofrece además el botón **Estadísticas**, que abre un
+   panel de ajustes (no el panel del mapa) con la agregación de los parciales
+   guardados: número de parciales, distancia total y consumos medios estimado y
+   CAN ponderados por distancia, con filtro por fechas, una gráfica de consumo
+   paginada de seis en seis y el detalle del parcial seleccionado
+   (`PartialStatisticsPanel`, `buildPartialStatistics`). Se calcula al abrir el
+   panel a partir del historial; no persiste nada ni añade trabajo a la
+   telemetría.
 
    El nivel CAN, que sólo cambia en litros enteros, inicializa un depósito
    virtual del que se descuenta el caudal estimado para evitar saltos. Cada
@@ -292,10 +307,11 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    modelo;
    la detección de repostaje aplica los umbrales porcentuales descritos en el
    apartado de distancia parcial.
-   Para la autonomía se combina un 60 % del consumo de los últimos 20 km y un
-   40 % del consumo total del viaje. Si en el futuro el campo nativo de
-   autonomía entrega un valor mayor que cero, ese dato tiene prioridad. Todos
-   estos resultados siguen siendo estimaciones de interfaz, no datos CAN.
+   La autonomía se calcula como combustible virtual dividido entre un consumo
+   de referencia, tal como se describe en el apartado 7. El campo nativo de los
+   bytes 5–6 no se utiliza: `TelemetryService` publica siempre la autonomía
+   estimada. Todos estos resultados siguen siendo estimaciones de interfaz, no
+   datos CAN.
    Ninguna duración ni media depende de la hora civil: todas se integran con el
    reloj monotónico de Android. Los cambios de zona horaria, incluido el paso
    entre España y Portugal, sólo actualizan la hora mostrada y las marcas
@@ -341,10 +357,10 @@ Durante la deconstrucción analítica de la app de tablero de fábrica, se ident
    aprende descensos: así, dos lecturas bajas transitorias durante el arranque
    no rebajan la referencia y su posterior recuperación no puede simular un
    repostaje. Los descensos sólo actualizan la referencia una vez que el coche
-   circula. Un salto único de 3 litros o más se considera ambiguo incluso si
+   circula. Un descenso único de 3 litros o más se considera ambiguo incluso si
    continúa al iniciar la marcha, porque su recuperación podría cumplir por sí
-   sola el umbral de repostaje. Los saltos normales de 1–2 litros sí se confirman
-   en movimiento. La referencia de combustible y la distancia se guardan en
+   sola el umbral de repostaje. Los descensos normales de 1–2 litros sí se confirman
+   en movimiento, tras dos lecturas consecutivas iguales. La referencia de combustible y la distancia se guardan en
    `distance_since_refuel`, separadas de la sesión del arranque. El panel de
    Estadísticas Parciales también permite un reinicio manual confirmado, tomando
    la lectura de combustible actual como origen del nuevo parcial.
@@ -369,7 +385,7 @@ datos procedan del vehículo:
 | Puertas | Cerradas | Mensaje 93 |
 | Freno de mano / cinturón | Inactivos | Provider del sistema tras mensaje 91 |
 | Combustible | `0 L` | Mensaje 90 |
-| Autonomía | Sin dato (`—`) | Estimada al recibir combustible y comenzar a circular; el dato CAN tendría prioridad |
+| Autonomía | Sin dato (`—`) | Estimada a partir del combustible virtual; el campo nativo no se utiliza |
 | Temperatura exterior | Sin dato (`—`) | Mensaje 90 |
 | Marcha | `N` tras el estado inicial | `getGearType()` y estimador cinemático |
 | Consumo | `0.0`, calculado desde la primera distancia | Litros estimados acumulados / distancia, no dato CAN |
@@ -402,8 +418,9 @@ deben contrastarse con una futura captura que contenga conducción estable en
 Para evitar saltos durante cambios, embrague pisado o muestras desincronizadas,
 el estimador:
 
-* por debajo de 900 RPM muestra `N`; desde 900 RPM estima la marcha siempre que
-  haya al menos 4 km/h, sin una segunda zona muerta a bajo régimen;
+* por debajo de 900 RPM muestra `N`; desde 900 RPM asume `1` entre 1 y 10 km/h
+  y, por encima de 10 km/h, compara la relación con el perfil; a 0 km/h la muestra
+  se considera inválida, sin una segunda zona muerta a bajo régimen;
 * acepta como máximo un 16 % de desviación respecto a la relación esperada;
 * exige dos muestras consecutivas para cambiar el número mostrado;
 * consume una única muestra atómica de velocidad, RPM y modo por cada mensaje
@@ -450,7 +467,8 @@ archivo respetando su cronología original.
 
 La reproducción confirma que los bytes 20-22 del mensaje 90 contienen el
 odómetro real. Los bytes 5-6 permanecen en cero durante toda esta captura; la
-autonomía usa como fallback combustible / consumo medio calculado × 100.
+autonomía se estima como combustible virtual / consumo de referencia × 100
+(apartado 7).
 La barra visual de combustible emplea internamente 63 litros como capacidad
 total del depósito del perfil Audi A5 Sportback 2.0 TDI 150 CV de 2015. Esta
 capacidad sólo normaliza el dibujo: el valor numérico continúa procediendo del
@@ -645,8 +663,8 @@ autonomía disminuye por el combustible realmente estimado, pero no se desploma
 por dividir ese combustible entre una distancia inicial casi nula. El contador
 de tiempo mantiene su contrato independiente: empieza con la primera velocidad
 positiva. El aprendizaje de autonomía se conserva entre arranques, mientras que
-tiempo, distancia y consumo del viaje se reinician con el dispositivo. Una
-futura lectura nativa válida siempre tiene prioridad.
+tiempo, distancia y consumo del viaje se reinician con el dispositivo. El
+campo nativo de autonomía no interviene en el cálculo.
 
 El combustible de ralentí se incluye en el consumo medio mostrado y se resta
 del depósito virtual, pero no se convierte en consumo por kilómetro para el

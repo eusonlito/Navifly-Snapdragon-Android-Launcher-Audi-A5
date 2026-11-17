@@ -22,7 +22,7 @@ el uso descriptivo de marcas de terceros implique afiliación o patrocinio.
 El testigo `ic_witness_door.xml` fue creado expresamente para el proyecto.
 Representa una vista cenital sólida con las puertas abiertas, con
 menos líneas interiores que el pictograma anterior para conservar la lectura a
-38 dp. El trazado original se integra sin deformación dentro de un `viewport`
+30 dp. El trazado original se integra sin deformación dentro de un `viewport`
 cuadrado centrado. Las cuatro puertas laterales se extraen como capas vectoriales
 con el mismo `viewport`; Compose puede mantener la carrocería en alerta y
 repintar cada puerta cerrada con el color inactivo según sus bits independientes

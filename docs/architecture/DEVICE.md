@@ -58,7 +58,7 @@ La superficie útil observada en las capturas es `2400 x 896` y Android informa
 
 La interfaz se calibra por altura física renderizada:
 
-* cabecera y pie: `14,5 %` de la altura útil, unos 130 px;
+* cabecera y pie: `12,5 %` de la altura útil, unos 112 px;
 * botones superiores: `9,5 %`, unos 85 px;
 * texto principal de cabecera: unos 36 px;
 * labels y valores inferiores: unos 22 px y 34 px respectivamente.

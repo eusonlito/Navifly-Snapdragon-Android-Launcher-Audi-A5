@@ -59,7 +59,7 @@ No instales esta versión esperando compatibilidad con:
   el mapa. Se reduce hasta un tamaño mínimo y recupera el tamaño normal al
   centrar el mapa.
 - Puntos de interés GeoJSON importables, con categorías, iconos y pulsos
-  configurables.
+  configurables, y una distancia de aviso por categoría.
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
 - Cuatro temas para la home (Clásico, Horizonte, Facetas y Telemetría), elegibles
   en Ajustes → Sistema, con versión de día y de noche.
@@ -68,7 +68,7 @@ No instales esta versión esperando compatibilidad con:
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.
 - Asistente IA opcional mediante OpenAI o Gemini, con Google Places para
   búsquedas cercanas y navegación mediante Waze.
-- Actualización del propio APK desde el selector de documentos de Android.
+- Actualización desde la última publicación de GitHub, con verificación del checksum y selección de un APK local.
 - Herramientas de diagnóstico y exportación de logs del mapa y del Asistente IA.
 - Inicio progresivo: primero aparecen los relojes y después el resto del
   dashboard, sin mostrar antes la interfaz completa durante un instante.
@@ -229,7 +229,7 @@ si observas ese problema: no es necesario en la configuración de referencia.
    máximo de caché.
 2. Comprueba que Mapa, Red y GPS muestran un estado válido. El dashboard sigue
    funcionando aunque el mapa no tenga cobertura.
-3. Abre **Points of Interest** para importar:
+3. Abre **Puntos de Interés** para importar:
    - uno o varios catálogos `.geojson`;
    - `categories.json`, con el icono, pulso y color de cada categoría;
    - iconos PNG de 64×64 píxeles, que es el tamaño visual recomendado.
@@ -243,20 +243,22 @@ Las claves API son opcionales y no están incluidas en el repositorio.
 
 ## Actualización Mediante el Propio Launcher
 
-Descarga la última [versión de `A5Cockpit.apk`](https://github.com/eusonlito/Navifly-Snapdragon-Android-Launcher-Audi-A5/releases/latest/download/A5Cockpit.apk)
-en `Downloads` y selecciónala desde el selector de documentos de Android:
-
 1. En el coche, abre **Ajustes del Launcher > Sistema > Actualización**.
-2. Pulsa **Actualizar**.
-3. Abre `Downloads` en el selector de Android y elige el APK. También puedes
-   transferirlo mediante Dropbox u otro proveedor de documentos.
+2. El launcher consulta GitHub y muestra la versión publicada. Pulsa el icono
+   de refrescar para comprobarla de nuevo o reintentar si falló la conexión.
+3. Cuando hay una versión más reciente, el botón principal indica **Instalar
+   Nueva Versión X.Y.Z**; púlsalo. El APK se descarga de esa publicación y se
+   verifica con su checksum SHA-256.
 4. La primera vez, Android pedirá permitir que A5 Cockpit instale aplicaciones.
    Activa **Permitir Desde Esta Fuente**, vuelve y continúa.
 5. Confirma la instalación en la pantalla del instalador de Android.
 
-Se puede cancelar sin elegir un fichero usando **Atrás**. La aplicación comprueba
-que el APK pertenece a A5 Cockpit; Android comprueba además su firma. Una
-actualización normal conserva ajustes, claves, caché y datos locales.
+Para un APK descargado manualmente, pulsa **APK local** y elígelo en `Downloads`,
+Dropbox u otro proveedor de documentos de Android. Puedes cancelar la selección
+desde el propio selector. El botón de GitHub queda desactivado si la versión
+publicada es igual o anterior. La aplicación comprueba que el APK pertenece a
+A5 Cockpit; Android comprueba además su firma. Una actualización normal conserva
+ajustes, claves, caché y datos locales.
 
 Si Android muestra **Aplicación No Instalada** o un conflicto de paquete, la
 causa más habitual es que el APK esté firmado con una clave diferente. No
@@ -335,9 +337,9 @@ aplicaciones del firmware para forzar el arranque.
 
 Requisitos para desarrolladores:
 
-- JDK 25 (entorno de compilación verificado);
+- JDK 21 o superior (CI usa Temurin 21; las compilaciones locales también están verificadas con JDK 25);
 - Android SDK Platform 37;
-- Android SDK Build Tools compatible con Android Gradle Plugin 9.4.1;
+- Android SDK Build Tools compatible con Android Gradle Plugin 9.5.1;
 - sistema de compilación de 64 bits.
 
 El wrapper de Gradle está incluido:

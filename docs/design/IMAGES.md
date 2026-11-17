@@ -1,134 +1,74 @@
-# Especificación de Recursos de Imagen - Audi A5 Launcher
+# Recursos de imagen - A5 Cockpit
 
-Este documento define la estructura, tamaños, formatos y propósitos de los recursos gráficos (imágenes y assets) requeridos para el diseño de la interfaz de usuario del lanzador del Audi A5.
+Inventario de los recursos gráficos que existen en `app/src/main/res/`. La
+interfaz dibuja casi todo en tiempo de ejecución con `Canvas` de Compose
+(esferas, escalas, barras, aros Audi del acceso MMI, iconos de Ajustes), de modo
+que apenas hay imágenes rasterizadas.
 
-Aunque la interfaz actual dibuja gran parte de los elementos de forma dinámica mediante la API `Canvas` de Compose para garantizar un rendimiento óptimo a 60 fps sin consumo de I/O de disco, esta guía define los assets necesarios para una implementación basada en recursos de imagen de alta fidelidad.
-
----
-
-## 1. Estándares Técnicos Generales
-* **Formatos de Imagen Recomendados:**
-  * **SVG (Vector):** Para logotipos, iconos de testigos y siluetas que requieran escalado sin pérdida de calidad. En Android se compilan a **VectorDrawables** XML.
-  * **PNG (Raster transparente):** Con canal Alfa de 8-bits para texturas complejas, efectos de brillo/neón o renders 3D preprocesados de vehículos.
-  * **WebP:** Excelente alternativa de compresión sin pérdidas para texturas complejas.
-* **Espacio de Color:** sRGB optimizado para pantallas automotrices de alto contraste.
-* **Ubicación en el Proyecto:** `/app/src/main/res/drawable/` o `/app/src/main/res/drawable-nodpi/` para evitar reescalados por densidad.
+> Una versión anterior de este documento especificaba un conjunto de PNG de
+> esferas, chasis cenital con capas de puertas y logotipos de barra lateral. Ese
+> enfoque nunca se implementó: la barra lateral desapareció y los recursos de
+> abajo son los vigentes.
 
 ---
 
-## 2. Inventario de Imágenes Requeridas
+## 1. Criterios generales
 
-### A. Elementos de Esferas e Instrumentos (`ProgressRingIndicator`)
-
-| ID de Recurso | Descripción Visual | Formato | Dimensiones (Píxeles) | Propósito / Uso |
-| :--- | :--- | :--- | :--- | :--- |
-| `bg_dial_speedometer.png` | Fondo de la esfera del velocímetro con un acabado metálico cepillado circular oscuro. | PNG (Transparente) | `320 x 320` | Fondo estático del dial de velocidad que aporta profundidad visual de cabina de carreras. |
-| `bg_dial_tachometer.png` | Fondo de la esfera de revoluciones con el logo "S Line" sutil grabado en la mitad inferior. | PNG (Transparente) | `320 x 320` | Fondo estático del dial de RPM sobre el que se dibuja el indicador dinámico. |
-| `ic_redline_zone.svg` | Arco indicador de zona roja de advertencia (de 6,500 a 8,000 RPM). | SVG / Vector | `280 x 280` | Superposición estática sobre el tacómetro para delimitar la zona de peligro mecánico. |
-
----
-
-### B. Diagrama de Estado del Vehículo (`CarDoorsDiagram`)
-
-Para mostrar el estado de las puertas mediante imágenes superpuestas de alta fidelidad en lugar de Canvas vectorial, se requiere una imagen base transparente del vehículo y piezas aisladas con el mismo centro para las puertas abiertas:
-
-| ID de Recurso | Descripción Visual | Formato | Dimensiones (Píxeles) | Propósito / Uso |
-| :--- | :--- | :--- | :--- | :--- |
-| `car_chassis_topview.png` | Silueta cenital limpia y futurista de un Audi A5 Coupe (sin puertas ni maletero). Color gris titanio y negro lunas. | PNG (Transparente) | `240 x 300` | Chasis base centrado. Todos los demás recursos de puertas se superponen exactamente encima. |
-| `door_front_left_open.png` | Puerta delantera izquierda abierta (piloto), rotada hacia el exterior con un haz degradado de luz roja de aviso. | PNG (Transparente) | `240 x 300` | Superpuesto encima del chasis cuando `doorStatus.driverOpen` sea verdadero. |
-| `door_front_right_open.png`| Puerta delantera derecha abierta (copiloto), rotada hacia el exterior con haz degradado de luz roja. | PNG (Transparente) | `240 x 300` | Superpuesto encima del chasis cuando `doorStatus.passengerOpen` sea verdadero. |
-| `door_rear_left_open.png`  | Puerta trasera izquierda abierta, rotada hacia el exterior con haz de luz roja. | PNG (Transparente) | `240 x 300` | Superpuesto encima del chasis cuando `doorStatus.rearLeftOpen` sea verdadero. |
-| `door_rear_right_open.png` | Puerta trasera derecha abierta, rotada hacia el exterior con haz de luz roja. | PNG (Transparente) | `240 x 300` | Superpuesto encima del chasis cuando `doorStatus.rearRightOpen` sea verdadero. |
-| `car_trunk_open.png`       | Portón del maletero abierto con un halo de aviso rojo proyectado verticalmente hacia atrás. | PNG (Transparente) | `240 x 300` | Superpuesto encima del chasis cuando `doorStatus.trunkOpen` sea verdadero. |
+* **Vectores primero.** Los pictogramas son `VectorDrawable` XML, teñidos en
+  ejecución (`tint`) según el estado.
+* **PNG sólo donde hace falta.** Se usan para el asistente y el marcador de
+  posición del mapa, en `drawable-nodpi` para controlar la escala sin
+  reescalado por densidad.
+* **Sin conjuntos extendidos.** Ajustes usa trazos propios (`SettingsIcons.kt`)
+  y no añade `material-icons-extended` al APK; sólo se declara
+  `material-icons-core`.
 
 ---
 
-### C. Logotipos y Badges Corporativos
+## 2. Inventario
 
-| ID de Recurso | Descripción Visual | Formato | Dimensiones (Píxeles) | Propósito / Uso |
-| :--- | :--- | :--- | :--- | :--- |
-| `logo_audi_rings.svg` | Los icónicos cuatro aros de Audi con efecto plateado cromado 3D sutil o plano limpio. | SVG / Vector | `180 x 60` | Encabezado principal de la barra lateral (`SidebarComponent`). |
-| `badge_sline.svg` | Insignia deportiva "S Line". Logotipo S plateado sobre un rectángulo rojo brillante con borde metálico. | SVG / Vector | `80 x 40` | Decorador inferior de la barra lateral que refuerza el look premium. |
+### Testigos (`drawable`)
 
----
+| Recurso | Uso |
+|---|---|
+| `ic_witness_door.xml` | Pictograma completo de puertas (viewport 717) |
+| `ic_witness_door_body.xml` | Carrocería del testigo de puertas |
+| `ic_witness_door_front_left.xml`, `_front_right.xml`, `_rear_left.xml`, `_rear_right.xml` | Capas de puerta alineadas con la carrocería; sólo se pintan en rojo las abiertas según `DoorStatus` |
+| `ic_witness_seatbelt.xml` | Cinturón de seguridad |
+| `ic_witness_parking_brake.xml` | Freno de estacionamiento `(P)` |
+| `ic_witness_lights.xml` | Luz de cruce; verde con el modo oscuro efectivo del mapa |
 
-### D. Iconografía de Testigos de Alerta (Vitals & Witnesses)
+Los testigos se muestran a 30 dp (puertas), 34 dp (cinturón) y 38 dp (freno y
+luces) en la escala 1 del tema Clásico; el resto de temas los escalan con el
+mismo grupo (`HomeBlocks.kt`).
 
-Estos iconos se renderizan en formato vectorial nativo y cambian de color dinámicamente (`tint`) según el estado de alerta activa o inactiva del vehículo:
+### Mapa y asistente
 
-| ID de Recurso | Descripción Visual | Formato | Dimensiones (Píxeles) | Uso de Estado Activo | Uso de Estado Inactivo |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `ic_witness_seatbelt.svg` | Silueta clásica de pasajero con el cinturón de seguridad abrochado de perfil. | SVG | `44 x 44` | **Rojo S-Line** (`0xFFE30A17`) si está desabrochado. | Gris oscuro (`0xFF33333F`) si está correcto. |
-| `ic_witness_handbrake.svg`| Círculo con una letra "P" en el centro rodeada de dos arcos de freno `(P)`. | SVG | `44 x 44` | **Naranja / Rojo** si el freno de mano está accionado. | Gris inactivo si está liberado. |
-| `ic_witness_coolant.svg`  | Termómetro sumergido en ondas de refrigerante de motor. | SVG | `44 x 44` | **Rojo S-Line** si supera los 105.0°C (temperatura crítica). | Blanco/Plata en rangos normales de temperatura. |
-| `ic_witness_fuel.svg`     | Surtidor clásico de gasolinera. | SVG | `44 x 44` | **Naranja Warn Amber** si el depósito tiene menos de 8 litros. | Blanco/Plata si el nivel es suficiente. |
+| Recurso | Formato | Uso |
+|---|---|---|
+| `map_position_waze.png` | PNG 768 x 707 | Marcador de posición (estado normal) |
+| `map_position_waze_no_gps.png` | PNG 768 x 707 | Marcador sin señal GPS |
+| `map_position_waze_no_network.png` | PNG 768 x 707 | Marcador sin red |
+| `ic_map_poi.xml` | Vector 32 dp | Icono de punto de interés en el mapa y en sus ajustes |
+| `assistant_robot.png` | PNG 256 x 184 | Mascota del Asistente IA |
 
----
+### Identidad de la aplicación
 
-## 3. Integración en Jetpack Compose
-
-Para pintar estos recursos sobreponiendo capas transparentes de igual tamaño en el `CarDoorsDiagram`:
-
-```kotlin
-Box(modifier = Modifier.size(240.dp, 300.dp)) {
-    // Capa 1: Chasis base siempre visible
-    Image(
-        painter = painterResource(id = R.drawable.car_chassis_topview),
-        contentDescription = "Chasis Audi A5"
-    )
-
-    // Capas superpuestas condicionales
-    if (doorStatus.driverOpen) {
-        Image(
-            painter = painterResource(id = R.drawable.door_front_left_open),
-            contentDescription = "Puerta Conductor Abierta"
-        )
-    }
-    if (doorStatus.passengerOpen) {
-        Image(
-            painter = painterResource(id = R.drawable.door_front_right_open),
-            contentDescription = "Puerta Copiloto Abierta"
-        )
-    }
-    // ... resto de puertas
-}
-```
-Esto reduce la lógica matemática del renderizado y permite cambiar el render del coche por cualquier otro modelo de Audi simplemente reemplazando las imágenes del directorio de recursos.
+| Recurso | Uso |
+|---|---|
+| `ic_launcher_foreground.xml` | Primer plano del icono adaptativo (108 dp); también es el icono monocromo |
+| `mipmap-anydpi/ic_launcher.xml`, `ic_launcher_round.xml` | Icono adaptativo; fondo `launcher_background` (`#071014`) |
+| `ic_splash_cockpit.xml` | Icono animado de la pantalla de arranque (192 dp), configurado en el tema |
 
 ---
 
-## 4. Contrato de integración con la UI responsive
+## 3. Contrato de integración
 
-Mientras se preparan los recursos definitivos, la interfaz usa dibujos de Compose
-como placeholders funcionales. La incorporación de imágenes no debe alterar las
-proporciones del layout.
+* Los recursos conservan sus proporciones; no se deforman para encajar en un
+  layout (las puertas activas son recortes del mismo vector completo).
+* Los tamaños se derivan del alto disponible (véase [DESIGN.md](DESIGN.md)); no
+  se introducen anchos estructurales fijos pensados para una densidad concreta.
+* Un cambio de pictograma exige una captura del emulador a `2400x896` con el
+  estado normal y con cada alerta afectada (véase [CAPTURES.md](CAPTURES.md)).
 
-* El chasis y todas las variantes de puertas deben compartir lienzo, centro,
-  escala y canal alfa. Compose los superpondrá dentro del mismo contenedor central.
-* Los fondos de las esferas deben ser cuadrados y mantener contenido importante
-  dentro de un margen seguro del 8 %. El valor, las unidades, las marcas activas y
-  los avisos continuarán dibujándose dinámicamente por encima.
-* Los PNG del vehículo no deben incluir carretera, anillos de proximidad ni fondo;
-  esos elementos pertenecen al escenario dinámico.
-* Los halos pueden formar parte de cada capa de puerta, pero no deben extenderse
-  fuera del lienzo común de 240x300.
-* Todos los recursos se integrarán en `drawable-nodpi` para conservar el control
-  explícito de escala en la pantalla de 2400x900.
-
-La sustitución se considerará terminada únicamente después de verificar una
-captura del emulador con puertas cerradas y otra con cada zona de apertura activa.
-
----
-
-## 5. Identidad de la aplicación de diagnóstico
-
-`A5 Event Logger` utiliza un icono adaptativo propio, separado del launcher:
-
-* fondo obsidiana compartido con A5 Cockpit;
-* aro cian que representa el bus y la captura continua;
-* traza naranja de eventos CAN;
-* punto blanco de registro;
-* variante redonda y pequeño icono monocromo para la notificación del servicio.
-
-Los recursos se encuentran en `app/src/main/res/` del proyecto raíz y no dependen
-de imágenes rasterizadas, por lo que mantienen nitidez en el Navifly a 320 dpi.
+Las capturas públicas de la documentación están en `docs/screenshots/`.

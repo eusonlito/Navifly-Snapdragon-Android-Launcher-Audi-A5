@@ -14,18 +14,23 @@ respuesta conversacional, repetición, cambio de proveedor y cierre de contexto.
   Places con posición, orden por distancia, field mask mínimo y clave fuera de URL.
 - Prueba manual de la clave de Places mediante Text Search real y diagnóstico
   detallado de restricciones, permisos, cuota o facturación.
-- Clave configurada validada en emulador contra Places API (New): `Conexión
-  correcta`. La captura `assistant-credential-tabs-places-valid-final-20260807.png`
-  confirma además que Google Places puede probarse manteniendo Google Gemini
-  como proveedor activo.
+- Clave de Places validada en emulador contra Places API (New): `Conexión
+  correcta`; puede probarse manteniendo Google Gemini como proveedor activo.
 - Parsers de función OpenAI y eventos multiparte/audio/fin de turno Gemini.
 - Prueba estructural del handshake Gemini: `responseModalities` pertenece a
   `generationConfig` y no se envía en la raíz de `setup`.
 - Prueba de la confirmación `setupComplete` recibida como frame binario UTF-8.
 - Configuración Gemini con búsqueda y función de navegación simultáneas.
-- `testDebugUnitTest`, `lintDebug` y `assembleDebug` correctos.
-- `testDebugUnitTest`, `lintRelease` y `assembleRelease` correctos mediante
-  `scripts/compile.sh`; APK optimizado copiado a `out/A5Cockpit.apk`.
+- La CI (JDK 21, `.github/workflows/android.yml`) ejecuta `:app:testDebugUnitTest`,
+  `:app:lintRelease` y `:app:assembleRelease` en cada commit de `master`, y
+  `scripts/compile.sh` hace lo mismo en local.
+- Protocolo y sesión (`RealtimeProtocolTest`, `RealtimeProviderSessionTest`):
+  la respuesta OpenAI espera la transcripción del usuario antes de que una
+  navegación cierre el turno; una transcripción tardía tras cancelar no crea
+  respuesta; Gemini envía el historial antes de marcar `activityStart`.
+- Privacidad: `providerPromptNeverContainsVehicleCoordinates` comprueba que el
+  prompt general no incluye la posición; `DestinationSearchRoutingTest` cubre el
+  rechazo local de búsquedas cercanas sin ubicación validada.
 - Inspección del APK: no contiene `.env` ni los valores de las credenciales de
   prueba configuradas en el host.
 - Cada turno tiene identidad propia: callbacks tardíos, audio y navegación de
@@ -34,13 +39,8 @@ respuesta conversacional, repetición, cambio de proveedor y cierre de contexto.
 - El historial se envía como mensajes nativos con rol (`user`/`assistant` o
   `user`/`model`), nunca interpolado en las instrucciones de sistema.
 - Credenciales locales aceptadas por los endpoints de ambos modelos: HTTP 200.
-- Capturas locales 2400×896: `ai-assistant-tabs-20260807.png` valida las
-  pestañas y dimensiones de los controles; `ai-assistant-disabled-dashboard-20260807.png`
-  confirma que el icono no se compone cuando el Asistente IA está desactivado.
-- `launcher-settings-blue-ai-20260807.png` valida la continuidad azul entre la
-  pestaña activa y su contenido, los selectores compartidos y la localización
-  española; `launcher-settings-blue-map-20260807.png` cubre el mismo patrón en
-  Mapa.
+- La captura vigente de los ajustes del Asistente IA es
+  `../screenshots/settings-ai.png` (2400×896).
 - Verificado en emulador que elegir `Desactivado` persiste `DISABLED` de forma
   inmediata y oculta el icono al volver, sin eliminar las claves almacenadas.
 

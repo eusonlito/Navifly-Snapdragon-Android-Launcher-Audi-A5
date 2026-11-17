@@ -27,7 +27,8 @@ después.
 ```
 
 `category` es el único enlace entre los datos y su presentación. Debe ser un
-identificador en minúsculas. El icono y el pulso no se repiten en cada punto:
+identificador en minúsculas (`a-z`, `0-9`, `_` y `-`; hasta 64 caracteres, el
+primero alfanumérico). El icono y el pulso no se repiten en cada punto:
 se resuelven mediante el catálogo común de categorías.
 
 ## Catálogo `categories.json`

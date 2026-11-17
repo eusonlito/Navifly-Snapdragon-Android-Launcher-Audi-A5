@@ -1,6 +1,6 @@
 # Arquitectura del Sistema - Audi A5 Launcher
 
-Este documento detalla las directrices arquitectónicas, los patrones de diseño y el flujo de datos del nuevo Launcher para la pantalla ultra ancha del Audi A5.
+Este documento detalla las directrices arquitectónicas, los patrones de diseño y el flujo de datos del Launcher (A5 Cockpit) para la pantalla ultra ancha del Audi A5. El paquete raíz de la aplicación es `com.lito.a5launcher`.
 
 ---
 
@@ -24,6 +24,7 @@ La aplicación implementa una arquitectura **MVVM (Model-View-ViewModel)** react
                  ▼ (Compose State)
        ┌────────────────────────┐
        │     DashboardScreen    │ (Capa de Presentación - UI)
+       │  + tema de la home     │ (Clásico, Horizonte, Facetas, Telemetría)
        └────────────────────────┘
 ```
 
@@ -46,7 +47,7 @@ ocupa la pantalla y su notificación es de baja prioridad. Sus responsabilidades
 
 ### B. Capa de Negocio: `LauncherViewModel`
 El ViewModel adapta los datos del servicio a la interfaz:
-1. Se conecta al `TelemetryService` mediante un enlace local de servicio (`LocalBinder`).
+1. Se conecta al `TelemetryService` mediante un enlace local de servicio (`LocalBinder`) y expone sus flujos (velocidad, RPM, marcha, puertas, combustible, autonomía, estadísticas de viaje, parcial y total, historial de viajes).
 2. Recibe el `StateFlow` de telemetría y lo transforma o limpia si es necesario (ej: conversión de millas a kilómetros, formateo de strings).
 3. Gestiona acciones del sistema como:
    * Obtener y filtrar el listado de aplicaciones instaladas (`App Drawer`).
@@ -56,8 +57,24 @@ El ViewModel adapta los datos del servicio a la interfaz:
 ### C. Capa de Presentación: `Compose UI`
 Construida al 100% de manera declarativa:
 - No almacena estado mutable directo de telemetría; solo observa el estado expuesto por el ViewModel.
-- Divide la interfaz en componentes atómicos independientes y modulares (ej: `Sidebar`, `SpeedometerRing`, `TachometerRing`, `CarDoorsDiagram`).
+- Divide la interfaz en componentes atómicos independientes y modulares (ej: `ProgressRingIndicator` para las esferas del tema Clásico, `LinearGauge` para las barras de los demás temas, `HomeBlocks` para los bloques y testigos del pie).
+- Las cuatro disposiciones de la home (`ClassicHomeLayout`, `HorizonHomeLayout`, `FacetsHomeLayout` y `TelemetryHomeLayout`, paquete `com.lito.a5launcher.ui.home`) comparten un único `HomeState` y las mismas acciones; el tema se elige en Ajustes → Sistema (véase [Temas de la home](../feature-home-themes/README.md)).
 - Diseñada con optimizaciones para evitar recomposiciones innecesarias de Compose y mantener una tasa de refresco constante de **60 fps** incluso ante ráfagas masivas de datos CAN.
+
+### D. Otros módulos del paquete
+
+| Paquete o fichero | Responsabilidad |
+|---|---|
+| `com.lito.a5launcher.functional` | Registros funcionales de eventos (diario, códec, archivo, ajustes) |
+| `com.lito.a5launcher.assistant` | Asistente de voz IA en tiempo real (proveedores Gemini Live y OpenAI Realtime, audio, acciones de navegación, resolución de destinos con Google Places) |
+| `com.lito.a5launcher.location` | `LocationRepository`: ubicación y validación del rumbo |
+| `JourneyHistoryStore`, `JourneyHistoryManager`, `PartialStatistics`, `RefuelTracking`, `DistanceSinceRefuelStore` | Historial de viajes y parciales, estadísticas y distancia desde el último repostaje |
+| `GitHubLauncherUpdates`, `LauncherUpdateInstaller` | Comprobación de versiones en GitHub Releases e instalación de la actualización |
+| `RecentAppsAccessibilityService` | Servicio de accesibilidad que abre la vista nativa de Recientes (`GLOBAL_ACTION_RECENTS`) |
+| `com.lito.a5launcher.ui.components` | Mapa (`CockpitMap`, caché de estilos, puntos de interés y avisos de aproximación por categoría), ajustes, paneles de estadísticas y de registros |
+
+Los puntos de interés se importan desde GeoJSON propio del usuario (véase
+`../feature-poi/README.md`); la aplicación no incluye catálogos de terceros.
 
 ---
 
@@ -81,6 +98,8 @@ Para que la aplicación actúe como la pantalla de inicio principal, se declaran
     <category android:name="android.intent.category.DEFAULT" />
 </intent-filter>
 ```
+
+`MainActivity` declara además el filtro `MAIN`/`LAUNCHER` para aparecer en el cajón de aplicaciones del sistema, y usa `launchMode="singleInstance"`.
 
 Esto hace que Android la registre como un lanzador legítimo. Al presionar el botón "Home" físico o capacitivo del vehículo, el sistema operativo retornará inmediatamente a esta interfaz de forma segura.
 
@@ -143,17 +162,20 @@ R8 y la eliminación de recursos no
 utilizados, desactiva el replay de telemetría y genera un APK instalable en:
 
 ```text
-a5-launcher/out/A5Cockpit.apk
+out/A5Cockpit.apk
 ```
 
 En `out` se conservan además su SHA-256 y el mapping de R8. La entrega o copia a
 un dispositivo se realiza fuera del script para que el repositorio no dependa de
 un proveedor de almacenamiento concreto.
 
-La variante se firma actualmente con la clave de desarrollo de Android para
-facilitar las pruebas directas en el coche. Antes de una distribución pública se
-debe sustituir por una clave privada de publicación y conservarla para futuras
-actualizaciones.
+Sin credenciales de publicación, la compilación local se firma con la clave de
+depuración de la máquina, lo que basta para pruebas directas en el coche. Las
+versiones publicadas se firman en GitHub Actions con una clave estable
+(variables `A5_RELEASE_*`), de modo que las copias instaladas se pueden
+actualizar. La publicación en GitHub Releases, el esquema de versiones
+(`scripts/release-version.py`) y los secretos necesarios se describen en
+`AGENTS.md`; no se documentan valores secretos en el repositorio.
 
 El release sólo incluye código nativo `arm64-v8a`, la arquitectura del Navifly
 Snapdragon 685. Debug mantiene las ABI adicionales necesarias para ejecutar la

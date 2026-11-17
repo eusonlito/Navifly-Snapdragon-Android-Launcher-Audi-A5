@@ -4,94 +4,7 @@ Este documento detalla las especificaciones de diseño, tokens visuales y
 estructura de los componentes Jetpack Compose, calibrados para la superficie
 útil real de **2400x896 píxeles** del Navifly.
 
----
-
-## 1. Tokens de Diseño (Design Tokens)
-
-El sistema visual implementa una estética **moderna, minimalista y oscura**, alineada con la atmósfera de un coche deportivo premium (Audi S-Line).
-
-### A. Paleta de Colores (Colores de la Marca)
-- **Fondo General (Deep Obsidian):** `Color(0xFF0F0F12)` (Negro ultra puro mate para evitar reflejos molestos en carretera).
-- **Fondo de Contenedor (Asphalt Charcoal):** `Color(0xFF1B1B22)` (Gris carbón oscuro con esquinas redondeadas de `16.dp`).
-- **Color de Acento Primario (S-Line Red):** `Color(0xFFE30A17)` (Rojo icónico de Audi S-Line para agujas, límites de revoluciones y alertas).
-- **Acento Secundario (Titanium Silver):** `Color(0xFFD1D5DB)` (Gris plateado cepillado para tipografías secundarias e iconos inactivos).
-- **Brillo de Estado Activo (Neon Green):** `Color(0xFF10B981)` (Verde para testigos de intermitentes o cinturones correctos).
-- **Brillo de Alerta Activa (Warn Amber):** `Color(0xFFF59E0B)` (Naranja para el freno de mano o alertas mecánicas).
-
-### B. Tipografía
-Se prioriza una tipografía monoespaciada o sans-serif de alta visibilidad para que el conductor pueda leer la velocidad de un solo vistazo:
-- **Velocidad/RPM (Dígitos Principales):** Sans-Serif gruesa o Monoespacio condensado (`FontWeight.Bold`, tamaño `72.sp`).
-- **Etiquetas de Unidad (km/h, RPM):** Mayúsculas medianas (`FontWeight.Medium`, tamaño `14.sp`, color `Titanium Silver`).
-- **Reloj Principal:** Fuente estilizada de bajo contraste (`36.sp`).
-
----
-
-## 2. Estructuración del layout (2400x896)
-
-Aprovechando la relación de aspecto ultra panorámica, la pantalla se organiza en un único contenedor horizontal (`Row` a pantalla completa):
-
-```
-┌─────────────────┬────────────────────────────────────────────────────────────────────────┐
-│  SIDEBAR (15%)  │                           DASHBOARD (85%)                              │
-│                 │                                                                        │
-│ 🧭 Navegación   │  ┌──────────────┐      ┌─────────────────┐      ┌──────────────┐        │
-│    (Waze)       │  │  VELOCIDAD   │      │ RELOJ Y FECHA   │      │ REVOLUCIONES │        │
-│                 │  │              │      │                 │      │              │        │
-│ 📱 Apps Panel   │  │  (Ring 300)  │      │  DIAGRAMA COCHE │      │ (Ring 8000)  │        │
-│                 │  │              │      │ (Puertas/Alert) │      │              │        │
-│ 🚗 MMI Original │  └──────────────┘      └─────────────────┘      └──────────────┘        │
-│                 │  ┌─────────────────────────────────────────────────────────────┐        │
-│ ⚙️ Ajustes       │  │             VITALS (CONSUMO / KM)                           │        │
-│                 │  └─────────────────────────────────────────────────────────────┘        │
-└─────────────────┴────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 3. Especificaciones de Componentes Compose Custom
-
-### A. Barra Lateral de Navegación (`SidebarComponent`)
-- **Ancho Fijo:** `360.dp` (~15% del ancho total).
-- **Estilo:** Fondo con degradado sutil de negro a gris carbón y un divisor vertical fino en rojo S-Line de `2.dp`.
-- **Botones Interactivos:**
-  - Área táctil grande de `80.dp` de altura para fácil pulsación en marcha.
-  - Efecto de iluminación en el borde izquierdo del botón seleccionado.
-  - **Acciones:**
-    * **Waze:** Lanza la aplicación `com.waze` mediante el gestor de paquetes.
-    * **Apps:** Despliega un App Drawer moderno superpuesto en formato grid.
-    * **MMI:** Ejecuta el intent nativo de Szchoiceway para conmutar a la entrada analógica original de Audi.
-    * **Ajustes:** Lanza la aplicación de ajustes de Android.
-
-### B. Anillos de Progreso (`ProgressRingIndicator`)
-Componentes gráficos premium personalizados dibujados mediante la API `Canvas` de Compose para asegurar el máximo rendimiento gráfico a 60 fps y un look de Virtual Cockpit:
-- **Estructura Visual:** Un arco circular incompleto (ángulo de barrido de `270°` con apertura inferior de `135°` a `45°`) con fondo interior de degradado radial oscuro (`0xFF14141A` a `0xFF0C0C0F`) para dar sensación de profundidad mecánica.
-- **Marcas de Escala (Radial Ticks):** 20 marcas radiales iluminadas según el valor actual, diferenciando subdivisiones principales y secundarias (mayor/minor ticks).
-- **Anillo de Velocidad (Izquierda):**
-  - Valor Máximo: `300` km/h.
-  - Grosor de línea: `10.dp` con arco de brillo de fondo de `14.dp` para un efecto de halo de neón.
-  - Color activo: Azul neón/cian deportivo (`0xFF00E5FF`).
-- **Anillo de RPM (Derecha):**
-  - Valor Máximo: `8000` RPM.
-  - Grosor de línea: `10.dp`.
-  - Color activo: Rojo deportivo S-Line (`0xFFE30A17`). Al superar las `6500` RPM (zona roja), el arco de neón entra en un modo de destello parpadeante (alerta de cambio).
-  - **Indicador de Marcha Manual:** Centrado en el interior del dial de RPM, muestra la relación de cambio real (`1` a `6`, `N`, o `R`) en una tipografía S-Line Red gigante de alta legibilidad.
-
-### C. Diagrama de Puertas Abiertas (`CarDoorsDiagram`)
-Ubicado en el centro del Dashboard para un balance simétrico:
-- **Silueta del Vehículo:** Dibuja mediante vectores dinámicos (`Path` de Compose) el contorno cenital detallado de un Audi A5 Coupe deportivo con ensanches de aleta estilo Quattro, retrovisores angulares y lunas de cristal oscuro.
-- **Ópticas de Iluminación:** Faros delanteros dibujados en blanco LED Matrix y ópticas traseras en rojo S-Line brillante para mayor realismo.
-- **Zonas de Alerta Radiantes (MMI Style):** Basándose en la telemetría, las puertas que estén abiertas no solo dibujan la línea física de la puerta rotada, sino que proyectan un haz degradado de color rojo brillante (`SLineRed` a transparente) hacia el exterior para indicar de forma instantánea al conductor qué zona requiere atención.
-
-### D. Panel de Datos de Chasis (`VitalsComponent`)
-Ubicado en la zona inferior central:
-- **Climatización:** No se muestra mientras no exista una fuente de datos validada
-  para temperatura seleccionada, modo y ventilador.
-- **Testigos Físicos:** Fila horizontal de iconos con los testigos del cinturón de seguridad y freno de mano activo.
-- **Consumo y Kilómetros:** Datos del odómetro total, autonomía restante en kilómetros, consumo medio del viaje en L/100 y temperatura del refrigerante del motor.
-
----
-
-## 4. Dirección visual vigente y comportamiento responsive
+## 1. Dirección visual y comportamiento responsive
 
 ### Dirección OEM Futuristic
 
@@ -101,14 +14,15 @@ estado inicial ya es el fotograma oculto, antes de ejecutar el efecto Compose,
 para evitar mostrar el cuadro completo y volver a negro al arrancar. Al volver
 al launcher dentro del mismo proceso se muestra directamente el cuadro.
 
-La referencia aprobada es `design-concepts/oem-futuristic-final-2400x896.png`.
-Su implementación conserva el mapa claro y sustituye los degradados decorativos
+La referencia aprobada fue una imagen de concepto que no se versiona en este
+repositorio. Su implementación conserva el mapa claro y sustituye los degradados decorativos
 por superficies planas de grafito, anillos concéntricos, bordes de titanio y
 sombras localizadas.
 
 * Velocidad y RPM comparten diámetro, centro vertical, tamaño tipográfico y
   baseline.
-* La escala de velocidad termina en 280 km/h y se etiqueta cada 40 km/h.
+* La escala de velocidad termina en 240 km/h y se etiqueta cada 20 km/h
+  (`SPEED_DIAL_MAX_KMH`).
 * La escala de RPM termina en 6000 y se etiqueta de 0 a 6.
 * Los ticks menores, medios y mayores tienen jerarquías ópticas distintas.
 * Las etiquetas de escala usan 14 sp: los valores aún no alcanzados son
@@ -146,14 +60,13 @@ sombras localizadas.
   en negro absoluto y sin contorno.
 * Las etiquetas del pie usan blanco al 50 % sobre el fondo negro. Los valores
   permanecen en blanco puro, creando una jerarquía legible sin perder contraste.
-* El mapa ocupa todo el ancho del área central, por debajo de las esferas, y no
+* En el tema Clásico el mapa ocupa todo el ancho del área central, por debajo de las esferas, y no
   recibe filtros, tintes, degradados ni cambios de escala. Una capa Compose
   independiente sustituye los antiguos cortes verticales por dos recortes
   semicirculares negros alineados con los instrumentos.
 
 La implementación se validó en el emulador con el perfil real `2400 × 896` a
-320 dpi. La captura local `oem-futuristic-implementation-emulator-2400x896.png`
-confirma que las cifras
+320 dpi, confirmando que las cifras
 comparten altura, las escalas no invaden el mapa y las barras delimitan
 exactamente su área.
 
@@ -197,8 +110,10 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   iconos; el acceso a Aplicaciones utiliza una cuadrícula 2 × 2 de trazo fino y
   el acceso a Recientes abre la vista nativa de Android mediante la acción global
   de accesibilidad, mientras que MMI utiliza los cuatro aros Audi. El orden de
-  izquierda a derecha es: Navegación, Aplicaciones, Ajustes del launcher, Ajustes
-  del dispositivo, Recientes y Audi MMI. Los iconos conservan el mismo
+  izquierda a derecha es, por defecto: Asistente IA (sólo si está activado),
+  Navegación, Aplicaciones, Ajustes del launcher, Ajustes del dispositivo,
+  Recientes y Audi MMI; el usuario puede reordenarlos con pulsación larga y el
+  orden (`top_command_order`) es común a todos los temas. Los iconos conservan el mismo
   tratamiento blanco —incluido Navegación— y sus áreas táctiles invisibles son
   10 dp más anchas que altas. Separadores finos mantienen el ritmo visual sin
   reducir el área de pulsación.
@@ -237,7 +152,7 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   desde 38 dp hasta un mínimo de 19 dp. «Volver a la Posición Actual» restaura
   los 38 dp y el seguimiento, conservando el zoom elegido. El marcador sigue
   actualizando su posición mientras se explora el mapa.
-* Las escalas máximas del vehículo real son 280 km/h y 6.000 rpm.
+* Las escalas máximas de las esferas son 240 km/h y 6.000 rpm.
 * La zona roja del tacómetro comienza exactamente en 4.500 rpm y continúa sin
   interrupciones hasta el final de la escala, en 6.000 rpm.
 * La marcha se integra exclusivamente dentro de la esfera derecha de RPM, debajo
@@ -331,7 +246,7 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
 * Cada esfera emplea un disco y un único contorno exterior, evitando el efecto
   de líneas paralelas. Las cifras de escala usan 14 sp y pasan de gris a cian,
   con mayor peso, a medida que el valor medido alcanza cada marca.
-  El velocímetro muestra valores de 0 a 280 km/h en intervalos de 20 km/h.
+  El velocímetro muestra valores de 0 a 240 km/h en intervalos de 20 km/h.
   No existe un círculo decorativo alrededor de la lectura central: arco,
   marcas y cifras forman una única escala próxima al contorno exterior.
   El diámetro de las esferas ocupa exactamente el espacio vertical entre
@@ -392,9 +307,9 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   actualización desde GitHub o APK local, y dispositivo (modelo, versión de
   Android y reinicio con confirmación previa mediante EventCenter, sin root).
   Las fechas respetan el formato regional y las horas usan 24 horas.
-  los símbolos circulares y diagonales se reducen ligeramente y los horizontales
-  se amplían, de modo que su masa visual sea uniforme aunque sus `viewBox` sean
-  diferentes. La calibración se ha realizado con la pantalla real de 2400x896,
+  La calibración óptica de los pictogramas (símbolos circulares y diagonales
+  algo menores, horizontales algo mayores) iguala su masa visual aunque sus
+  `viewBox` sean diferentes. Se ha realizado con la pantalla real de 2400x896,
   320 dpi y 8 pulgadas documentada en `../architecture/DEVICE.md`.
 
 Los tamaños de esferas y vehículo se derivan del alto disponible. No deben volver
@@ -409,16 +324,23 @@ comunes y la reordenación por tema están en
 [`../feature-home-themes/README.md`](../feature-home-themes/README.md).
 Clásico sigue siendo la referencia de esta sección.
 
+### Paneles de estadísticas
+
+Al abrir las estadísticas de viaje, parcial o total desde el pie, el panel
+sustituye al mapa en todos los temas (ocupa su zona con el fondo, el acento y
+las cifras del tema; véase `../feature-home-themes/README.md`). Los registros
+anteriores se consultan en Ajustes → Viajes.
+
 ### Validación visual
 
 Después de cada cambio relevante se debe:
 
 1. Compilar e instalar la variante `debug`.
 2. Lanzar `com.lito.a5launcher.MainActivity`.
-3. Capturar la pantalla con `adb exec-out screencap -p`.
-4. Comparar la captura completa de 2400x896 con la referencia y con la iteración
-   anterior, prestando especial atención a recortes, jerarquía, contraste y
-   alineación.
+3. Capturar la pantalla con `adb exec-out screencap -p` (o
+   `scripts/capture-emulator.sh`, véase [CAPTURES.md](CAPTURES.md)).
+4. Comparar la captura completa de 2400x896 con la iteración anterior,
+   prestando especial atención a recortes, jerarquía, contraste y alineación.
 5. Guardar la captura final fuera del repositorio para su revisión. Este paso
    es obligatorio para cualquier cambio visual, aunque las pruebas automáticas
    y la compilación ya hayan finalizado correctamente.
@@ -427,33 +349,6 @@ El script `scripts/emulator.sh` fija tanto el framebuffer como la densidad lógi
 en `2400x896 @ 320 dpi`, coincidiendo con `../architecture/DEVICE.md`.
 
 Las capturas de trabajo se almacenan en el directorio local ignorado
-`a5-launcher/screenshots/`. Las capturas finales seleccionadas para la
-documentación pública se guardan en `docs/screenshots/`. La captura
-`iteration-01.png` corresponde a la primera composición panorámica responsive.
-La validación de los aros y barras refinados se conserva como captura local
-`oem-refined-rings-bars-emulator-2400x896.png`.
-La geometría final con barras independientes y esferas a toda altura se
-validó a 2400x896 y se conserva como
-`oem-independent-bars-full-height-dials-2400x896.png`.
-La variante de producción con el mapa a todo lo ancho y las esquinas interiores
-rectas superó pruebas, lint y optimización R8 el 29 de julio de 2026.
-La composición sin contornos de barra y con bases de reloj ampliadas al 112 %
-superó la misma validación de producción el 29 de julio de 2026.
-Su validación visual a 2400x896 se conserva como captura local
-`oem-borderless-bars-expanded-dial-backplates-2400x896.png`.
-La corrección geométrica posterior se validó en
-`oem-circular-backplates-faithful-audi-rings-2400x896.png`: las bases mantienen
-una relación 1:1 incluso al exceder su celda y el acceso MMI muestra cuatro aros
-Audi circulares sin compresión horizontal.
-La aplicación de negro puro opaco a cabecera, pie y rellenos de reloj se validó
-en `oem-opaque-black-bars-dials-2400x896.png`.
-El cambio de los valores de cabecera y pie a blanco puro se validó en
-`oem-white-header-footer-values-2400x896.png`.
-La cabecera completamente blanca —valores y cinco pictogramas— se validó en
-`oem-white-header-icons-values-2400x896.png`.
-Los contornos blancos uniformes de los cinco botones se validaron en
-`oem-white-header-button-borders-2400x896.png`.
-El ajuste final de contraste —contornos al 48 % y etiquetas inferiores al 68 %—
-se validó en `oem-balanced-header-borders-footer-labels-2400x896.png`.
-La unificación posterior de ambos elementos al 50 % se validó en
-`oem-unified-secondary-contrast-50-percent-2400x896.png`.
+`screenshots/` de la raíz del repositorio. Las capturas finales seleccionadas
+para la documentación pública se guardan en `docs/screenshots/` (versión en
+inglés) y `docs/screenshots/es/` (versión en español).

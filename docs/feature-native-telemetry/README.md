@@ -17,6 +17,18 @@ un receptor compatible y se valida el protocolo de forma pasiva. Un reemplazo
 directo sólo debe intentarse con instalación como aplicación de sistema,
 permisos SELinux correctos y una vía de recuperación del dispositivo.
 
+## Estado
+
+La investigación sigue abierta (fase 2 del [plan](PLAN.md)). En producción el
+launcher no lee el puerto ni usa ningún componente nativo propio: consume
+únicamente el callback Binder `setDashBoardCallback` del `EventService` y el
+`SysVarProvider` de EventCenter (velocidad, RPM, combustible, temperatura
+exterior, odómetro, puertas, cinturón, freno de mano y luces). No usa el
+broadcast `8902MOD` ni los extras `youhao`/`xushilicheng`, y la autonomía y el
+consumo mostrados son estimaciones locales, no datos del vehículo. Los
+resultados de este directorio son hallazgos del dispositivo, no
+comportamiento del launcher.
+
 ## Documentos
 
 - [Tarea](TASK.md): alcance y restricciones.
@@ -28,7 +40,8 @@ permisos SELinux correctos y una vía de recuperación del dispositivo.
 - [Protocolo](PROTOCOL.md): tramas y campos confirmados.
 - [Viabilidad](FEASIBILITY.md): alternativas, riesgos y decisión recomendada.
 - [Cola](QUEUE.md): preguntas pendientes y capturas necesarias.
-- [Catálogo](APPS.md): las 28 aplicaciones y sus fichas individuales.
+- [Catálogo](APPS.md): las 28 aplicaciones y sus fichas individuales
+  (`APP-<paquete>.md`; `tools/firmware-analysis` las regenera y comprueba).
 
 Los APK, fuentes decompiladas y binarios no se versionan. Sólo se versionan los
 índices, hashes y conclusiones reproducibles.

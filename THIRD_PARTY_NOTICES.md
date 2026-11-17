@@ -29,6 +29,8 @@ MapLibre Native.
 - Map styles may be loaded from OpenFreeMap and contain OpenMapTiles data.
 - Map content includes © OpenStreetMap contributors and is subject to the
   Open Database License and applicable attribution requirements.
+- The in-app update check queries the GitHub Releases API and downloads the
+  release APK from GitHub, subject to GitHub's terms of service.
 - Optional OpenAI, Google Gemini, Google Places and Waze integrations are
   governed by their providers' terms and require user-supplied credentials or
   applications.

@@ -15,7 +15,8 @@ release. La variante release continúa sin incluir ningún replay.
 |---|---|
 | Resolución | `2400x896 @ 320 dpi` |
 | Coordenadas | `43.348538, -8.407951` |
-| Mapa | Siempre `LIGHT`, estilo `POSITRON` |
+| Mapa | `LIGHT` y estilo `POSITRON` por defecto (el modo se cambia con `--color-mode`) |
+| Tema de la home | `CLASSIC` por defecto (se cambia con `--theme`) |
 | Velocidad | `80 km/h` |
 | RPM | `1840` |
 | Marcha esperada | `5` |
@@ -107,8 +108,8 @@ Opciones disponibles:
 - El APK base no se modifica.
 - El asset JSONL original no se modifica.
 - El APK temporal se elimina al terminar.
-- El mapa se fuerza a claro sólo mediante preferencias de la instalación del
-  emulador.
+- El modo de color del mapa y el tema de la home se fijan sólo mediante
+  preferencias de la instalación del emulador (claro y Clásico por defecto).
 - La ubicación se suministra mediante el GPS emulado.
 - La escena normal exige conectividad validada; `--offline` es una excepción
   explícita.

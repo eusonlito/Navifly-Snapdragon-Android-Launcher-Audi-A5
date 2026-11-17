@@ -7,8 +7,9 @@ mapas moderna: movimiento continuo, posición estable, orientación según la
 marcha, zoom fluido, ausencia de huecos durante las transiciones y degradación
 predecible cuando se pierde GPS o red.
 
-Esta fase define la experiencia y la arquitectura antes de implementarla. No
-incluye cálculo de rutas, instrucciones giro a giro, búsqueda de destinos,
+Este documento fue la especificación previa a la implementación y se mantiene
+como referencia de criterios; la sección «Estado de implementación» indica qué
+está realizado y qué no. El mapa no incluye cálculo de rutas, instrucciones giro a giro, búsqueda de destinos,
 tráfico ni integración con una ruta activa de Waze. Esas funciones requerirían
 servicios y fuentes de datos adicionales.
 
@@ -19,35 +20,47 @@ el 26 de julio de 2026 después de la prueba real: mostraba costuras entre
 bitmaps, podía desplazar la cámara al rotar y declaraba el mapa cargado con una
 cobertura incompleta.
 
-La implementación activa utiliza MapLibre Native 13.4.1 dentro de
+La implementación activa utiliza MapLibre Native 13.7.1 (`org.maplibre.gl:android-sdk`) dentro de
 `AndroidView`, con estilos y teselas vectoriales de OpenFreeMap. El marcador y
 el resto del cockpit continúan siendo Compose. El renderer se crea 250 ms
 después de los primeros frames, configura la caché antes del estilo y dispone
 de timeout explícito para `getMapAsync`; un fallo deja operativo el launcher.
-La actualización forma parte de la migración coordinada del toolchain Android
-y requiere validación adicional en el Navifly real.
+El apartado de renderer (`textureMode`) está explicado en [MAPS.md](MAPS.md).
 
 El núcleo de seguimiento activo incluye:
 
-* anclaje fijo `(50 %, 80 %)`;
+* anclaje fijo `(50 %, 80 %)` del área visible: en los temas Horizonte,
+  Facetas y Telemetría los paneles tapan parte del mapa y el anclaje se calcula
+  sobre el resto (`MapViewportSpec`, `mapFocalPadding`);
 * animación conjunta de posición y rumbo mediante la cámara de MapLibre;
 * rotación `heading-up`, con rumbo GPS suavizado y congelado a baja velocidad;
-* zoom fraccionario persistido por estilo;
+* zoom fraccionario entre 0 y 18 (16 por defecto) persistido por estilo;
 * renderizado GPU de teselas vectoriales sin costuras entre bitmaps;
 * caché ambiental de MapLibre con el límite seleccionado en ajustes;
 * preferencia por GPS y uso de ubicación de red sólo cuando el GPS lleva al
   menos 15 segundos sin entregar una muestra aceptada;
-* validación de precisión y rechazo de saltos GPS imposibles;
+* validación de precisión (máximo 50 m en GPS y 100 m en red) y rechazo de
+  saltos que impliquen más de 90 m/s;
 * contenedor tolerante a fallos: un error al crear el mapa deja operativo el
   launcher y se publica como `ERROR MAPA`.
 * exploración manual con arrastre, zoom y giro con dos dedos: pausa únicamente
   el seguimiento de cámara y presenta un botón de recentrado; el marcador
   conserva su posición GPS sobre el mapa y los POI, telemetría y teselas siguen
-  activos. El recentrado restaura el rumbo del vehículo y la inclinación habitual.
+  activos. El recentrado restaura el rumbo del vehículo y la inclinación habitual
+  (38°).
 
-Quedan como evoluciones posteriores la fusión con sensores de orientación a
-velocidad muy baja y las métricas avanzadas de FPS/latencia. La posición,
-sentido de giro y rendimiento deben validarse específicamente en el Navifly.
+No están implementados, aunque la especificación los describe: la fusión con
+sensores de orientación a velocidad muy baja, `Norte arriba`, el zoom automático
+por velocidad, `Restablecer zoom`, el filtro alfa-beta/Kalman, el reintento con
+espera exponencial propio, la reserva de espacio libre para la caché y las
+métricas avanzadas de FPS/latencia. Los reintentos, la cancelación de peticiones
+y la revalidación HTTP pertenecen a MapLibre. La validación de posición, sentido
+de giro y rendimiento en el Navifly real no se puede comprobar desde este
+repositorio.
+
+Los paneles de estadísticas de viaje sustituyen al mapa en todos los temas
+(véase [feature-home-themes](../feature-home-themes/README.md)); el mapa vuelve
+al cerrarlos.
 
 ## 2. Composición visual
 
@@ -61,7 +74,8 @@ sentido de giro y rendimiento deben validarse específicamente en el Navifly.
   deriva ni se desplaza para representar el avance.
 * El anclaje deja aproximadamente el 80 % del mapa por delante del vehículo,
   priorizando la carretera que se aproxima.
-* Los fondos de las esferas siguen en primer plano y delimitan los laterales.
+* En el tema Clásico los fondos de las esferas siguen en primer plano y
+  delimitan los laterales; en los demás, los paneles definen el área visible.
   El mapa no puede dibujar sobre cabecera, cifras, testigos ni barra inferior.
 
 ### 2.2 Marcador y estados
@@ -107,6 +121,11 @@ Para ofrecer un comportamiento comparable al de otros mapas:
 
 ### 3.3 Orientación
 
+> Implementado: `bearing` GPS con suavizado (35 % por corrección, sólo a partir
+> de 2,5 m/s), último rumbo válido congelado y camino angular más corto. Lo
+> relativo a sensores de orientación y al ajuste `Norte arriba` es objetivo no
+> implementado.
+
 * Con el vehículo en movimiento se usa preferentemente el `bearing` del GPS.
 * A baja velocidad, donde el rumbo GPS deja de ser fiable, se combina con el
   sensor de orientación/rotación de Android si el dispositivo proporciona datos
@@ -121,6 +140,10 @@ Para ofrecer un comportamiento comparable al de otros mapas:
   `Dirección arriba` por defecto.
 
 ## 4. Posición y suavizado
+
+> Implementado en `MapMotionSmoother`: validación, interpolación con búfer de
+> 250 ms, predicción de hasta 1.000 ms y corrección de 750 ms. No hay filtro
+> alfa-beta ni Kalman (punto 3).
 
 La posición mostrada no debe copiar directamente cada muestra:
 
@@ -143,7 +166,7 @@ pasa a amarillo.
 ### 5.1 Zoom continuo
 
 * El gesto de pellizco modifica un zoom fraccionario y continuo.
-* El rango inicial recomendado es `12.0–18.0`.
+* El rango implementado es `0.0–18.0`, con 16,0 por defecto.
 * El nivel no debe saltar únicamente entre enteros.
 * Durante el gesto se escala inmediatamente el contenido ya renderizado.
 * Al finalizar, se solicitan los tiles del nivel óptimo y se sustituyen mediante
@@ -160,14 +183,12 @@ pasa a amarillo.
 * Se restaura al iniciar una sesión nueva.
 * El valor se guarda por estilo si las escalas útiles de los proveedores
   difieren.
-* `Restablecer zoom` devuelve al valor inicial recomendado.
-* El ajuste automático por velocidad debe ser opcional. Si está activo, aplica
-  un desplazamiento suave respecto al zoom guardado; nunca sobrescribe la
-  preferencia manual.
+* `Restablecer zoom` y el ajuste automático por velocidad (opcional, sin
+  sobrescribir la preferencia manual) son objetivos no implementados.
 
 ## 6. Renderizado vectorial
 
-MapLibre Native 13.4.1 gestiona la pirámide de teselas MVT, texturas, cámara,
+MapLibre Native gestiona la pirámide de teselas MVT, texturas, cámara,
 cancelación de solicitudes y composición GPU. El launcher no descarga ni
 ensambla bitmaps por su cuenta. Esto evita costuras, desplazamientos entre
 teselas y estados de cobertura incorrectos observados en el prototipo raster.
@@ -222,6 +243,9 @@ El launcher ofrece tres políticas persistentes en Ajustes:
   edificios, agua y etiquetas mantienen niveles de luminosidad diferenciados
   para resultar legibles en la pantalla del vehículo sin deslumbrar.
 
+El estilo claro se elige en Ajustes entre Positron, Liberty y Bright; Dark sólo
+se aplica por el modo de color. Ningún tema de home cambia el estilo.
+
 El cambio de apariencia recrea exclusivamente la sesión del renderer y conserva
 el zoom asociado al estilo claro seleccionado. No bloquea el resto del cockpit.
 
@@ -248,7 +272,7 @@ permanecer desacoplados del comportamiento de la cámara.
   cacheados no pueden reconstruirse después de reiniciar el proceso.
 * Botón de borrado con resultado visible.
 * Al reducir el límite se ejecuta una poda inmediata en segundo plano.
-* Debe reservarse espacio libre para Android. El límite efectivo será el menor
+* Objetivo no implementado: reservar espacio libre para Android. El límite efectivo sería el menor
   entre la preferencia y el espacio disponible menos una reserva de seguridad.
   Elegir 5 GB no garantiza que Android pueda asignarlos.
 * `cacheDir` puede ser eliminado por Android. Si se requiere disponibilidad
@@ -256,6 +280,10 @@ permanecer desacoplados del comportamiento de la cámara.
   que autorice mapas offline.
 
 ## 10. Red y recuperación de errores
+
+Requisitos del comportamiento de red. Los tiles, reintentos y revalidaciones los
+gestiona MapLibre; el launcher sólo aporta los timeouts de la descarga del
+estilo (10 s de conexión y 15 s de lectura) y el registro de diagnóstico.
 
 * Timeout separado de conexión y lectura.
 * Reintentos limitados con espera exponencial y jitter.
@@ -281,23 +309,22 @@ permanecer desacoplados del comportamiento de la cámara.
 * Si el motor falla, mostrar el último frame o el fondo del cockpit y mantener
   operativas velocidad, RPM, testigos y botones.
 
-## 12. Ajustes propuestos
+## 12. Ajustes
 
-* Estilo claro: Positron, Voyager o sin etiquetas.
-* Orientación: dirección arriba / norte arriba.
-* Zoom automático por velocidad: activado/desactivado.
-* Restablecer zoom.
-* Límite de caché: 512 MB–5 GB.
-* Borrar caché.
-* Debug del mapa.
-* Borrar logs.
+Implementados en Ajustes > Mapa: color (Automático, Claro, Oscuro), estilo claro
+(Positron, Liberty, Bright), límite de caché (512 MB, 1 GB, 2 GB, 5 GB), estado
+de mapa, red y GPS, borrar caché, descargar y limpiar logs, diagnóstico
+activado/desactivado y la tarjeta de puntos de interés. No existen los ajustes
+de orientación, zoom automático ni restablecer zoom.
 
 La pantalla debe conservar la cabecera fija, paneles desplazables, estado
 seleccionado inequívoco y áreas táctiles adecuadas para el dispositivo.
 
 ## 13. Métricas y diagnóstico
 
-El diagnóstico debe exponer:
+Objetivo de diagnóstico; el registro implementado es el descrito en
+[MAPS.md](MAPS.md) (red, GPS, estilo, caché, ciclo de vida y errores de
+MapLibre) y no incluye todas las métricas siguientes:
 
 * posición recibida, posición filtrada y precisión;
 * fuente y antigüedad del rumbo;
@@ -329,13 +356,15 @@ Cada activación crea un fichero nuevo y muestra inmediatamente su nombre.
 * Un error del proveedor no afecta a la telemetría ni reinicia el launcher.
 * La atribución es visible en todos los estilos.
 
-## 15. Decisiones pendientes antes de implementar
+## 15. Decisiones pendientes
+
+Decisiones de producto que el repositorio no resuelve:
 
 1. Confirmar las condiciones generales de uso y atribución del proveedor
    seleccionado.
 2. Confirmar si la aplicación es estrictamente personal/no comercial y si
    cumple las condiciones del proveedor.
-3. Decidir si el zoom automático por velocidad permanece activo.
+3. Decidir si se implementa el zoom automático por velocidad.
 4. Verificar qué sensores de orientación expone realmente el Navifly y su
    calibración respecto al eje del vehículo.
 5. Medir espacio libre real y fijar la reserva mínima de almacenamiento.

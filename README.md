@@ -58,7 +58,7 @@ Do not install this build expecting compatibility with:
   zooming. It scales down only to a minimum size, and recentering restores its
   normal size.
 - Importable GeoJSON points of interest with configurable categories, icons and
-  pulses.
+  pulses, and an alert distance per category.
 - Speed-camera POI markers supplied through the user's local files.
 - Four home themes (Classic, Horizon, Facets and Telemetry), selectable in
   Settings → System, each with day and night variants.
@@ -241,16 +241,17 @@ API keys are optional and are not bundled with the repository.
 ## Updating Through the Launcher
 
 1. In the car, open **Launcher Settings > System > Update**.
-2. The launcher checks GitHub and shows the published version. Press **Check**
-   to refresh or retry if the connection failed.
-3. When a newer version is available, press **Download and install**. The APK
-   is downloaded from that Release and verified against its SHA-256 checksum.
+2. The launcher checks GitHub and shows the published version. Press the
+   refresh icon to check again or retry if the connection failed.
+3. When a newer version is available, the main button reads **Install New
+   Version X.Y.Z**; press it. The APK is downloaded from that Release and
+   verified against its SHA-256 checksum.
 4. On the first update, Android asks whether A5 Cockpit may install
    applications. Enable **Allow From This Source**, go back and continue.
 5. Confirm the installation in Android's installer.
 
 For a manually downloaded APK, press **Local APK** and select it from `Downloads`,
-Dropbox or another Android document provider. Press **Back** to cancel selection.
+Dropbox or another Android document provider. Cancel the selection from the picker.
 The GitHub update button stays disabled for equal or older published versions.
 The application checks that the APK belongs to A5 Cockpit, and Android also
 verifies its signature. A regular update preserves settings, keys, cache and
@@ -331,9 +332,9 @@ applications to force startup.
 
 Developer requirements:
 
-- JDK 25 (verified build environment);
+- JDK 21 or newer (CI uses Temurin 21; local builds are also verified with JDK 25);
 - Android SDK Platform 37;
-- Android SDK Build Tools compatible with Android Gradle Plugin 9.4.1;
+- Android SDK Build Tools compatible with Android Gradle Plugin 9.5.1;
 - a 64-bit build system.
 
 The Gradle wrapper is included:
