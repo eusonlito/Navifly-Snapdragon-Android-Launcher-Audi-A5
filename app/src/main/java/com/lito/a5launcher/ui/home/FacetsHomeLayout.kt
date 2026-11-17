@@ -139,7 +139,7 @@ internal fun FacetsHomeLayout(
                 h = h,
             )
         }
-        // RPM is the mirrored L, with the gear below its reading.
+        // RPM is the mirrored L, with the gear above its reading.
         FacetsLCard(
             cardModifier.align(Alignment.CenterEnd).offset(x = -margin).width(metrics.rpmWidth),
             state,
@@ -150,13 +150,13 @@ internal fun FacetsHomeLayout(
             leg = { FacetsRpmBand(state, bandWidth, Modifier.fillMaxSize()) },
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                GearBox(state, metrics.gearSize, (h.value * .075f).sp)
+                Spacer(Modifier.height(metrics.padding))
                 FacetsReading(
                     value = { formatDialValue(state.rpm.value, DialType.RPM) },
                     unit = "x1000",
                     h = h,
                 )
-                Spacer(Modifier.height(metrics.padding))
-                GearBox(state, metrics.gearSize, (h.value * .075f).sp)
             }
         }
 
