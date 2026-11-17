@@ -93,6 +93,9 @@
     <string name="statistics_distance_value">%1$s km</string>
     <string name="statistics_speed_value">%1$s km/h</string>
     <string name="statistics_fuel_value">%1$s L</string>
+    <string name="statistics_group_route">Recorrido</string>
+    <string name="statistics_group_speed">Velocidad</string>
+    <string name="statistics_group_fuel">Combustible</string>
     <string name="dashboard_refuel_distance">Parcial</string>
     <string name="dashboard_range">Autonomía</string>
     <string name="dashboard_odometer">Odómetro</string>

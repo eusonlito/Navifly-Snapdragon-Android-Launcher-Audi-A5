@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,9 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -121,6 +122,8 @@ internal fun TelemetryHomeLayout(
                         ) {
                             slots.map(Modifier.fillMaxSize(), viewport)
                             StartupMapCover(state)
+                            // Statistics replace only the framed map.
+                            slots.mapOverlay(this, PaddingValues())
                         }
                         Column(
                             Modifier.width(panelWidth).fillMaxHeight(),
@@ -145,10 +148,6 @@ internal fun TelemetryHomeLayout(
                                 Modifier.fillMaxWidth().weight(1f).startupContentAlpha(state),
                             )
                         }
-                    }
-                    // Statistics cover the whole content area so the panel keeps its width.
-                    Box(Modifier.fillMaxSize().clip(MapShape).zIndex(5f)) {
-                        slots.mapOverlay(this)
                     }
                 }
             }

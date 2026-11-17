@@ -1,19 +1,20 @@
 package com.lito.a5launcher.ui.components
 
-import android.graphics.drawable.Drawable
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,12 +23,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as lazyListItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items as lazyListItems
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,16 +39,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
-import androidx.activity.compose.BackHandler
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -56,16 +54,17 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -74,49 +73,50 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import com.lito.a5launcher.R
+import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lito.a5launcher.A5_FUEL_TANK_CAPACITY_LITRES
 import com.lito.a5launcher.AppLanguage
 import com.lito.a5launcher.AppLanguageManager
 import com.lito.a5launcher.BuildConfig
+import com.lito.a5launcher.DeviceRebootAction
 import com.lito.a5launcher.JourneyHistorySnapshot
 import com.lito.a5launcher.JourneyStatisticsSnapshot
-import com.lito.a5launcher.functional.FunctionalEventLogAccess
-import com.lito.a5launcher.DeviceRebootAction
 import com.lito.a5launcher.LauncherUpdateInstaller
 import com.lito.a5launcher.LauncherViewModel
-import com.lito.a5launcher.model.AppInfo
-import com.lito.a5launcher.model.DoorStatus
+import com.lito.a5launcher.R
 import com.lito.a5launcher.assistant.AssistantController
-import com.lito.a5launcher.assistant.AssistantErrorLogStats
-import com.lito.a5launcher.A5_FUEL_TANK_CAPACITY_LITRES
 import com.lito.a5launcher.assistant.AssistantConversationDialog
+import com.lito.a5launcher.assistant.AssistantCredentialTester
+import com.lito.a5launcher.assistant.AssistantErrorLogStats
 import com.lito.a5launcher.assistant.AssistantProvider
 import com.lito.a5launcher.assistant.AssistantRobotButton
 import com.lito.a5launcher.assistant.AssistantSettings
 import com.lito.a5launcher.assistant.AssistantSettingsPanel
-import com.lito.a5launcher.assistant.AssistantCredentialTester
-import com.lito.a5launcher.location.LocationRepository
 import com.lito.a5launcher.assistant.AssistantState
 import com.lito.a5launcher.assistant.AssistantStatusPanel
-import com.lito.a5launcher.ui.theme.*
+import com.lito.a5launcher.functional.FunctionalEventLogAccess
+import com.lito.a5launcher.location.LocationRepository
+import com.lito.a5launcher.model.AppInfo
+import com.lito.a5launcher.model.DoorStatus
 import com.lito.a5launcher.ui.home.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.text.NumberFormat
+import com.lito.a5launcher.ui.theme.*
+import java.io.File
 import java.text.DateFormat
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import java.io.File
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TOP_COMMAND_ORDER_KEY = "top_command_order"
 internal enum class TopCommandItem {
@@ -643,7 +643,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     val homeSlots = remember {
         HomeSlots(
             map = { mapModifier, viewport -> mapContent(mapModifier, viewport) },
-            mapOverlay = {
+            mapOverlay = { contentPadding ->
                 statisticsPanel?.let { scope ->
                     key(scope) {
                         JourneyStatisticsPanel(
@@ -673,6 +673,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                             onReset = if (scope == StatisticsPanelScope.PARTIAL) {
                                 { showManualPartialResetConfirmation = true }
                             } else null,
+                            contentPadding = contentPadding,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

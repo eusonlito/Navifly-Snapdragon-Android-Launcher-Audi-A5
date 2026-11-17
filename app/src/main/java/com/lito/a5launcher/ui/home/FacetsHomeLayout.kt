@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -107,13 +108,15 @@ internal fun FacetsHomeLayout(
         ) {
             slots.map(Modifier.fillMaxSize(), viewport)
             StartupMapCover(state)
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(start = margin * 2f + metrics.speedWidth, end = margin * 2f + metrics.rpmWidth),
-            ) {
-                slots.mapOverlay(this)
-            }
+            // Statistics replace the whole map band; their content fills the
+            // space between the two instrument cards.
+            slots.mapOverlay(
+                this,
+                PaddingValues(
+                    start = margin + metrics.speedWidth,
+                    end = margin + metrics.rpmWidth,
+                ),
+            )
         }
 
         val cardModifier = Modifier

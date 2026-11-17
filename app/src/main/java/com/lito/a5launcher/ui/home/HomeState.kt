@@ -1,6 +1,7 @@
 package com.lito.a5launcher.ui.home
 
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -60,5 +61,10 @@ internal class HomeActions(
 @Immutable
 internal class HomeSlots(
     val map: @Composable (Modifier, MapViewportSpec) -> Unit,
-    val mapOverlay: @Composable BoxScope.() -> Unit,
+    /**
+     * Drawn over the whole map area, replacing it. The padding is the part of
+     * that area covered by floating panels, measured up to their edges; the
+     * overlay adds its own gap from them.
+     */
+    val mapOverlay: @Composable BoxScope.(contentPadding: PaddingValues) -> Unit,
 )

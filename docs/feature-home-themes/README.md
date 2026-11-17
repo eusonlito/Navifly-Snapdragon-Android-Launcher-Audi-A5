@@ -41,6 +41,11 @@ puntos de interés, Asistente IA y animación de arranque.
 - Las tarjetas en L de Facetas se dimensionan a partir de su contenido más
   ancho (tres cifras de velocidad; marcha y una cifra con decimal en RPM).
 - Sólo se usan fuentes del sistema; Telemetría usa Roboto Black para las cifras.
+- Los paneles de estadísticas de viaje, parcial y total sustituyen al mapa:
+  ocupan toda su zona con el fondo, el acento y las cifras del tema, y
+  reparten los valores en tres columnas (recorrido, velocidad y combustible).
+  Cada tema indica qué parte de esa zona tapan sus cajas y el panel deja un
+  margen fijo de 32 dp a los lados y 20 dp arriba y abajo.
 
 ## Código
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -83,13 +84,19 @@ internal fun HorizonHomeLayout(
         }
         slots.map(Modifier.fillMaxSize(), viewport)
         StartupMapCover(state)
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(top = pad * 2f + topHeight, bottom = pad * 2f + bottomHeight)
-                .padding(horizontal = pad)
-                .clip(PanelShape),
-        ) { slots.mapOverlay(this) }
+        // Statistics replace the whole map; their content fills the space the
+        // floating panels leave free.
+        Box(Modifier.fillMaxSize()) {
+            slots.mapOverlay(
+                this,
+                PaddingValues(
+                    start = pad + instrumentWidth,
+                    top = pad + topHeight,
+                    end = pad + witnessWidth,
+                    bottom = pad + bottomHeight,
+                ),
+            )
+        }
 
         // Both side columns run from the top margin to the value strip with the
         // same gap between their bottom boxes; the first box of each is as tall

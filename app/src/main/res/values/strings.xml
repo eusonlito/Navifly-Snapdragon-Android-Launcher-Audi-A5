@@ -94,6 +94,9 @@
     <string name="statistics_distance_value">%1$s km</string>
     <string name="statistics_speed_value">%1$s km/h</string>
     <string name="statistics_fuel_value">%1$s L</string>
+    <string name="statistics_group_route">Route</string>
+    <string name="statistics_group_speed">Speed</string>
+    <string name="statistics_group_fuel">Fuel</string>
     <string name="dashboard_refuel_distance">Since Refuel</string>
     <string name="dashboard_range">Range</string>
     <string name="dashboard_odometer">Odometer</string>
