@@ -49,8 +49,9 @@ internal object OemCockpitTokens {
 }
 
 internal const val OEM_STARTUP_DURATION_MS = 2_200
-internal const val OEM_LEFT_DIAL_CENTER_FRACTION = .1587f
-internal const val OEM_RIGHT_DIAL_CENTER_FRACTION = .8413f
+// On the 2400 px wide screen the 672 px dials sit 16 px from the outer edges.
+internal const val OEM_LEFT_DIAL_CENTER_FRACTION = .1467f
+internal const val OEM_RIGHT_DIAL_CENTER_FRACTION = .8533f
 
 internal fun oemGearPulseScale(progress: Float): Float =
     1f + sin(PI.toFloat() * progress.coerceIn(0f, 1f)) * .10f

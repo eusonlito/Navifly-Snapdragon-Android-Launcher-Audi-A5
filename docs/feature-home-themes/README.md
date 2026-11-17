@@ -6,10 +6,10 @@ puntos de interés, Asistente IA y animación de arranque.
 
 | Tema | Captura | Disposición |
 |---|---|---|
-| **Clásico** | [`dashboard.png`](../screenshots/es/dashboard.png) | Esferas circulares de velocidad y RPM sobre el mapa; es el valor por defecto. |
-| **Horizonte** | [`theme-horizon.png`](../screenshots/es/theme-horizon.png) | Mapa a pantalla completa con paneles de cristal. Velocidad y RPM en barras horizontales, combustible en columna vertical. |
-| **Facetas** | [`theme-facets.png`](../screenshots/es/theme-facets.png) | Barras verticales rectas con relleno coral-magenta a los lados y los ocho bloques en una fila inferior. |
-| **Telemetría** | [`theme-telemetry.png`](../screenshots/es/theme-telemetry.png) | Mapa enmarcado a la izquierda y fichas a la derecha: luces de cambio, marcha, cuadrícula de 3×2 valores, combustible y testigos. |
+| **Clásico** | [`dashboard.png`](../screenshots/es/dashboard.png) | Esferas circulares de velocidad y RPM pegadas a los bordes, sobre el mapa; es el valor por defecto. |
+| **Horizonte** | [`theme-horizon.png`](../screenshots/es/theme-horizon.png) | Mapa a pantalla completa con paneles de cristal en dos columnas alineadas abajo. Velocidad y RPM en barras horizontales a la izquierda; combustible horizontal y testigos a la derecha. |
+| **Facetas** | [`theme-facets.png`](../screenshots/es/theme-facets.png) | Velocidad y RPM en tarjetas en forma de L (la de RPM invertida): banda vertical coral-magenta a toda altura y la lectura en el pie. Los ocho bloques van en una fila inferior. |
+| **Telemetría** | [`theme-telemetry.png`](../screenshots/es/theme-telemetry.png) | Mapa enmarcado a la izquierda y fichas a la derecha: velocidad y RPM absolutas con barras segmentadas, marcha en caja propia, cuadrícula de 3×2 valores, combustible y testigos. |
 
 ## Uso
 
@@ -38,6 +38,8 @@ puntos de interés, Asistente IA y animación de arranque.
   lados. Los textos se miden por la altura de cifras y mayúsculas
   (`capHeightBounds`), no por el alto de la fuente, para que el margen visual
   sea el mismo arriba, abajo y a los lados.
+- Las tarjetas en L de Facetas se dimensionan a partir de su contenido más
+  ancho (tres cifras de velocidad; marcha y una cifra con decimal en RPM).
 - Sólo se usan fuentes del sistema; Telemetría usa Roboto Black para las cifras.
 
 ## Código

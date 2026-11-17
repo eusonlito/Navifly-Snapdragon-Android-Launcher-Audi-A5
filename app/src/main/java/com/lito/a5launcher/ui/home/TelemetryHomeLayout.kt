@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -61,6 +62,10 @@ private const val GRID_COLUMNS = 3
 
 /** One segment per 250 rpm, so the red zone starts exactly at 4500 rpm. */
 private const val SHIFT_LIGHT_SEGMENTS = 24
+private const val SPEED_SEGMENTS = 24
+
+/** Bar height of the speed and RPM gauges. */
+private val GaugeBarHeight = 16.dp
 private const val FUEL_SEGMENTS = 14
 
 /**
@@ -121,17 +126,24 @@ internal fun TelemetryHomeLayout(
                             Modifier.width(panelWidth).fillMaxHeight(),
                             verticalArrangement = Arrangement.spacedBy(gap),
                         ) {
-                            TelemetryInstruments(state, h, gap, Modifier.fillMaxWidth().weight(1.25f))
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .weight(2.45f)
-                                    .startupContentAlpha(state),
-                                verticalArrangement = Arrangement.spacedBy(gap),
-                            ) {
-                                TelemetryValueGrid(state, actions, h, gap, Modifier.fillMaxWidth().weight(1.4f))
-                                TelemetryWideTiles(state, actions, h, gap, Modifier.fillMaxWidth().weight(1f))
-                            }
+                            // The two value rows and the fuel/witness row are equally tall; the
+                            // instruments row is 1.5 times that, the least speed and RPM need.
+                            // The grid weight includes its inner gap so its rows match the last one.
+                            TelemetryInstruments(state, h, gap, Modifier.fillMaxWidth().weight(1.5f))
+                            TelemetryValueGrid(
+                                state,
+                                actions,
+                                h,
+                                gap,
+                                Modifier.fillMaxWidth().weight(2.1f).startupContentAlpha(state),
+                            )
+                            TelemetryWideTiles(
+                                state,
+                                actions,
+                                h,
+                                gap,
+                                Modifier.fillMaxWidth().weight(1f).startupContentAlpha(state),
+                            )
                         }
                     }
                     // Statistics cover the whole content area so the panel keeps its width.
@@ -194,46 +206,42 @@ private fun TelemetryTopBar(state: HomeState, h: Dp, modifier: Modifier) {
 @Composable
 private fun TelemetryInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Modifier) {
     val tokens = LocalHomeTokens.current
-    val valueSize = (h.value * .115f).sp
+    val valueSize = (h.value * .1f).sp
+    val gaugeHeight = h * .1f
     Row(modifier.startupOutlineAlpha(state.startupProgress), horizontalArrangement = Arrangement.spacedBy(gap)) {
-        TelemetryCell(Modifier.weight(.43f).fillMaxHeight()) {
-            // Reading and gauge form one group centred in the tile.
+        // Speed and RPM: identical tiles, each a reading over its gauge, centred in the tile.
+        TelemetryCell(Modifier.weight(1f).fillMaxHeight()) {
             Column(Modifier.fillMaxSize().padding(CellPadding), verticalArrangement = Arrangement.Center) {
                 TelemetryReading({ formatDialValue(state.speed.value, DialType.SPEED) }, "km/h", valueSize)
                 Spacer(Modifier.height(ReadingGap))
-                TelemetrySpeedBar(state, Modifier.fillMaxWidth().height(h * .07f))
+                TelemetrySpeedBar(state, Modifier.fillMaxWidth().height(gaugeHeight))
             }
         }
-        TelemetryCell(Modifier.weight(.57f).fillMaxHeight()) {
-            Row(
-                Modifier.fillMaxSize().padding(CellPadding),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    TelemetryReading({ formatDialValue(state.rpm.value, DialType.RPM) }, "x1000", valueSize)
-                    Spacer(Modifier.height(ReadingGap))
-                    TelemetryShiftLights(state, Modifier.fillMaxWidth().height(h * .07f))
-                }
-                Spacer(Modifier.width(CellPadding))
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .width(h * .18f)
-                        .border(3.dp, tokens.accent, RoundedCornerShape(6.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        state.gear.value,
-                        color = tokens.content,
-                        fontSize = (h.value * .15f).sp,
-                        lineHeight = (h.value * .15f).sp,
-                        fontWeight = tokens.numberWeight,
-                        fontFamily = tokens.numberFamily,
-                        maxLines = 1,
-                        style = TightTextStyle,
-                        modifier = Modifier.capHeightBounds((h.value * .15f).sp),
-                    )
-                }
+        TelemetryCell(Modifier.weight(1f).fillMaxHeight()) {
+            Column(Modifier.fillMaxSize().padding(CellPadding), verticalArrangement = Arrangement.Center) {
+                TelemetryReading({ state.rpm.value.toString() }, "rpm", valueSize)
+                Spacer(Modifier.height(ReadingGap))
+                TelemetryShiftLights(state, Modifier.fillMaxWidth().height(gaugeHeight))
+            }
+        }
+        // Gear in its own tile, outlined in the accent colour.
+        TelemetryCell(
+            Modifier.width(h * .2f).fillMaxHeight(),
+            borderColor = tokens.accent,
+            borderWidth = 3.dp,
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    state.gear.value,
+                    color = tokens.content,
+                    fontSize = (h.value * .15f).sp,
+                    lineHeight = (h.value * .15f).sp,
+                    fontWeight = tokens.numberWeight,
+                    fontFamily = tokens.numberFamily,
+                    maxLines = 1,
+                    style = TightTextStyle,
+                    modifier = Modifier.capHeightBounds((h.value * .15f).sp),
+                )
             }
         }
     }
@@ -251,9 +259,10 @@ private fun TelemetrySpeedBar(state: HomeState, modifier: Modifier) {
         fraction = fraction,
         scale = TelemetrySpeedScale,
         startupProgress = state.startupProgress,
-        barHeight = 5.dp,
+        barHeight = GaugeBarHeight,
         labelSize = 12.sp,
         modifier = modifier,
+        segments = SPEED_SEGMENTS,
         marker = true,
     )
 }
@@ -265,7 +274,7 @@ private fun TelemetryShiftLights(state: HomeState, modifier: Modifier) {
         fraction = fraction,
         scale = RpmGaugeScale,
         startupProgress = state.startupProgress,
-        barHeight = 7.dp,
+        barHeight = GaugeBarHeight,
         labelSize = 12.sp,
         modifier = modifier,
         segments = SHIFT_LIGHT_SEGMENTS,
@@ -276,13 +285,18 @@ private fun TelemetryShiftLights(state: HomeState, modifier: Modifier) {
 }
 
 @Composable
-private fun TelemetryCell(modifier: Modifier, content: @Composable BoxScope.() -> Unit) {
+private fun TelemetryCell(
+    modifier: Modifier,
+    borderColor: Color? = null,
+    borderWidth: Dp = 1.dp,
+    content: @Composable BoxScope.() -> Unit,
+) {
     val tokens = LocalHomeTokens.current
     Box(
         modifier
             .clip(CellShape)
             .background(tokens.surface)
-            .border(1.dp, tokens.surfaceBorder, CellShape),
+            .border(borderWidth, borderColor ?: tokens.surfaceBorder, CellShape),
         content = content,
     )
 }
@@ -337,12 +351,15 @@ private fun TelemetryValueTile(
             .fillMaxSize()
             .then(if (scope != null) Modifier.clickable { actions.onStatistics(scope) } else Modifier)
             .padding(CellPadding),
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Label against the top padding, value against the bottom padding, both centred.
+        // Label and value form one group centred in the tile.
         BlockLabel(blockLabel(item), labelSize, color = tokens.content)
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+        Spacer(Modifier.height(ReadingGap))
+        // Every value keeps the full-size height, so a shrunk odometer stays aligned.
+        val valueHeight = with(LocalDensity.current) { (valueSize.toPx() * CAP_HEIGHT_RATIO).toDp() }
+        Box(Modifier.fillMaxWidth().height(valueHeight), contentAlignment = Alignment.BottomCenter) {
             val reading = rememberBlockReading(item, state)
             if (reading != null) {
                 // Long values such as the odometer shrink to keep their unit in the tile.
@@ -399,40 +416,39 @@ private fun TelemetryFuel(state: HomeState, h: Dp) {
     val tone = fuelSegmentTone(fuelSegments(fuel))
     val lit = (fuelFraction(fuel) * FUEL_SEGMENTS).roundToInt().coerceIn(if (fuel > 0) 1 else 0, FUEL_SEGMENTS)
     val contentColor = fuelContentColor(tone, tokens)
-    // Pump, litres and level bar form one group centred in the tile.
+    // A quiet tile: small pump, litres sized like the other values and a thin level bar.
     Column(Modifier.fillMaxSize().padding(CellPadding), verticalArrangement = Arrangement.Center) {
-        Row(Modifier.height(h * .085f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             FuelPumpIcon(
-                color = if (tone == FuelSegmentTone.NORMAL) tokens.content else contentColor,
-                modifier = Modifier.size(h * .085f),
+                color = if (tone == FuelSegmentTone.NORMAL) tokens.label else contentColor,
+                modifier = Modifier.size(h * .055f),
             )
-            Box(Modifier.padding(horizontal = CellPadding).width(1.dp).fillMaxHeight().background(tokens.divider))
-            Column(Modifier.weight(1f)) {
-                // Litres and tank capacity share one baseline.
-                Row(verticalAlignment = Alignment.Bottom) {
-                    ValueWithUnit(fuel.toString(), "L", (h.value * .068f).sp, (h.value * .068f).sp, color = contentColor)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        "$A5_FUEL_TANK_CAPACITY_LITRES L",
-                        color = tokens.content,
-                        fontSize = (h.value * .034f).sp,
-                        fontFamily = tokens.labelFamily,
-                        maxLines = 1,
-                        style = TightTextStyle,
-                        modifier = Modifier.capHeightBounds((h.value * .034f).sp),
-                    )
-                }
+            Spacer(Modifier.width(CellPadding))
+            // Litres and tank capacity share one baseline.
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
+                ValueWithUnit(fuel.toString(), "L", (h.value * .064f).sp, (h.value * .029f).sp, color = contentColor)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "$A5_FUEL_TANK_CAPACITY_LITRES L",
+                    color = tokens.label,
+                    fontSize = (h.value * .03f).sp,
+                    fontFamily = tokens.labelFamily,
+                    maxLines = 1,
+                    style = TightTextStyle,
+                    modifier = Modifier.capHeightBounds((h.value * .03f).sp),
+                )
             }
         }
         Spacer(Modifier.height(ReadingGap))
-        Canvas(Modifier.fillMaxWidth().height(h * .036f)) {
-            val gapPx = 3.dp.toPx()
+        Canvas(Modifier.fillMaxWidth().height(6.dp)) {
+            val gapPx = 2.dp.toPx()
             val segmentWidth = (size.width - gapPx * (FUEL_SEGMENTS - 1)) / FUEL_SEGMENTS
             for (index in 0 until FUEL_SEGMENTS) {
-                drawRect(
+                drawRoundRect(
                     fuelSegmentColor(index < lit, tone, tokens),
                     topLeft = androidx.compose.ui.geometry.Offset(index * (segmentWidth + gapPx), 0f),
                     size = androidx.compose.ui.geometry.Size(segmentWidth, size.height),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()),
                 )
             }
         }

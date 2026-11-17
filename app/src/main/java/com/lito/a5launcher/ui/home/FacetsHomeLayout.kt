@@ -20,19 +20,33 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +66,14 @@ import kotlin.math.roundToInt
 
 private val NoPinnedBlocks = emptySet<FooterBlockItem>()
 
+/** Reading sizes as fractions of the screen height. */
+private const val FACETS_VALUE = .12f
+private const val FACETS_CAPTION = .04f
+private const val FACETS_READING_GAP = .03f
+
+/** Scale label size of both bands. */
+private val BandLabelSize = 15.sp
+
 /** Straight vertical gauges hugging both edges, with the map running behind them. */
 @Composable
 internal fun FacetsHomeLayout(
@@ -67,10 +89,14 @@ internal fun FacetsHomeLayout(
         val topHeight = h * .11f
         val bottomHeight = h * .13f
         val margin = h * .03f
-        val cardWidth = w * .205f
         val bandWidth = h * .1f
-        val viewport = remember(h, w) {
-            MapViewportSpec(obscuredLeft = margin + cardWidth, obscuredRight = margin + cardWidth)
+        // Card geometry is measured from its content so every edge keeps the same padding.
+        val metrics = rememberFacetsCardMetrics(h, bandWidth)
+        val viewport = remember(h, w, metrics) {
+            MapViewportSpec(
+                obscuredLeft = margin + metrics.speedWidth,
+                obscuredRight = margin + metrics.rpmWidth,
+            )
         }
 
         // The map fills the band between the bars; the instruments float over it.
@@ -81,36 +107,54 @@ internal fun FacetsHomeLayout(
         ) {
             slots.map(Modifier.fillMaxSize(), viewport)
             StartupMapCover(state)
-            Box(Modifier.fillMaxSize().padding(horizontal = margin * 2f + cardWidth)) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = margin * 2f + metrics.speedWidth, end = margin * 2f + metrics.rpmWidth),
+            ) {
                 slots.mapOverlay(this)
             }
         }
 
         val cardModifier = Modifier
             .padding(top = topHeight + margin, bottom = bottomHeight + margin)
-            .width(cardWidth)
             .fillMaxHeight()
             .zIndex(2f)
-        FacetsInstrumentCard(cardModifier.align(Alignment.CenterStart).offset(x = margin), state) {
-            FacetsSpeedBand(state, bandWidth, Modifier.width(bandWidth + 52.dp).fillMaxHeight(), labelsOnEnd = true)
+        // Speed is an L: the band runs down the left and the reading sits in the foot.
+        FacetsLCard(
+            cardModifier.align(Alignment.CenterStart).offset(x = margin).width(metrics.speedWidth),
+            state,
+            metrics.speedLeg,
+            metrics.speedFoot,
+            metrics,
+            mirrored = false,
+            leg = { FacetsSpeedBand(state, bandWidth, Modifier.fillMaxSize(), labelsOnEnd = true) },
+        ) {
             FacetsReading(
                 value = { formatDialValue(state.speed.value, DialType.SPEED) },
                 unit = "km/h",
                 h = h,
-                modifier = Modifier.weight(1f),
             )
         }
-        FacetsInstrumentCard(cardModifier.align(Alignment.CenterEnd).offset(x = -margin), state) {
-            FacetsReading(
-                value = { formatDialValue(state.rpm.value, DialType.RPM) },
-                unit = "x1000",
-                h = h,
-                modifier = Modifier.weight(1f),
-            ) {
-                Spacer(Modifier.height(h * .05f))
-                GearBox(state, h * .13f, (h.value * .08f).sp)
+        // RPM is the mirrored L, with the gear beside its reading.
+        FacetsLCard(
+            cardModifier.align(Alignment.CenterEnd).offset(x = -margin).width(metrics.rpmWidth),
+            state,
+            metrics.rpmLeg,
+            metrics.rpmFoot,
+            metrics,
+            mirrored = true,
+            leg = { FacetsRpmBand(state, bandWidth, Modifier.fillMaxSize()) },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                GearBox(state, metrics.gearSize, (h.value * .075f).sp)
+                Spacer(Modifier.width(metrics.padding))
+                FacetsReading(
+                    value = { formatDialValue(state.rpm.value, DialType.RPM) },
+                    unit = "x1000",
+                    h = h,
+                )
             }
-            FacetsRpmBand(state, bandWidth, Modifier.width(bandWidth + 44.dp).fillMaxHeight())
         }
 
         FacetsTopBar(
@@ -167,41 +211,140 @@ internal fun FacetsHomeLayout(
     }
 }
 
-/** Translucent navy card holding one straight band and its reading. */
+/** Sizes of the two L cards, derived from the widest content they can show. */
+@Immutable
+private data class FacetsCardMetrics(
+    val padding: Dp,
+    val legVerticalPadding: Dp,
+    val gearSize: Dp,
+    val speedLeg: Dp,
+    val rpmLeg: Dp,
+    val speedFoot: DpSize,
+    val rpmFoot: DpSize,
+) {
+    val speedWidth: Dp get() = speedLeg + speedFoot.width
+    val rpmWidth: Dp get() = rpmLeg + rpmFoot.width
+}
+
 @Composable
-private fun FacetsInstrumentCard(
+private fun rememberFacetsCardMetrics(h: Dp, bandWidth: Dp): FacetsCardMetrics {
+    val tokens = LocalHomeTokens.current
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    return remember(h, bandWidth, tokens, density) {
+        fun width(text: String, size: TextUnit, weight: FontWeight, family: FontFamily?): Dp = with(density) {
+            measurer.measure(text, TextStyle(fontSize = size, fontWeight = weight, fontFamily = family))
+                .size.width.toDp()
+        }
+        fun cap(size: TextUnit): Dp = with(density) { size.toDp() * CAP_HEIGHT_RATIO }
+        val padding = 18.dp
+        val bandLabelSize = BandLabelSize
+        // Tick gap, major tick and label gap drawn by VerticalBandGauge before the label text.
+        val labelOffset = 19.dp
+        val speedLabels = labelOffset + width("240", bandLabelSize, FontWeight.Normal, FontFamily.SansSerif)
+        val rpmLabels = labelOffset + width("6", bandLabelSize, FontWeight.Normal, FontFamily.SansSerif)
+        // End labels are centred on the band ends, 3 dp inside the canvas; keep their ink inside the padding.
+        val legVertical = padding + cap(bandLabelSize) / 2f - 3.dp
+        val valueSize = (h.value * FACETS_VALUE).sp
+        val captionSize = (h.value * FACETS_CAPTION).sp
+        val readingHeight = cap(valueSize) + h * FACETS_READING_GAP + cap(captionSize)
+        val gearSize = h * .12f
+        // Three speed digits are the widest reading; RPM never exceeds one digit and a decimal.
+        val speedReading = maxOf(
+            width("888", valueSize, FontWeight.Light, tokens.numberFamily),
+            width("km/h", captionSize, FontWeight.Normal, tokens.labelFamily),
+        )
+        val rpmReading = maxOf(
+            width("8.8", valueSize, FontWeight.Light, tokens.numberFamily),
+            width("x1000", captionSize, FontWeight.Normal, tokens.labelFamily),
+        )
+        FacetsCardMetrics(
+            padding = padding,
+            legVerticalPadding = legVertical,
+            gearSize = gearSize,
+            speedLeg = padding * 2f + bandWidth + speedLabels,
+            rpmLeg = padding * 2f + bandWidth + rpmLabels,
+            speedFoot = DpSize(speedReading + padding * 2f, readingHeight + padding * 2f),
+            rpmFoot = DpSize(
+                gearSize + padding + rpmReading + padding * 2f,
+                maxOf(gearSize, readingHeight) + padding * 2f,
+            ),
+        )
+    }
+}
+
+/**
+ * L-shaped card: a full-height leg holding the band and a foot along the bottom
+ * holding the reading. [mirrored] puts the leg on the right. Leg and foot keep
+ * the same padding between their content and the card edge.
+ */
+@Composable
+private fun FacetsLCard(
     modifier: Modifier,
     state: HomeState,
-    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+    legWidth: Dp,
+    foot: DpSize,
+    metrics: FacetsCardMetrics,
+    mirrored: Boolean,
+    leg: @Composable () -> Unit,
+    footContent: @Composable () -> Unit,
 ) {
     val tokens = LocalHomeTokens.current
-    val shape = RoundedCornerShape(16.dp)
-    Row(
+    val density = LocalDensity.current
+    val shape = remember(legWidth, foot, mirrored, density) {
+        with(density) { LShape(legWidth.toPx(), foot.height.toPx(), 16.dp.toPx(), mirrored) }
+    }
+    Box(
         modifier
             .startupOutlineAlpha(state.startupProgress)
             .clip(shape)
             .background(tokens.surface)
-            .border(1.dp, tokens.surfaceBorder.copy(alpha = .35f), shape)
-            .padding(horizontal = 10.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
+            .border(1.dp, tokens.surfaceBorder.copy(alpha = .35f), shape),
+    ) {
+        Box(
+            Modifier
+                .align(if (mirrored) Alignment.TopEnd else Alignment.TopStart)
+                .width(legWidth)
+                .fillMaxHeight()
+                .padding(horizontal = metrics.padding, vertical = metrics.legVerticalPadding),
+        ) { leg() }
+        Box(
+            Modifier
+                .align(if (mirrored) Alignment.BottomStart else Alignment.BottomEnd)
+                .size(foot)
+                .padding(metrics.padding),
+            contentAlignment = Alignment.Center,
+        ) { footContent() }
+    }
+}
+
+/** Union of a full-height leg and a bottom foot, both with rounded corners. */
+private class LShape(
+    private val legWidth: Float,
+    private val footHeight: Float,
+    private val radius: Float,
+    private val mirrored: Boolean,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val corner = CornerRadius(radius)
+        val legLeft = if (mirrored) size.width - legWidth else 0f
+        val leg = Path().apply {
+            addRoundRect(RoundRect(Rect(legLeft, 0f, legLeft + legWidth, size.height), corner))
+        }
+        val foot = Path().apply {
+            addRoundRect(RoundRect(Rect(0f, size.height - footHeight, size.width, size.height), corner))
+        }
+        return Outline.Generic(Path.combine(PathOperation.Union, leg, foot))
+    }
 }
 
 /** Big thin value with its unit underneath, as on the classic dials. */
 @Composable
-private fun FacetsReading(
-    value: () -> String,
-    unit: String,
-    h: Dp,
-    modifier: Modifier,
-    extra: @Composable () -> Unit = {},
-) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        FacetsValue(value, (h.value * .15f).sp)
-        Spacer(Modifier.height(h * .035f))
-        FacetsCaption(unit, (h.value * .042f).sp)
-        extra()
+private fun FacetsReading(value: () -> String, unit: String, h: Dp) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        FacetsValue(value, (h.value * FACETS_VALUE).sp)
+        Spacer(Modifier.height(h * FACETS_READING_GAP))
+        FacetsCaption(unit, (h.value * FACETS_CAPTION).sp)
     }
 }
 
@@ -217,7 +360,7 @@ private fun FacetsTopBar(state: HomeState, actions: HomeActions, h: Dp, modifier
                 Text(
                     state.time.value,
                     color = tokens.content,
-                    fontSize = (h.value * .072f).sp,
+                    fontSize = (h.value * .06f).sp,
                     fontWeight = FontWeight.Light,
                     fontFamily = tokens.numberFamily,
                     maxLines = 1,
@@ -226,7 +369,7 @@ private fun FacetsTopBar(state: HomeState, actions: HomeActions, h: Dp, modifier
                 Text(
                     state.date.value,
                     color = tokens.content.copy(alpha = .9f),
-                    fontSize = (h.value * .034f).sp,
+                    fontSize = (h.value * .03f).sp,
                     fontWeight = FontWeight.Normal,
                     fontFamily = tokens.labelFamily,
                     maxLines = 1,
@@ -235,14 +378,15 @@ private fun FacetsTopBar(state: HomeState, actions: HomeActions, h: Dp, modifier
             HomeCommandGroup(
                 state,
                 actions,
-                CommandMetrics(buttonSize = h * .09f, iconSize = h * .056f, horizontalPadding = 12.dp),
+                // Icons fill most of the bar height; the bar itself keeps its size.
+                CommandMetrics(buttonSize = h * .11f, iconSize = h * .072f, horizontalPadding = 18.dp),
                 ReorderAxis.HORIZONTAL,
             )
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     formatOutsideTemperature(state.outside.value, LocalConfiguration.current.locales[0]),
                     color = tokens.content,
-                    fontSize = (h.value * .055f).sp,
+                    fontSize = (h.value * .046f).sp,
                     fontWeight = FontWeight.Light,
                     fontFamily = tokens.numberFamily,
                     maxLines = 1,
@@ -276,7 +420,7 @@ private fun FacetsSpeedBand(state: HomeState, bandWidth: Dp, modifier: Modifier,
         scale = SpeedGaugeScale,
         startupProgress = state.startupProgress,
         bandWidth = bandWidth,
-        labelSize = 15.sp,
+        labelSize = BandLabelSize,
         labelsOnEnd = labelsOnEnd,
         modifier = modifier,
     )
@@ -290,7 +434,7 @@ private fun FacetsRpmBand(state: HomeState, bandWidth: Dp, modifier: Modifier) {
         scale = RpmGaugeScale,
         startupProgress = state.startupProgress,
         bandWidth = bandWidth,
-        labelSize = 15.sp,
+        labelSize = BandLabelSize,
         labelsOnEnd = false,
         modifier = modifier,
         redZoneFrom = RPM_RED_ZONE_FRACTION,

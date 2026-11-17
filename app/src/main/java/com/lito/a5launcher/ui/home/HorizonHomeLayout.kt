@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -71,7 +72,6 @@ internal fun HorizonHomeLayout(
         val valueSize = (h.value * .052f).sp
         val bottomHeight = h * .142f
         val instrumentWidth = w * .27f
-        val instrumentHeight = h * .27f
         val witnessWidth = w * .23f
         val viewport = remember(h, w) {
             MapViewportSpec(
@@ -91,84 +91,88 @@ internal fun HorizonHomeLayout(
                 .clip(PanelShape),
         ) { slots.mapOverlay(this) }
 
-        // Top row: clock, commands and outside temperature, all the same height.
-        Box(
+        // Both side columns run from the top margin to the value strip with the
+        // same gap between their bottom boxes; the first box of each is as tall
+        // as the command bar.
+        val instrumentHeight = h * .25f
+        val columns = Modifier
+            .fillMaxHeight()
+            .padding(top = pad, bottom = pad * 2f + bottomHeight)
+            .zIndex(2f)
+
+        // Commands, centred and as tall as the clock and temperature boxes.
+        HorizonPanel(
+            0.dp,
             Modifier
-                .fillMaxWidth()
-                .padding(start = pad, end = pad, top = pad)
+                .align(Alignment.TopCenter)
+                .padding(top = pad)
                 .height(topHeight)
                 .startupContentAlpha(state)
                 .zIndex(2f),
         ) {
-            HorizonPanel(pad, Modifier.align(Alignment.CenterStart).fillMaxHeight()) {
-                InlineClock(state, (h.value * .058f).sp, (h.value * .03f).sp)
-            }
-            // The buttons fill the panel height; their own side padding is the box padding.
-            HorizonPanel(0.dp, Modifier.align(Alignment.Center).fillMaxHeight()) {
-                HomeCommandGroup(
-                    state,
-                    actions,
-                    CommandMetrics(buttonSize = topHeight, iconSize = iconSize, horizontalPadding = pad),
-                    ReorderAxis.HORIZONTAL,
-                    dividers = false,
-                )
-            }
-            HorizonPanel(pad, Modifier.align(Alignment.CenterEnd).fillMaxHeight()) {
-                OutsideTemperatureWithIcon(state, (h.value * .05f).sp, iconSize)
-            }
+            HomeCommandGroup(
+                state,
+                actions,
+                CommandMetrics(buttonSize = topHeight, iconSize = iconSize, horizontalPadding = pad),
+                ReorderAxis.HORIZONTAL,
+                dividers = false,
+            )
         }
 
-        // Middle band between the top row and the value strip.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(start = pad, end = pad, top = pad * 2f + topHeight, bottom = pad * 2f + bottomHeight)
-                .zIndex(2f),
+        // Left column: clock at the top; speed and RPM sit on the bottom line,
+        // mirroring the fuel and witness boxes on the right.
+        Column(
+            columns.align(Alignment.TopStart).padding(start = pad).width(instrumentWidth),
+            verticalArrangement = Arrangement.spacedBy(pad),
         ) {
-            // Speed and RPM: identical boxes with the same reading and bar layout.
-            Column(Modifier.align(Alignment.CenterStart), verticalArrangement = Arrangement.spacedBy(pad)) {
-                HorizonInstrument(state, pad, Modifier.size(instrumentWidth, instrumentHeight)) {
-                    Column(Modifier.fillMaxSize()) {
+            HorizonPanel(pad, Modifier.height(topHeight).startupContentAlpha(state), Alignment.CenterStart) {
+                InlineClock(state, (h.value * .058f).sp, (h.value * .03f).sp)
+            }
+            Spacer(Modifier.weight(1f))
+            HorizonInstrument(state, pad, Modifier.fillMaxWidth().height(instrumentHeight)) {
+                Column(Modifier.fillMaxSize()) {
+                    HorizonReading(
+                        value = { formatDialValue(state.speed.value, DialType.SPEED) },
+                        unit = "km/h",
+                        valueSize = (h.value * .1f).sp,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    HorizonSpeedBar(state, Modifier.fillMaxWidth().height(h * .095f))
+                }
+            }
+            HorizonInstrument(state, pad, Modifier.fillMaxWidth().height(instrumentHeight)) {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
                         HorizonReading(
-                            value = { formatDialValue(state.speed.value, DialType.SPEED) },
-                            unit = "km/h",
+                            value = { formatDialValue(state.rpm.value, DialType.RPM) },
+                            unit = "x1000",
                             valueSize = (h.value * .1f).sp,
                         )
                         Spacer(Modifier.weight(1f))
-                        HorizonSpeedBar(state, Modifier.fillMaxWidth().height(h * .095f))
+                        HorizonRpmBar(state, Modifier.fillMaxWidth().height(h * .095f))
                     }
-                }
-                HorizonInstrument(state, pad, Modifier.size(instrumentWidth, instrumentHeight)) {
-                    Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f).fillMaxHeight()) {
-                            HorizonReading(
-                                value = { formatDialValue(state.rpm.value, DialType.RPM) },
-                                unit = "x1000",
-                                valueSize = (h.value * .1f).sp,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            HorizonRpmBar(state, Modifier.fillMaxWidth().height(h * .095f))
-                        }
-                        Spacer(Modifier.width(pad))
-                        GearBox(state, h * .14f, (h.value * .09f).sp)
-                    }
+                    Spacer(Modifier.width(pad))
+                    GearBox(state, h * .14f, (h.value * .09f).sp)
                 }
             }
+        }
 
-            // Fuel and witnesses wrap their content plus the shared padding.
-            Column(
-                Modifier
-                    .align(Alignment.CenterEnd)
-                    .startupContentAlpha(state),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(pad),
-            ) {
-                HorizonPanel(pad, Modifier.height(h * .34f)) {
-                    HorizonFuel(state, h)
-                }
-                HorizonPanel(pad) {
-                    WitnessGroup(state, scale = .95f, spacing = 26.dp)
-                }
+        // Right column: temperature at the top; fuel and witnesses sit on the
+        // same bottom line as the RPM box, as wide as the witnesses panel.
+        Column(
+            columns.align(Alignment.TopEnd).padding(end = pad).width(IntrinsicSize.Max).startupContentAlpha(state),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(pad),
+        ) {
+            HorizonPanel(pad, Modifier.height(topHeight)) {
+                OutsideTemperatureWithIcon(state, (h.value * .05f).sp, iconSize)
+            }
+            Spacer(Modifier.weight(1f))
+            HorizonPanel(pad, Modifier.fillMaxWidth()) {
+                HorizonFuel(state, h)
+            }
+            HorizonPanel(pad) {
+                WitnessGroup(state, scale = .95f, spacing = 26.dp)
             }
         }
 
@@ -316,30 +320,22 @@ private fun HorizonFuel(state: HomeState, h: Dp) {
     val color = fuelSegmentColor(true, tone, tokens)
     val textColor = fuelContentColor(tone, tokens)
     val fraction = fuelFraction(fuel)
-    Column(
-        Modifier.fillMaxHeight(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    // Horizontal: pump, level bar filling from the left and litres.
+    Row(verticalAlignment = Alignment.CenterVertically) {
         FuelPumpIcon(
             color = textColor.copy(alpha = if (tone == FuelSegmentTone.NORMAL) .80f else 1f),
             modifier = Modifier.size(h * .055f),
         )
-        Spacer(Modifier.height(8.dp))
-        // Single column: pump, level bar and litres, so the panel stays as narrow as its neighbours.
-        Canvas(Modifier.width(h * .03f).weight(1f)) {
-            val corner = CornerRadius(size.width / 2f)
+        Spacer(Modifier.width(12.dp))
+        Canvas(Modifier.weight(1f).height(h * .03f)) {
+            val corner = CornerRadius(size.height / 2f)
             drawRoundRect(tokens.fuelInactive, cornerRadius = corner)
-            val filled = size.height * fraction
+            val filled = size.width * fraction
             if (filled > 0f) {
-                drawRoundRect(
-                    color,
-                    topLeft = Offset(0f, size.height - filled),
-                    size = Size(size.width, filled),
-                    cornerRadius = corner,
-                )
+                drawRoundRect(color, size = Size(filled, size.height), cornerRadius = corner)
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.width(12.dp))
         ValueWithUnit(fuel.toString(), "L", (h.value * .046f).sp, (h.value * .03f).sp, color = textColor)
     }
 }
