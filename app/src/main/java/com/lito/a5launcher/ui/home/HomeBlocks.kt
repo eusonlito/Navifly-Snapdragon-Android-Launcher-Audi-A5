@@ -245,7 +245,7 @@ internal fun FuelPumpIcon(color: Color, modifier: Modifier = Modifier) {
 }
 
 internal enum class WitnessType { Seatbelt, Parking, Lights }
-private enum class DoorRegion { FrontLeft, FrontRight, RearLeft, RearRight }
+private enum class DoorRegion { Body, FrontLeft, FrontRight, RearLeft, RearRight }
 
 /** Door, seatbelt, parking brake and lights witnesses; [scale] 1 keeps the original 30/34/38 dp. */
 @Composable
@@ -299,14 +299,8 @@ internal fun DoorStatusWitness(doors: DoorStatus, scale: Float = 1f) {
             tint = inactiveColor,
             modifier = Modifier.size(size),
         )
-        // The body has its own wider viewport; the four door layers preserve
-        // their original scale and separation.
-        Icon(
-            painter = painterResource(R.drawable.ic_witness_door_body),
-            contentDescription = null,
-            tint = if (anyOpen) alertColor else inactiveColor,
-            modifier = Modifier.size(size),
-        )
+        // Every alert layer uses the base silhouette, including the body.
+        if (anyOpen) DoorLayer(DoorRegion.Body, alertColor, size)
         // The top-down SVG is mirrored relative to the CAN left/right naming.
         if (doors.driverOpen) DoorLayer(DoorRegion.FrontRight, alertColor, size)
         if (doors.passengerOpen) DoorLayer(DoorRegion.FrontLeft, alertColor, size)
@@ -325,12 +319,13 @@ private fun DoorLayer(region: DoorRegion, color: Color, size: Dp) {
             .size(size)
             .drawWithContent doorLayer@{
                 // Coordinates come directly from the 717 × 717 VectorDrawable.
-                // Each active door is therefore a clipped portion of the exact
+                // Each active region is therefore a clipped portion of the exact
                 // same path used by the inactive base—never a scaled copy.
                 val bodyLeft = this.size.width * (171f / 717f)
                 val bodyRight = this.size.width * (546f / 717f)
                 val splitY = this.size.height * 0.55f
                 when (region) {
+                    DoorRegion.Body -> clipRect(bodyLeft, 0f, bodyRight, this.size.height) { this@doorLayer.drawContent() }
                     DoorRegion.FrontLeft -> clipRect(0f, 0f, bodyLeft, splitY) { this@doorLayer.drawContent() }
                     DoorRegion.FrontRight -> clipRect(bodyRight, 0f, this.size.width, splitY) { this@doorLayer.drawContent() }
                     DoorRegion.RearLeft -> clipRect(0f, splitY, bodyLeft, this.size.height) { this@doorLayer.drawContent() }
