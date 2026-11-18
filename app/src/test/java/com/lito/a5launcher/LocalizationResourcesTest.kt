@@ -18,6 +18,7 @@ class LocalizationResourcesTest {
     fun bothLanguagesExposeSystemAndDashboardLabels() {
         val required = setOf(
             "launcher_settings_tab_logs",
+            "launcher_settings_tab_themes",
             "launcher_settings_tab_system",
             "language_spanish",
             "language_english",
@@ -29,11 +30,14 @@ class LocalizationResourcesTest {
             "dashboard_odometer",
             "dashboard_fuel",
             "dashboard_witnesses",
-            "system_theme",
             "home_theme_classic",
             "home_theme_horizon",
             "home_theme_facets",
             "home_theme_telemetry",
+            "home_theme_galaxy",
+            "home_theme_adventure",
+            "home_theme_submarine",
+            "home_theme_moon",
             "functional_logs_capture",
             "functional_logs_export_all",
             "functional_logs_delete",

@@ -87,7 +87,7 @@ Para los temas de la home y el modo de color del mapa:
   --output screenshots/telemetria-noche.png
 ```
 
-`--theme` acepta `CLASSIC`, `HORIZON`, `FACETS` o `TELEMETRY` (por defecto
+`--theme` acepta `CLASSIC`, `HORIZON`, `FACETS`, `TELEMETRY`, `SUBMARINE`, `MOON`, `GALAXY` o `ADVENTURE` (por defecto
 `CLASSIC`) y `--color-mode` acepta `LIGHT`, `DARK` o `AUTOMATIC` (por defecto
 `LIGHT`). Las capturas públicas de cada tema son
 `docs/screenshots/{,es/}theme-*.png`; el idioma se cambia antes con

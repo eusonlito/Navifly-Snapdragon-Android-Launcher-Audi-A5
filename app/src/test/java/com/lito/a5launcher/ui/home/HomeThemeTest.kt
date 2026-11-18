@@ -1,6 +1,9 @@
 package com.lito.a5launcher.ui.home
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.lito.a5launcher.JourneyStatisticsSnapshot
 import com.lito.a5launcher.ui.components.FooterBlockItem
 import com.lito.a5launcher.ui.components.FuelSegmentTone
@@ -17,6 +20,7 @@ import com.lito.a5launcher.ui.theme.SLineRed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -26,6 +30,56 @@ class HomeThemeTest {
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme(null))
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme("NEON"))
         assertEquals(HomeTheme.FACETS, parseHomeTheme("FACETS"))
+        assertEquals(HomeTheme.CLASSIC, parseHomeTheme("ORBIT"))
+        assertEquals(HomeTheme.GALAXY, parseHomeTheme("GALAXY"))
+        assertEquals(HomeTheme.CLASSIC, parseHomeTheme("SATELLITE"))
+        assertEquals(HomeTheme.ADVENTURE, parseHomeTheme("ADVENTURE"))
+        assertEquals(HomeTheme.SUBMARINE, parseHomeTheme("SUBMARINE"))
+        assertEquals(HomeTheme.MOON, parseHomeTheme("MOON"))
+    }
+
+    @Test
+    fun illustratedThemesUseTheirOwnPaletteAndOrderKey() {
+        IllustratedStyle.entries.forEach { style ->
+            val theme = HomeTheme.valueOf(style.name)
+            val tokens = homeTokensFor(theme, dark = false)
+            assertEquals(style.palette.skyBottom, tokens.background)
+            assertEquals(style.palette.arc, tokens.accent)
+            assertEquals("footer_block_order_${style.name.lowercase()}", footerBlockOrderKey(theme))
+            assertEquals(DefaultFooterBlockOrder, defaultFooterBlockOrder(theme))
+        }
+    }
+
+    @Test
+    fun galaxyUsesItsPaletteAndAdventureTheTelemetryOrder() {
+        assertEquals(GalaxyPalette.skyBottom, homeTokensFor(HomeTheme.GALAXY, dark = false).background)
+        assertEquals(DefaultFooterBlockOrder, defaultFooterBlockOrder(HomeTheme.GALAXY))
+        assertEquals(defaultFooterBlockOrder(HomeTheme.TELEMETRY), defaultFooterBlockOrder(HomeTheme.ADVENTURE))
+        assertEquals("footer_block_order_adventure", footerBlockOrderKey(HomeTheme.ADVENTURE))
+    }
+
+    @Test
+    fun roundRectDistanceHandlesCirclesAndRoundedRectangles() {
+        // A circle whose inner rectangle collapses to a point after float rounding.
+        val circle = Rect(10.1f, 20.3f, 319.22003f, 329.42f)
+        val radius = circle.width / 2f
+        assertEquals(-radius, roundRectDistance(circle.center, circle, radius), .01f)
+        assertEquals(10f, roundRectDistance(Offset(circle.right + 10f, circle.center.y), circle, radius), .01f)
+        val box = Rect(0f, 0f, 100f, 50f)
+        assertEquals(5f, roundRectDistance(Offset(50f, 55f), box, 10f), .001f)
+        assertTrue(roundRectDistance(Offset(1f, 1f), box, 10f) > 0f)
+    }
+
+    @Test
+    fun footprintsInflateEvenlyForTheMapCutouts() {
+        val dial = Footprint(10.dp, 20.dp, 100.dp, 100.dp, 50.dp)
+        val cut = dial.inflate(8.dp)
+        assertEquals(2.dp, cut.left)
+        assertEquals(12.dp, cut.top)
+        assertEquals(116.dp, cut.width)
+        assertEquals(58.dp, cut.radius)
+        assertEquals(118.dp, cut.right)
+        assertEquals(60.dp, dial.centerX)
     }
 
     @Test

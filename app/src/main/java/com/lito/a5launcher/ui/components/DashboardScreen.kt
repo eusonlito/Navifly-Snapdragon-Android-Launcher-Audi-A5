@@ -699,6 +699,10 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     HomeTheme.HORIZON -> HorizonHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.FACETS -> FacetsHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.TELEMETRY -> TelemetryHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.SUBMARINE -> IllustratedHomeLayout(IllustratedStyle.SUBMARINE, homeState, homeActions, homeSlots)
+                    HomeTheme.MOON -> IllustratedHomeLayout(IllustratedStyle.MOON, homeState, homeActions, homeSlots)
+                    HomeTheme.GALAXY -> GalaxyHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.ADVENTURE -> AdventureHomeLayout(homeState, homeActions, homeSlots)
                 }
             }
 
@@ -1158,9 +1162,12 @@ private fun LauncherSettingsOverlay(
                     access = functionalEventLogAccess,
                     modifier = Modifier.fillMaxSize(),
                 )
+                LauncherSettingsTab.THEMES -> ThemeSettingsPanel(
+                    selected = homeTheme,
+                    onSelected = onHomeThemeChanged,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 LauncherSettingsTab.SYSTEM -> SystemSettingsPanel(
-                    homeTheme = homeTheme,
-                    onHomeThemeChanged = onHomeThemeChanged,
                     buildDate = buildDate,
                     installedDate = installedDate,
                     languageLabels = languageLabels,
@@ -1523,8 +1530,6 @@ private fun MapSettingsPanel(
 
 @Composable
 private fun SystemSettingsPanel(
-    homeTheme: HomeTheme,
-    onHomeThemeChanged: (HomeTheme) -> Unit,
     buildDate: String,
     installedDate: String,
     languageLabels: Map<AppLanguage, String>,
@@ -1567,16 +1572,6 @@ private fun SystemSettingsPanel(
                 divider = false,
             )
             Spacer(Modifier.weight(1f))
-            val themeLabels = HomeTheme.entries.associateWith { stringResource(it.labelRes) }
-            SettingsSectionTitle(stringResource(R.string.system_theme), SettingsIcons.Palette)
-            Spacer(Modifier.height(10.dp))
-            SegmentedSettingsSelector(
-                options = HomeTheme.entries,
-                selected = homeTheme,
-                label = { theme -> themeLabels.getValue(theme) },
-                onSelected = onHomeThemeChanged,
-            )
-            Spacer(Modifier.height(SettingsDimensions.SectionGap))
             SettingsSectionTitle(stringResource(R.string.system_language), SettingsIcons.Globe)
             Spacer(Modifier.height(10.dp))
             SegmentedSettingsSelector(
@@ -1704,6 +1699,7 @@ internal enum class LauncherSettingsTab(val labelRes: Int) {
     MAP(R.string.launcher_settings_tab_map),
     ASSISTANT(R.string.launcher_settings_tab_assistant),
     LOGS(R.string.launcher_settings_tab_logs),
+    THEMES(R.string.launcher_settings_tab_themes),
     SYSTEM(R.string.launcher_settings_tab_system),
     ;
 
@@ -1713,6 +1709,7 @@ internal enum class LauncherSettingsTab(val labelRes: Int) {
             MAP -> SettingsIcons.Map
             ASSISTANT -> SettingsIcons.Sparkles
             LOGS -> SettingsIcons.Document
+            THEMES -> SettingsIcons.Palette
             SYSTEM -> SettingsIcons.Gear
         }
 }

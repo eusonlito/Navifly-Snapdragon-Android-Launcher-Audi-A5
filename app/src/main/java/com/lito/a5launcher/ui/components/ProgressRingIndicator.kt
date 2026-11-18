@@ -29,6 +29,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -106,6 +110,12 @@ internal fun ProgressRingIndicator(
         label = "${dialType.name}Arc",
     )
     val activeColor = OemCockpitTokens.Cyan
+    // The red zone lights up while the engine is in it.
+    val redZoneGlow = animateFloatAsState(
+        targetValue = if (isRpm && value >= RPM_RED_ZONE_START) 1f else 0f,
+        animationSpec = tween(260),
+        label = "redZoneGlow",
+    )
     val gearAnimation = remember { Animatable(1f) }
     var previousGear by remember { mutableStateOf(centerGear) }
 
@@ -153,10 +163,28 @@ internal fun ProgressRingIndicator(
                         Color.White.copy(alpha = .90f).toArgb(),
                     )
                     val reachedLabelPaint = labelPaint(reachedTypeface, activeColor.toArgb())
+                    val redLabelPaint = labelPaint(reachedTypeface, OemCockpitTokens.RedZone.toArgb())
                     val pendingLabelBaseline =
                         -(pendingLabelPaint.ascent() + pendingLabelPaint.descent()) / 2f
                     val reachedLabelBaseline =
                         -(reachedLabelPaint.ascent() + reachedLabelPaint.descent()) / 2f
+                    val hubFill = Brush.radialGradient(
+                        colors = listOf(OemCockpitTokens.DialHubLight, OemCockpitTokens.DialHub, OemCockpitTokens.DialHubEdge),
+                        center = Offset(center.x, center.y - radius * .18f),
+                        radius = radius * .62f,
+                    )
+                    // Soft reflection along the top of the hub rim.
+                    val rimReflection = Brush.sweepGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            .58f to Color.Transparent,
+                            .75f to Color.White.copy(alpha = .16f),
+                            .92f to Color.Transparent,
+                            1f to Color.Transparent,
+                        ),
+                        center = center,
+                    )
+                    val redStart = (RPM_RED_ZONE_START / maxValue).coerceIn(0f, 1f)
                     val hubChrome = oemChromeBrush(
                         start = Offset(center.x - radius * .5f, center.y - radius * .5f),
                         end = Offset(center.x + radius * .5f, center.y + radius * .5f),
@@ -215,12 +243,15 @@ internal fun ProgressRingIndicator(
 
                     onDrawBehind {
                         val startup = oemStartupPresentation(startupProgress?.value)
-                        // Solid, layered construction: depth without a decorative gradient.
+                        // Layered construction: black bezel, a softly lit hub and a reflection on its rim.
                         drawCircle(Color.Black, radius, center)
+                        drawCircle(hubFill, radius * .49f, center, alpha = startup.depthProgress)
                         drawCircle(
-                            OemCockpitTokens.DialHub.copy(alpha = startup.depthProgress),
-                            radius * .49f,
+                            rimReflection,
+                            radius * .485f,
                             center,
+                            alpha = startup.depthProgress,
+                            style = Stroke(1.5.dp.toPx()),
                         )
                         drawCircle(
                             brush = hubChrome,
@@ -253,44 +284,34 @@ internal fun ProgressRingIndicator(
                         )
                         val visiblePercentage = animatedPercentage.value * startup.depthProgress
                         if (visiblePercentage > 0f) {
-                            val activeSweep = DIAL_SWEEP_ANGLE * visiblePercentage
-                            drawArc(
-                                color = activeColor.copy(alpha = .14f),
-                                startAngle = DIAL_START_ANGLE,
-                                sweepAngle = activeSweep,
-                                useCenter = false,
-                                topLeft = arcTopLeft,
-                                size = arcSize,
-                                style = Stroke(13.dp.toPx(), cap = StrokeCap.Round),
-                            )
-                            drawArc(
+                            drawActiveArc(
+                                center = center,
+                                arcRadius = arcRadius,
+                                fraction = visiblePercentage,
+                                stroke = arcStroke,
+                                glow = 13.dp.toPx(),
                                 color = activeColor,
-                                startAngle = DIAL_START_ANGLE,
-                                sweepAngle = activeSweep,
-                                useCenter = false,
-                                topLeft = arcTopLeft,
-                                size = arcSize,
-                                style = Stroke(arcStroke, cap = StrokeCap.Round),
-                            )
-                            val endpointAngle = Math.toRadians(
-                                (DIAL_START_ANGLE + activeSweep).toDouble(),
-                            )
-                            drawCircle(
-                                color = Color.White.copy(alpha = .86f),
-                                radius = 1.7.dp.toPx(),
-                                center = Offset(
-                                    center.x + arcRadius * cos(endpointAngle).toFloat(),
-                                    center.y + arcRadius * sin(endpointAngle).toFloat(),
-                                ),
+                                tipColor = lerp(activeColor, OemCockpitTokens.RedZone, redZoneGlow.value),
                             )
                         }
-
                         if (isRpm && startup.depthProgress > 0f) {
-                            val redStart = (RPM_RED_ZONE_START / maxValue).coerceIn(0f, 1f)
+                            val redSweepStart = DIAL_START_ANGLE + DIAL_SWEEP_ANGLE * redStart
+                            val redSweep = DIAL_SWEEP_ANGLE * (1f - redStart)
+                            if (redZoneGlow.value > 0f) {
+                                drawArc(
+                                    color = OemCockpitTokens.RedZone.copy(alpha = .22f * redZoneGlow.value),
+                                    startAngle = redSweepStart,
+                                    sweepAngle = redSweep,
+                                    useCenter = false,
+                                    topLeft = arcTopLeft,
+                                    size = arcSize,
+                                    style = Stroke(15.dp.toPx(), cap = StrokeCap.Butt),
+                                )
+                            }
                             drawArc(
-                                color = Color(0xFFE23036).copy(alpha = startup.depthProgress),
-                                startAngle = DIAL_START_ANGLE + DIAL_SWEEP_ANGLE * redStart,
-                                sweepAngle = DIAL_SWEEP_ANGLE * (1f - redStart),
+                                color = OemCockpitTokens.RedZone.copy(alpha = (.86f + .14f * redZoneGlow.value) * startup.depthProgress),
+                                startAngle = redSweepStart,
+                                sweepAngle = redSweep,
                                 useCenter = false,
                                 topLeft = arcTopLeft,
                                 size = arcSize,
@@ -309,6 +330,15 @@ internal fun ProgressRingIndicator(
                                 }
                                 Color.White.copy(
                                     alpha = alpha,
+                                )
+                            } else if (isRpm && tick.fraction >= redStart) {
+                                // The red zone stays red, brighter where the value reaches it.
+                                OemCockpitTokens.RedZone.copy(
+                                    alpha = when {
+                                        reachedByValue -> 1f
+                                        tick.major -> .80f
+                                        else -> .40f
+                                    },
                                 )
                             } else if (reachedByValue) {
                                 activeColor.copy(alpha = if (tick.major) 1f else .76f)
@@ -332,12 +362,15 @@ internal fun ProgressRingIndicator(
                                     pendingLabelPaint.apply {
                                         alpha = if (reachedByStartup) 230 else 0
                                     }
+                                } else if (isRpm && labelGeometry.fraction > redStart) {
+                                    redLabelPaint
                                 } else if (reachedByValue) {
                                     reachedLabelPaint
                                 } else {
                                     pendingLabelPaint.apply { alpha = 230 }
                                 }
-                                val baseline = if (!startup.isActive && reachedByValue) {
+                                val bold = reachedByValue || (isRpm && labelGeometry.fraction > redStart)
+                                val baseline = if (!startup.isActive && bold) {
                                     reachedLabelBaseline
                                 } else {
                                     pendingLabelBaseline
@@ -436,4 +469,51 @@ internal fun ProgressRingIndicator(
             }
         }
     }
+}
+
+/**
+ * Lit part of the dial: deeper at the start and brightest at the current value,
+ * with a halo that grows towards the tip and a small bloom on it.
+ */
+private fun DrawScope.drawActiveArc(
+    center: Offset,
+    arcRadius: Float,
+    fraction: Float,
+    stroke: Float,
+    glow: Float,
+    color: Color,
+    tipColor: Color = color,
+) {
+    val sweep = DIAL_SWEEP_ANGLE * fraction
+    val tipStop = sweep / 360f
+    val deep = lerp(OemCockpitTokens.CyanDeep, color, .25f)
+    val arc = Brush.sweepGradient(
+        colorStops = arrayOf(0f to deep, tipStop to color, 1f to color),
+        center = center,
+    )
+    val halo = Brush.sweepGradient(
+        colorStops = arrayOf(0f to color.copy(alpha = 0f), tipStop to color.copy(alpha = .26f), 1f to color.copy(alpha = .26f)),
+        center = center,
+    )
+    val topLeft = Offset(center.x - arcRadius, center.y - arcRadius)
+    val arcSize = Size(arcRadius * 2f, arcRadius * 2f)
+    fun pointAt(angle: Float): Offset {
+        val radians = Math.toRadians(angle.toDouble())
+        return Offset(center.x + arcRadius * cos(radians).toFloat(), center.y + arcRadius * sin(radians).toFloat())
+    }
+    // The gradients start at 0°, so the arc is drawn from there and rotated into place.
+    rotate(DIAL_START_ANGLE, center) {
+        drawArc(halo, 0f, sweep, false, topLeft, arcSize, style = Stroke(glow, cap = StrokeCap.Butt))
+        drawArc(arc, 0f, sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Butt))
+    }
+    // Round ends drawn by hand so each keeps its own colour.
+    drawCircle(deep, stroke / 2f, pointAt(DIAL_START_ANGLE))
+    val tip = pointAt(DIAL_START_ANGLE + sweep)
+    drawCircle(color, stroke / 2f, tip)
+    drawCircle(
+        Brush.radialGradient(listOf(tipColor.copy(alpha = .45f), tipColor.copy(alpha = 0f)), center = tip, radius = glow * 1.3f),
+        glow * 1.3f,
+        tip,
+    )
+    drawCircle(Color.White.copy(alpha = .9f), stroke * .3f, tip)
 }

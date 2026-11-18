@@ -61,8 +61,9 @@ No instales esta versión esperando compatibilidad con:
 - Puntos de interés GeoJSON importables, con categorías, iconos y pulsos
   configurables, y una distancia de aviso por categoría.
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
-- Cuatro temas para la home (Clásico, Horizonte, Facetas y Telemetría), elegibles
-  en Ajustes → Sistema, con versión de día y de noche.
+- Ocho temas para la home (Clásico, Horizonte, Facetas, Telemetría y los
+  ilustrados Submarino, Luna, Galaxia y Aventura), elegibles con
+  miniaturas en Ajustes → Temas.
 - Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
   guarda su propio orden de bloques.
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.
@@ -97,6 +98,22 @@ Facetas:
 Telemetría:
 
 ![Tema Telemetría](docs/screenshots/es/theme-telemetry.png)
+
+Submarino:
+
+![Tema Submarino](docs/screenshots/es/theme-submarine.png)
+
+Luna:
+
+![Tema Luna](docs/screenshots/es/theme-moon.png)
+
+Galaxia:
+
+![Tema Galaxia](docs/screenshots/es/theme-galaxy.png)
+
+Aventura:
+
+![Tema Aventura](docs/screenshots/es/theme-adventure.png)
 
 ### Estadísticas de viajes
 
@@ -137,13 +154,17 @@ el filtro, sin modificar el almacenamiento ni añadir trabajo en segundo plano.
 
 ![Ajustes del mapa](docs/screenshots/es/settings-map.png)
 
-**Asistente IA**
+**Asistente**
 
-![Ajustes del Asistente IA](docs/screenshots/es/settings-ai.png)
+![Ajustes del Asistente](docs/screenshots/es/settings-ai.png)
 
 **Registros**
 
 ![Ajustes de registros](docs/screenshots/es/settings-logs.png)
+
+**Temas**
+
+![Ajustes de temas](docs/screenshots/es/settings-themes.png)
 
 **Sistema**
 
@@ -233,7 +254,7 @@ si observas ese problema: no es necesario en la configuración de referencia.
    - uno o varios catálogos `.geojson`;
    - `categories.json`, con el icono, pulso y color de cada categoría;
    - iconos PNG de 64×64 píxeles, que es el tamaño visual recomendado.
-4. En **Asistente IA**, selecciona Desactivado, OpenAI o Google Gemini. Las
+4. En **Asistente**, selecciona Desactivado, OpenAI o Google Gemini. Las
    claves de OpenAI, Gemini y Google Places se guardan y validan por separado.
    El icono del Asistente IA no aparece en el dashboard mientras esté
    desactivado.
@@ -323,7 +344,7 @@ accesibilidad. No es necesario activar ningún otro servicio.
 
 ### El Asistente IA No Aparece
 
-Abre **Ajustes del Launcher > Asistente IA**, selecciona un proveedor, guarda una
+Abre **Ajustes del Launcher > Asistente**, selecciona un proveedor, guarda una
 clave válida y concede el micrófono. Google Places sólo es necesario para
 búsquedas como “la gasolinera más cercana”.
 

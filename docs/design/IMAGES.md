@@ -16,7 +16,8 @@ que apenas hay imágenes rasterizadas.
 
 * **Vectores primero.** Los pictogramas son `VectorDrawable` XML, teñidos en
   ejecución (`tint`) según el estado.
-* **PNG sólo donde hace falta.** Se usan para el asistente y el marcador de
+* **PNG/WebP sólo donde hace falta.** Se usan para el asistente, los temas
+  ilustrados, las miniaturas de temas y el marcador de
   posición del mapa, en `drawable-nodpi` para controlar la escala sin
   reescalado por densidad.
 * **Sin conjuntos extendidos.** Ajustes usa trazos propios (`SettingsIcons.kt`)
@@ -51,6 +52,32 @@ mismo grupo (`HomeBlocks.kt`).
 | `map_position_waze_no_network.png` | PNG 768 x 707 | Marcador sin red |
 | `ic_map_poi.xml` | Vector 32 dp | Icono de punto de interés en el mapa y en sus ajustes |
 | `assistant_robot.png` | PNG 256 x 184 | Mascota del Asistente IA |
+
+### Temas ilustrados
+
+Imágenes WebP con transparencia en `drawable-nodpi`, generadas con IA para
+Submarino, Luna, Galaxia y Aventura; se dibujan con
+`IllustratedImages.kt`. Los huecos de las portillas están medidos en
+`IllustratedInstruments.kt`.
+
+| Recurso | Uso |
+|---|---|
+| `illustration_sub_porthole.webp`, `illustration_sub_porthole_tall.webp` | Portillas de latón de velocidad y RPM |
+| `illustration_sub_seabase.webp`, `illustration_sub_hut.webp`, `illustration_sub_fish.webp` | Base, casa submarina y pez |
+| `illustration_sub_seaweed.webp` | Algas sobre roca y arena del fondo |
+| `illustration_moon_astronaut.webp`, `illustration_moon_rocket.webp` | Astronauta y cohete de la velocidad |
+| `illustration_moon_alien_ufo.webp`, `illustration_moon_robot.webp` | Platillo con alienígena y robot de las RPM |
+| `illustration_moon_ground.webp`, `illustration_moon_planet.webp` | Suelo lunar y planeta de la barra superior |
+| `illustration_galaxy_rocket.webp`, `illustration_galaxy_nebula.webp` | Cohete del panel de velocidad y nebulosa del de RPM (opaca) |
+| `illustration_galaxy_earth.webp`, `illustration_galaxy_lunar.webp` | Tierra del panel de combustible; suelo lunar de los testigos y de la barra inferior |
+| `illustration_galaxy_planet.webp` | Planeta de la barra superior |
+| `illustration_adv_rocket.webp`, `illustration_adv_cloud.webp`, `illustration_adv_bush.webp` | Cohete y nubes de la barra superior; arbustos de las esquinas |
+| `illustration_adv_icon_<valor>.webp` | Iconos de colores de los seis valores de Aventura |
+
+### Miniaturas de temas
+
+`theme_preview_<tema>.webp` (560 px de ancho): capturas de cada tema para
+Ajustes → Temas; véase [feature-home-themes](../feature-home-themes/README.md).
 
 ### Identidad de la aplicación
 

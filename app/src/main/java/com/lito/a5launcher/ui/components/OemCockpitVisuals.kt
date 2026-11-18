@@ -44,7 +44,11 @@ internal object OemCockpitTokens {
     val TitaniumDim = Color(0xFF6E7B82)
     val GraphitePressed = Color(0xFF1C292F)
     val Cyan = Color(0xFF00DDF4)
+    val CyanDeep = Color(0xFF00708A)
+    val RedZone = Color(0xFFE23036)
     val DialHub = Color(0xFF11171B)
+    val DialHubLight = Color(0xFF1B252B)
+    val DialHubEdge = Color(0xFF080C0E)
     val DialChannel = Color(0xFF29343B)
 }
 

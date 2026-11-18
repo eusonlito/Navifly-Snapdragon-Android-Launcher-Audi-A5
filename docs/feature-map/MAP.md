@@ -30,8 +30,8 @@ El apartado de renderer (`textureMode`) está explicado en [MAPS.md](MAPS.md).
 El núcleo de seguimiento activo incluye:
 
 * anclaje fijo `(50 %, 80 %)` del área visible: en los temas Horizonte,
-  Facetas y Telemetría los paneles tapan parte del mapa y el anclaje se calcula
-  sobre el resto (`MapViewportSpec`, `mapFocalPadding`);
+  Facetas, Telemetría, Submarino y Luna los paneles o instrumentos tapan
+  parte del mapa y el anclaje se calcula sobre el resto (`MapViewportSpec`, `mapFocalPadding`);
 * animación conjunta de posición y rumbo mediante la cámara de MapLibre;
 * rotación `heading-up`, con rumbo GPS suavizado y congelado a baja velocidad;
 * zoom fraccionario entre 0 y 18 (16 por defecto) persistido por estilo;

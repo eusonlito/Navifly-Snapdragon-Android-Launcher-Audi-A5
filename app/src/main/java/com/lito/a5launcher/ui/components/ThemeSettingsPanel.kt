@@ -1,0 +1,144 @@
+package com.lito.a5launcher.ui.components
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
+import com.lito.a5launcher.R
+import com.lito.a5launcher.ui.home.HomeTheme
+
+/** Screen proportions of the head unit, shared by every preview. */
+private const val PREVIEW_ASPECT = 2400f / 896f
+private const val GRID_COLUMNS = 4
+
+internal fun themePreviewRes(theme: HomeTheme): Int = when (theme) {
+    HomeTheme.CLASSIC -> R.drawable.theme_preview_classic
+    HomeTheme.HORIZON -> R.drawable.theme_preview_horizon
+    HomeTheme.FACETS -> R.drawable.theme_preview_facets
+    HomeTheme.TELEMETRY -> R.drawable.theme_preview_telemetry
+    HomeTheme.SUBMARINE -> R.drawable.theme_preview_submarine
+    HomeTheme.MOON -> R.drawable.theme_preview_moon
+    HomeTheme.GALAXY -> R.drawable.theme_preview_galaxy
+    HomeTheme.ADVENTURE -> R.drawable.theme_preview_adventure
+}
+
+/** Grid of home themes, each shown only by its screenshot; the active one is outlined. */
+@Composable
+internal fun ThemeSettingsPanel(
+    selected: HomeTheme,
+    onSelected: (HomeTheme) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SettingsCard(modifier) {
+        ThemeGrid(selected, onSelected)
+    }
+}
+
+@Composable
+private fun ThemeGrid(selected: HomeTheme, onSelected: (HomeTheme) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val gap = SettingsDimensions.CardGap
+        val rows = (HomeTheme.entries.size + GRID_COLUMNS - 1) / GRID_COLUMNS
+        val framePadding = 6.dp
+        val columnWidth = (maxWidth - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS
+        val rowHeight = (maxHeight - gap * (rows - 1)) / rows
+        // The preview keeps the screen proportions and is as large as the cell allows.
+        val previewWidth = min(
+            columnWidth - framePadding * 2,
+            (rowHeight - framePadding * 2) * PREVIEW_ASPECT,
+        )
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(gap, Alignment.CenterVertically),
+        ) {
+            HomeTheme.entries.chunked(GRID_COLUMNS).forEach { row ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(gap, Alignment.Start),
+                ) {
+                    row.forEach { theme ->
+                        Box(Modifier.width(columnWidth), contentAlignment = Alignment.Center) {
+                            ThemeCard(
+                                theme = theme,
+                                selected = theme == selected,
+                                previewWidth = previewWidth,
+                                framePadding = framePadding,
+                                onClick = { onSelected(theme) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeCard(
+    theme: HomeTheme,
+    selected: Boolean,
+    previewWidth: Dp,
+    framePadding: Dp,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(SettingsDimensions.ControlRadius + framePadding)
+    val name = stringResource(theme.labelRes)
+    Box(
+        Modifier
+            .clip(shape)
+            .background(SettingsPalette.Raised)
+            .border(if (selected) 2.dp else 1.dp, if (selected) SettingsPalette.Accent else SettingsPalette.Border, shape)
+            .clickable(role = Role.RadioButton, onClickLabel = name, onClick = onClick)
+            .padding(framePadding),
+    ) {
+        Image(
+            painter = painterResource(themePreviewRes(theme)),
+            contentDescription = name,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier
+                .width(previewWidth)
+                .height(previewWidth / PREVIEW_ASPECT)
+                .clip(RoundedCornerShape(SettingsDimensions.ControlRadius)),
+        )
+        if (selected) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(SettingsPalette.Accent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = SettingsPalette.OnAccent, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}

@@ -65,8 +65,9 @@
     <string name="assistant_destination_location_unavailable">A current location is required to search for the nearest destination.</string>
     <string name="launcher_settings_tab_trips">Trips</string>
     <string name="launcher_settings_tab_map">Map</string>
-    <string name="launcher_settings_tab_assistant">AI Assistant</string>
+    <string name="launcher_settings_tab_assistant">Assistant</string>
     <string name="launcher_settings_tab_logs">Logs</string>
+    <string name="launcher_settings_tab_themes">Themes</string>
     <string name="launcher_settings_tab_system">System</string>
     <string name="launcher_settings_title">Launcher Settings</string>
     <string name="launcher_apps_title">Applications</string>
@@ -102,11 +103,14 @@
     <string name="dashboard_odometer">Odometer</string>
     <string name="dashboard_fuel">Fuel</string>
     <string name="dashboard_witnesses">Warnings</string>
-    <string name="system_theme">Theme</string>
     <string name="home_theme_classic">Classic</string>
     <string name="home_theme_horizon">Horizon</string>
     <string name="home_theme_facets">Facets</string>
     <string name="home_theme_telemetry">Telemetry</string>
+    <string name="home_theme_submarine">Submarine</string>
+    <string name="home_theme_moon">Moon</string>
+    <string name="home_theme_galaxy">Galaxy</string>
+    <string name="home_theme_adventure">Adventure</string>
     <string name="system_application">Application</string>
     <string name="system_version">Version</string>
     <string name="system_build">Build</string>

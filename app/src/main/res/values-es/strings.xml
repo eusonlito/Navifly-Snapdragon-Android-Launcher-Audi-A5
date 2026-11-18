@@ -64,8 +64,9 @@
     <string name="assistant_destination_location_unavailable">Necesito una ubicación actual para buscar el destino más cercano.</string>
     <string name="launcher_settings_tab_trips">Viajes</string>
     <string name="launcher_settings_tab_map">Mapa</string>
-    <string name="launcher_settings_tab_assistant">Asistente IA</string>
+    <string name="launcher_settings_tab_assistant">Asistente</string>
     <string name="launcher_settings_tab_logs">Registros</string>
+    <string name="launcher_settings_tab_themes">Temas</string>
     <string name="launcher_settings_tab_system">Sistema</string>
     <string name="launcher_settings_title">Ajustes del Launcher</string>
     <string name="launcher_apps_title">Aplicaciones</string>
@@ -101,11 +102,14 @@
     <string name="dashboard_odometer">Odómetro</string>
     <string name="dashboard_fuel">Combustible</string>
     <string name="dashboard_witnesses">Testigos</string>
-    <string name="system_theme">Tema</string>
     <string name="home_theme_classic">Clásico</string>
     <string name="home_theme_horizon">Horizonte</string>
     <string name="home_theme_facets">Facetas</string>
     <string name="home_theme_telemetry">Telemetría</string>
+    <string name="home_theme_submarine">Submarino</string>
+    <string name="home_theme_moon">Luna</string>
+    <string name="home_theme_galaxy">Galaxia</string>
+    <string name="home_theme_adventure">Aventura</string>
     <string name="system_application">Aplicación</string>
     <string name="system_version">Versión</string>
     <string name="system_build">Compilación</string>

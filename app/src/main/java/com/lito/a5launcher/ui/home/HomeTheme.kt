@@ -19,6 +19,10 @@ internal enum class HomeTheme(val labelRes: Int) {
     HORIZON(R.string.home_theme_horizon),
     FACETS(R.string.home_theme_facets),
     TELEMETRY(R.string.home_theme_telemetry),
+    SUBMARINE(R.string.home_theme_submarine),
+    MOON(R.string.home_theme_moon),
+    GALAXY(R.string.home_theme_galaxy),
+    ADVENTURE(R.string.home_theme_adventure),
 }
 
 internal fun parseHomeTheme(serialized: String?): HomeTheme =
@@ -208,7 +212,7 @@ internal fun footerBlockOrderKey(theme: HomeTheme): String =
     if (theme == HomeTheme.CLASSIC) "footer_block_order" else "footer_block_order_${theme.name.lowercase()}"
 
 internal fun defaultFooterBlockOrder(theme: HomeTheme): List<FooterBlockItem> = when (theme) {
-    HomeTheme.TELEMETRY -> listOf(
+    HomeTheme.TELEMETRY, HomeTheme.ADVENTURE -> listOf(
         FooterBlockItem.CONSUMPTION,
         FooterBlockItem.RANGE,
         FooterBlockItem.TIME,
@@ -226,6 +230,14 @@ internal fun homeTokensFor(theme: HomeTheme, dark: Boolean): HomeTokens = when (
     HomeTheme.HORIZON -> horizonTokens(dark)
     HomeTheme.FACETS -> facetsTokens(dark)
     HomeTheme.TELEMETRY -> telemetryTokens(dark)
+    HomeTheme.SUBMARINE -> illustratedTokens(SubmarinePalette, dark)
+    HomeTheme.MOON -> illustratedTokens(MoonPalette, dark)
+    HomeTheme.GALAXY -> illustratedTokens(GalaxyPalette, dark)
+    // White witnesses and a dark empty fuel level read better on the bright tiles.
+    HomeTheme.ADVENTURE -> illustratedTokens(AdventurePalette, dark).copy(
+        witnessInactive = Color.White.copy(alpha = .9f),
+        fuelInactive = Color(0x66081A4D),
+    )
 }
 
 internal val LocalHomeTokens = staticCompositionLocalOf { ClassicHomeTokens }

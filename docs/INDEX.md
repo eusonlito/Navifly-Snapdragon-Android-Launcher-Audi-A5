@@ -18,7 +18,7 @@ agrupan por dominio y describen lo que contiene la última versión.
 | [Diseño](design/DESIGN.md) | Geometría, estilo OEM Futuristic y responsive | Vigente |
 | [Capturas](design/CAPTURES.md) | Escena canónica y herramienta externa de captura | Vigente |
 | [Imágenes](design/IMAGES.md) | Recursos gráficos e iconografía | Vigente |
-| [Temas de la home](feature-home-themes/README.md) | Clásico, Horizonte, Facetas y Telemetría | Vigente |
+| [Temas de la home](feature-home-themes/README.md) | Clásico, Horizonte, Facetas, Telemetría, Submarino, Luna, Galaxia y Aventura | Vigente |
 
 ## Funcionalidades
 

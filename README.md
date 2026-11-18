@@ -60,8 +60,9 @@ Do not install this build expecting compatibility with:
 - Importable GeoJSON points of interest with configurable categories, icons and
   pulses, and an alert distance per category.
 - Speed-camera POI markers supplied through the user's local files.
-- Four home themes (Classic, Horizon, Facets and Telemetry), selectable in
-  Settings → System, each with day and night variants.
+- Eight home themes (Classic, Horizon, Facets, Telemetry and the illustrated
+  Submarine, Moon, Galaxy and Adventure), chosen from previews in
+  Settings → Themes.
 - Reorderable top actions and trip blocks using a long press; each theme keeps
   its own block order.
 - Application launcher, app switcher, settings and original Audi MMI access.
@@ -96,6 +97,22 @@ Facets:
 Telemetry:
 
 ![Telemetry theme](docs/screenshots/theme-telemetry.png)
+
+Submarine:
+
+![Submarine theme](docs/screenshots/theme-submarine.png)
+
+Moon:
+
+![Moon theme](docs/screenshots/theme-moon.png)
+
+Galaxy:
+
+![Galaxy theme](docs/screenshots/theme-galaxy.png)
+
+Adventure:
+
+![Adventure theme](docs/screenshots/theme-adventure.png)
 
 ### Trip Statistics
 
@@ -136,13 +153,17 @@ processing.
 
 ![Map settings](docs/screenshots/settings-map.png)
 
-**AI Assistant**
+**Assistant**
 
-![AI Assistant settings](docs/screenshots/settings-ai.png)
+![Assistant settings](docs/screenshots/settings-ai.png)
 
 **Logs**
 
 ![Logs settings](docs/screenshots/settings-logs.png)
+
+**Themes**
+
+![Theme settings](docs/screenshots/settings-themes.png)
 
 **System**
 
@@ -231,7 +252,7 @@ the problem is observed; it is not required on the reference configuration.
    - one or more `.geojson` catalogues;
    - `categories.json`, which defines each category's icon, pulse and colour;
    - 64×64-pixel PNG icons, the recommended visual size.
-4. Under **AI Assistant**, select Disabled, OpenAI or Google Gemini. OpenAI,
+4. Under **Assistant**, select Disabled, OpenAI or Google Gemini. OpenAI,
    Gemini and Google Places keys are stored and validated separately. The AI
    Assistant icon is hidden from the dashboard while the feature is disabled.
 5. Long-press a top action or bottom trip block to reorder it.
@@ -318,7 +339,7 @@ accessibility service is required.
 
 ### The AI Assistant Icon Is Missing
 
-Open **Launcher Settings > AI Assistant**, select a provider, save a valid key
+Open **Launcher Settings > Assistant**, select a provider, save a valid key
 and grant microphone access. Google Places is only needed for requests such as
 “the nearest fuel station”.
 

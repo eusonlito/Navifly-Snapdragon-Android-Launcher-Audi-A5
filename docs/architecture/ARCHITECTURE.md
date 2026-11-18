@@ -24,7 +24,7 @@ La aplicación implementa una arquitectura **MVVM (Model-View-ViewModel)** react
                  ▼ (Compose State)
        ┌────────────────────────┐
        │     DashboardScreen    │ (Capa de Presentación - UI)
-       │  + tema de la home     │ (Clásico, Horizonte, Facetas, Telemetría)
+       │  + tema de la home     │ (ocho temas)
        └────────────────────────┘
 ```
 
@@ -58,7 +58,7 @@ El ViewModel adapta los datos del servicio a la interfaz:
 Construida al 100% de manera declarativa:
 - No almacena estado mutable directo de telemetría; solo observa el estado expuesto por el ViewModel.
 - Divide la interfaz en componentes atómicos independientes y modulares (ej: `ProgressRingIndicator` para las esferas del tema Clásico, `LinearGauge` para las barras de los demás temas, `HomeBlocks` para los bloques y testigos del pie).
-- Las cuatro disposiciones de la home (`ClassicHomeLayout`, `HorizonHomeLayout`, `FacetsHomeLayout` y `TelemetryHomeLayout`, paquete `com.lito.a5launcher.ui.home`) comparten un único `HomeState` y las mismas acciones; el tema se elige en Ajustes → Sistema (véase [Temas de la home](../feature-home-themes/README.md)).
+- Las disposiciones de la home (`ClassicHomeLayout`, `HorizonHomeLayout`, `FacetsHomeLayout`, `TelemetryHomeLayout`, `IllustratedHomeLayout` para Submarino y Luna, `GalaxyHomeLayout` y `AdventureHomeLayout`, paquete `com.lito.a5launcher.ui.home`) comparten un único `HomeState` y las mismas acciones; el tema se elige en Ajustes → Temas (véase [Temas de la home](../feature-home-themes/README.md)).
 - Diseñada con optimizaciones para evitar recomposiciones innecesarias de Compose y mantener una tasa de refresco constante de **60 fps** incluso ante ráfagas masivas de datos CAN.
 
 ### D. Otros módulos del paquete

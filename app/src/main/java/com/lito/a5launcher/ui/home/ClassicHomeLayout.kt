@@ -24,6 +24,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -352,13 +354,14 @@ private fun FooterBlock(
     ) { content() }
 }
 
+/** Divider that fades out at both ends. */
 @Composable
 private fun FooterDivider() {
     val tokens = LocalHomeTokens.current
     Box(
         Modifier
-            .fillMaxHeight(.68f)
+            .fillMaxHeight(.72f)
             .width(1.dp)
-            .background(tokens.divider)
+            .background(Brush.verticalGradient(listOf(Color.Transparent, tokens.divider, tokens.divider, Color.Transparent)))
     )
 }

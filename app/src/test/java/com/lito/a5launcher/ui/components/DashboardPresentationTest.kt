@@ -55,13 +55,14 @@ class DashboardPresentationTest {
     }
 
     @Test
-    fun functionalLogsTabIsImmediatelyBeforeSystem() {
+    fun settingsTabsEndWithLogsThemesAndSystem() {
         assertEquals(
             listOf(
                 LauncherSettingsTab.TRIPS,
                 LauncherSettingsTab.MAP,
                 LauncherSettingsTab.ASSISTANT,
                 LauncherSettingsTab.LOGS,
+                LauncherSettingsTab.THEMES,
                 LauncherSettingsTab.SYSTEM,
             ),
             LauncherSettingsTab.entries,

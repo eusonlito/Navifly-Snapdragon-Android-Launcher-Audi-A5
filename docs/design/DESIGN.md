@@ -28,16 +28,22 @@ sombras localizadas.
 * Las etiquetas de escala usan 14 sp: los valores aún no alcanzados son
   blancos al 90 % de opacidad y cambian a cian/negrita cuando el valor actual
   alcanza su tramo.
-* El progreso utiliza un arco cian preciso; el halo queda limitado al propio
-  arco, sin contaminar mapa ni fondo.
+* El progreso utiliza un arco cian que se aviva hacia el valor actual: empieza
+  en un cian profundo y llega al cian pleno en la punta, que lleva un pequeño
+  destello y un punto blanco. El halo crece hacia la punta y queda limitado al
+  propio arco, sin contaminar mapa ni fondo.
+* En RPM la zona roja (desde 4.500) siempre es roja: arco, marcas y cifras 5 y
+  6. Al entrar en ella el arco rojo gana un halo suave y la punta del progreso
+  pasa a rojo; las marcas alcanzadas se encienden por completo.
 * La marcha sigue siendo un overlay independiente bajo las RPM.
 * Cabecera y pie ocupan ambos el 12,5 % de la altura, comparten 28 dp de padding
   horizontal y se presentan como superficies sin contorno. El cockpit no tiene
   un marco global.
 * Las esferas no dibujan contornos exteriores claros. Su corona grande es negra
-  y se funde con el lateral; el núcleo pequeño usa grafito claro para separar la
-  lectura central y un contorno cromado de 0,7 dp al 50 % compartido con las
-  barras, sin recuperar el aspecto de reloj enmarcado.
+  y se funde con el lateral; el núcleo pequeño usa grafito con un degradado
+  radial muy suave, más claro arriba, para separar la lectura central, un
+  contorno cromado de 0,7 dp al 50 % y un reflejo tenue en la parte superior de
+  ese contorno, sin recuperar el aspecto de reloj enmarcado.
 * Los accesos superiores no muestran caja, relleno ni contorno en reposo; una
   placa grafito aparece únicamente al pulsar o arrastrar. La cabecera y el pie
   usan negro absoluto, sin borde, para prolongar ópticamente el marco del
@@ -88,12 +94,13 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
 * Banda inferior modular: tiempo desde la primera velocidad positiva, distancia
   recorrida en la sesión, consumo, autonomía, combustible con indicador de diez
   segmentos y
-  odómetro. Los valores se muestran sin unidades, se separan visualmente y
-  comparten el mismo padding lateral; los cuatro testigos ocupan el espacio
+  odómetro. Los valores se muestran sin unidades, se separan con divisores que
+  se desvanecen en sus extremos y comparten el mismo padding lateral; los cuatro testigos ocupan el espacio
   flexible restante entre combustible y odómetro como un único grupo, sin
   separadores propios.
   Sus etiquetas ya aportan el contexto y se evita ruido visual (`6,1`, `24`,
-  `393`, `220.409`). El contenido completo se desplaza
+  `393`, `220.409`); se volvió a probar con unidades y se descartó de nuevo.
+  El contenido completo se desplaza
   ligeramente hacia abajo para conservar aire respecto al límite continuo del
   mapa sin aumentar de nuevo la altura de la banda. Los decimales de la banda
   respetan el idioma configurado; únicamente las RPM conservan deliberadamente
@@ -317,9 +324,9 @@ a introducirse anchos estructurales fijos pensados para una densidad concreta.
 
 ### Temas de la home
 
-La home admite cuatro temas (Clásico, Horizonte, Facetas y Telemetría) que se
-eligen en la tarjeta **Aplicación** de Ajustes → Sistema, mediante un selector
-segmentado situado sobre el de idioma. Las reglas de cada tema, los márgenes
+La home admite ocho temas (Clásico, Horizonte, Facetas, Telemetría,
+Submarino, Luna, Galaxia y Aventura) que se eligen en Ajustes → Temas, una cuadrícula de tarjetas
+con la miniatura de cada uno. Las reglas de cada tema, los márgenes
 comunes y la reordenación por tema están en
 [`../feature-home-themes/README.md`](../feature-home-themes/README.md).
 Clásico sigue siendo la referencia de esta sección.

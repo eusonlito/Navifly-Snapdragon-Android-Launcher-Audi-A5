@@ -65,8 +65,8 @@ de los instrumentos. Cada tema de home indica qué bordes tapan sus paneles
 el vehículo en el área restante, al 50 % horizontal y 80 % vertical de esa
 zona. En el tema Clásico, `CockpitMapIntegrationOverlay` pinta un exterior
 negro que sigue la circunferencia de cada esfera y genera los dos límites
-curvos sin alterar el mapa; los otros tres temas usan paneles rectangulares
-sobre el mapa o lo enmarcan (Telemetría). Los paneles de estadísticas de viaje
+curvos sin alterar el mapa; Horizonte y Facetas usan paneles sobre el mapa, Telemetría, Galaxia y Aventura lo enmarcan y
+Submarino y Luna lo recortan con la silueta de sus instrumentos. Los paneles de estadísticas de viaje
 sustituyen al mapa en todos los temas.
 
 La interacción es mínima para evitar distracciones:
