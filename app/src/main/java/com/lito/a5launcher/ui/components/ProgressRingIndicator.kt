@@ -173,13 +173,13 @@ internal fun ProgressRingIndicator(
                         center = Offset(center.x, center.y - radius * .18f),
                         radius = radius * .62f,
                     )
-                    // Soft reflection along the top of the hub rim.
+                    // Reflection along the top-left of the hub rim, where the light comes from.
                     val rimReflection = Brush.sweepGradient(
                         colorStops = arrayOf(
                             0f to Color.Transparent,
-                            .58f to Color.Transparent,
-                            .75f to Color.White.copy(alpha = .16f),
-                            .92f to Color.Transparent,
+                            .54f to Color.Transparent,
+                            .70f to Color.White.copy(alpha = .30f),
+                            .86f to Color.Transparent,
                             1f to Color.Transparent,
                         ),
                         center = center,

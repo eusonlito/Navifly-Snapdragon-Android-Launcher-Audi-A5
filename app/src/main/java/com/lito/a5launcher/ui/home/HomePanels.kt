@@ -25,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
@@ -80,6 +82,9 @@ internal fun Modifier.capHeightBounds(fontSize: TextUnit): Modifier = layout { m
 }
 
 /** Translucent rounded panel used by the themes that float chrome over the map. */
+/** Opacity of the light along the top of a glass panel. */
+private const val GLASS_SHEEN_ALPHA = .07f
+
 @Composable
 internal fun GlassPanel(
     modifier: Modifier = Modifier,
@@ -92,6 +97,15 @@ internal fun GlassPanel(
         modifier
             .clip(shape)
             .background(tokens.surface)
+            // Light falling on the top of the glass, fading out before the content.
+            .drawBehind {
+                drawRect(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = GLASS_SHEEN_ALPHA), Color.Transparent),
+                        endY = size.height * .55f,
+                    ),
+                )
+            }
             .border(1.dp, tokens.surfaceBorder, shape),
         contentAlignment = contentAlignment,
         content = content,
@@ -212,6 +226,7 @@ internal fun BlockStrip(
     modifier: Modifier = Modifier,
     plateShape: Shape = RoundedCornerShape(10.dp),
     dividers: Boolean = true,
+    fadingDividers: Boolean = false,
     itemWeight: (FooterBlockItem) -> Float = { 1f },
     spread: Boolean = false,
     labelGap: Dp = 0.dp,
@@ -241,7 +256,15 @@ internal fun BlockStrip(
                 ) { block(item) }
             }
             if (dividers && index != visibleItems.lastIndex) {
-                if (axis == ReorderAxis.HORIZONTAL) {
+                if (axis == ReorderAxis.HORIZONTAL && fadingDividers) {
+                    Box(
+                        Modifier.fillMaxHeight(.7f).width(1.dp).background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, tokens.divider, tokens.divider, Color.Transparent),
+                            ),
+                        ),
+                    )
+                } else if (axis == ReorderAxis.HORIZONTAL) {
                     Box(Modifier.fillMaxHeight(.56f).width(1.dp).background(tokens.divider))
                 } else {
                     Box(Modifier.fillMaxWidth(.56f).height(1.dp).background(tokens.divider))

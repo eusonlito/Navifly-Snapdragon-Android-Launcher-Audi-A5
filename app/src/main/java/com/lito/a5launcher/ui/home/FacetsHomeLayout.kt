@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -38,6 +39,8 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -177,7 +180,7 @@ internal fun FacetsHomeLayout(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(bottomHeight)
-                .background(tokens.chrome)
+                .background(facetsBarBrush(tokens, lightAtBottom = false))
                 .startupContentAlpha(state)
                 .zIndex(3f),
         ) {
@@ -303,6 +306,7 @@ private fun FacetsLCard(
             .startupOutlineAlpha(state.startupProgress)
             .clip(shape)
             .background(tokens.surface)
+            .drawBehind { drawFacets(mirrored, tokens.accent) }
             .border(1.dp, tokens.surfaceBorder.copy(alpha = .35f), shape),
     ) {
         Box(
@@ -319,6 +323,50 @@ private fun FacetsLCard(
                 .padding(metrics.padding),
             contentAlignment = Alignment.Center,
         ) { footContent() }
+    }
+}
+
+/** One facet: its corners as fractions of the card and how much it lightens (+) or darkens (−) the surface. */
+private class Facet(val tone: Float, vararg val corners: Pair<Float, Float>)
+
+/**
+ * A few large facets covering the card. They only shift the tone of the
+ * surface, so the scale and the readings keep their contrast.
+ */
+private val CardFacets = listOf(
+    Facet(.055f, 0f to 0f, 1f to 0f, .55f to .38f, 0f to .25f),
+    Facet(-.12f, 0f to .25f, .55f to .38f, .28f to .72f, 0f to .62f),
+    Facet(.025f, .55f to .38f, 1f to 0f, 1f to .55f, .50f to .70f),
+    Facet(.07f, 0f to .62f, .28f to .72f, .40f to 1f, 0f to 1f),
+    // The foot reading sits wholly inside the last facet.
+    Facet(-.15f, .28f to .72f, .50f to .70f, .56f to 1f, .40f to 1f),
+    Facet(.045f, .50f to .70f, 1f to .55f, 1f to 1f, .56f to 1f),
+)
+
+/** Ridges between facets that catch the light, as corner pairs. */
+private val CardRidges = listOf(
+    (0f to .25f) to (.55f to .38f),
+    (.55f to .38f) to (.50f to .70f),
+    (.28f to .72f) to (.40f to 1f),
+)
+
+private fun DrawScope.drawFacets(mirrored: Boolean, light: Color) {
+    fun point(corner: Pair<Float, Float>): Offset {
+        val x = if (mirrored) 1f - corner.first else corner.first
+        return Offset(x * size.width, corner.second * size.height)
+    }
+    CardFacets.forEach { facet ->
+        val path = Path().apply {
+            facet.corners.forEachIndexed { index, corner ->
+                val p = point(corner)
+                if (index == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+            }
+            close()
+        }
+        drawPath(path, if (facet.tone > 0f) Color.White.copy(alpha = facet.tone) else Color.Black.copy(alpha = -facet.tone))
+    }
+    CardRidges.forEach { (from, to) ->
+        drawLine(light.copy(alpha = .22f), point(from), point(to), 1.dp.toPx())
     }
 }
 
@@ -355,7 +403,7 @@ private fun FacetsReading(value: () -> String, unit: String, h: Dp) {
 @Composable
 private fun FacetsTopBar(state: HomeState, actions: HomeActions, h: Dp, modifier: Modifier) {
     val tokens = LocalHomeTokens.current
-    Box(modifier.background(tokens.chrome)) {
+    Box(modifier.background(facetsBarBrush(tokens, lightAtBottom = true))) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 22.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -399,6 +447,12 @@ private fun FacetsTopBar(state: HomeState, actions: HomeActions, h: Dp, modifier
         }
         GlowLine(Modifier.align(Alignment.BottomCenter))
     }
+}
+
+/** Bar background that lightens slightly towards the edge it shares with the map. */
+private fun facetsBarBrush(tokens: HomeTokens, lightAtBottom: Boolean): Brush {
+    val lit = lerp(tokens.chrome, tokens.accent, .09f)
+    return Brush.verticalGradient(if (lightAtBottom) listOf(tokens.chrome, lit) else listOf(lit, tokens.chrome))
 }
 
 /** Hairline with a soft blue glow, brightest in the middle. */

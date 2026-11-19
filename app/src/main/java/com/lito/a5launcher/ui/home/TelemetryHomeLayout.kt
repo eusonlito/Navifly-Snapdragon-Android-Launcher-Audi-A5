@@ -1,5 +1,6 @@
 package com.lito.a5launcher.ui.home
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,7 +29,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -47,7 +61,10 @@ import com.lito.a5launcher.ui.components.formatDialValue
 import com.lito.a5launcher.ui.components.fuelFraction
 import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
+import kotlin.math.PI
+import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 private val TelemetrySpeedScale = GaugeScale(maxValue = SPEED_DIAL_MAX_KMH, labelStep = 60, minorPerLabel = 2)
 /** Inner padding shared by every Telemetry tile. */
@@ -69,6 +86,75 @@ private const val SPEED_SEGMENTS = 24
 private val GaugeBarHeight = 16.dp
 private const val FUEL_SEGMENTS = 14
 
+/** Pictogram height relative to the capital letters of its label. */
+private const val ICON_TO_LABEL = 2f
+
+/** Tiles are a raised graphite plate rather than an outlined black box. */
+private val TileBrush = Brush.verticalGradient(listOf(Color(0xFF22282D), Color(0xFF101315)))
+private const val TILE_BORDER_ALPHA = .26f
+
+/** Width of one carbon tow; the weave repeats every four. */
+private val CarbonTow = 3.dp
+private const val CARBON_REPEAT = 4
+
+/** Brightness of the tows that run down and across, from their edge to their crown. */
+private const val CARBON_WARP_BASE = .055f
+private const val CARBON_WARP_SHEEN = .085f
+private const val CARBON_WEFT_BASE = .035f
+private const val CARBON_WEFT_SHEEN = .05f
+
+/** How much the weave darkens towards the bottom of the screen. */
+private const val CARBON_SHADE = .5f
+
+/**
+ * Carbon-fibre backdrop: a 2/2 twill whose tows catch the light along their
+ * crown, darker towards the bottom. The weave is one tiled shader, so it costs
+ * a single rectangle however often the instruments redraw.
+ */
+private fun Modifier.telemetryBackdrop(): Modifier = drawWithCache {
+    val weave = ShaderBrush(ImageShader(carbonWeaveTile(CarbonTow.roundToPx().coerceAtLeast(2)), TileMode.Repeated, TileMode.Repeated))
+    val shade = Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = CARBON_SHADE)))
+    onDrawBehind {
+        drawRect(weave)
+        drawRect(shade)
+    }
+}
+
+/**
+ * One repeat of the twill. Each tow passes over two and under two, shifted one
+ * tow per row, which draws the diagonal ribs of woven carbon.
+ */
+private fun carbonWeaveTile(tow: Int): ImageBitmap {
+    val side = tow * CARBON_REPEAT
+    val pixels = IntArray(side * side)
+    for (y in 0 until side) {
+        for (x in 0 until side) {
+            val column = x / tow
+            val row = y / tow
+            val warpOnTop = (column - row).mod(CARBON_REPEAT) < CARBON_REPEAT / 2
+            // Position across the tow and along the stretch that stays on top.
+            val across: Float
+            val along: Float
+            if (warpOnTop) {
+                across = (x % tow + .5f) / tow
+                along = ((y - (column - 1) * tow).mod(side) + .5f) / (tow * 2)
+            } else {
+                across = (y % tow + .5f) / tow
+                along = ((x - (row + 2) * tow).mod(side) + .5f) / (tow * 2)
+            }
+            val crown = sin(PI * across).toFloat() * (.5f + .5f * sin(PI * along).toFloat())
+            val light = if (warpOnTop) {
+                CARBON_WARP_BASE + CARBON_WARP_SHEEN * crown
+            } else {
+                CARBON_WEFT_BASE + CARBON_WEFT_SHEEN * crown
+            }
+            // A cool grey: slightly more blue than red.
+            pixels[y * side + x] = Color(light * .94f, light, light * 1.1f).toArgb()
+        }
+    }
+    return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
+}
+
 /**
  * Data-dense layout: command rail, framed map, instruments, a 3 × 2 grid of
  * values and two wide tiles for fuel and witnesses.
@@ -81,7 +167,7 @@ internal fun TelemetryHomeLayout(
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalHomeTokens.current
-    BoxWithConstraints(modifier.fillMaxSize().background(tokens.background)) {
+    BoxWithConstraints(modifier.fillMaxSize().background(tokens.background).telemetryBackdrop()) {
         val h = maxHeight
         val w = maxWidth
         val railWidth = w * .05f
@@ -223,11 +309,24 @@ private fun TelemetryInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
                 TelemetryShiftLights(state, Modifier.fillMaxWidth().height(gaugeHeight))
             }
         }
-        // Gear in its own tile, outlined in the accent colour.
-        TelemetryCell(
-            Modifier.width(h * .2f).fillMaxHeight(),
-            borderColor = tokens.accent,
-            borderWidth = 3.dp,
+        // Gear between two open brackets in the accent colour.
+        Box(
+            Modifier.width(h * .2f).fillMaxHeight().drawBehind {
+                val stroke = 3.dp.toPx()
+                val arm = 12.dp.toPx()
+                val inset = stroke / 2f
+                for (mirror in listOf(false, true)) {
+                    val x = if (mirror) size.width - inset else inset
+                    val reach = if (mirror) -arm else arm
+                    val bracket = Path().apply {
+                        moveTo(x + reach, inset)
+                        lineTo(x, inset)
+                        lineTo(x, size.height - inset)
+                        lineTo(x + reach, size.height - inset)
+                    }
+                    drawPath(bracket, tokens.accent, style = Stroke(stroke))
+                }
+            },
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -286,16 +385,14 @@ private fun TelemetryShiftLights(state: HomeState, modifier: Modifier) {
 @Composable
 private fun TelemetryCell(
     modifier: Modifier,
-    borderColor: Color? = null,
-    borderWidth: Dp = 1.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val tokens = LocalHomeTokens.current
     Box(
         modifier
             .clip(CellShape)
-            .background(tokens.surface)
-            .border(borderWidth, borderColor ?: tokens.surfaceBorder, CellShape),
+            .background(TileBrush)
+            .border(1.dp, tokens.surfaceBorder.copy(alpha = TILE_BORDER_ALPHA), CellShape),
         content = content,
     )
 }
@@ -309,7 +406,30 @@ private fun TelemetryValueGrid(state: HomeState, actions: HomeActions, h: Dp, ga
     val cells = remember { mutableMapOf<Int, CellBounds>() }
     val labelSize = (h.value * .03f).sp
     val valueSize = (h.value * .064f).sp
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
+    val rows = (visibleItems.size + GRID_COLUMNS - 1) / GRID_COLUMNS
+    val divider = LocalHomeTokens.current.divider
+    Column(
+        // An open grid: thin rules between the values instead of a box around each.
+        modifier.drawBehind {
+            val gapPx = gap.toPx()
+            val cellWidth = (size.width - gapPx * (GRID_COLUMNS - 1)) / GRID_COLUMNS
+            val cellHeight = (size.height - gapPx * (rows - 1)) / rows
+            val inset = cellHeight * .12f
+            val stroke = 1.dp.toPx()
+            for (row in 0 until rows) {
+                val top = row * (cellHeight + gapPx)
+                for (column in 1 until GRID_COLUMNS) {
+                    val x = column * (cellWidth + gapPx) - gapPx / 2f
+                    drawLine(divider, Offset(x, top + inset), Offset(x, top + cellHeight - inset), stroke)
+                }
+                if (row > 0) {
+                    val y = top - gapPx / 2f
+                    drawLine(divider, Offset(0f, y), Offset(size.width, y), stroke)
+                }
+            }
+        },
+        verticalArrangement = Arrangement.spacedBy(gap),
+    ) {
         visibleItems.chunked(GRID_COLUMNS).forEachIndexed { row, items ->
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 items.forEachIndexed { column, item ->
@@ -324,9 +444,7 @@ private fun TelemetryValueGrid(state: HomeState, actions: HomeActions, h: Dp, ga
                             onMove = actions.onFooterBlockOrderChanged,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
-                            TelemetryCell(Modifier.fillMaxSize()) {
-                                TelemetryValueTile(item, state, actions, labelSize, valueSize)
-                            }
+                            TelemetryValueTile(item, state, actions, labelSize, valueSize)
                         }
                     }
                 }
@@ -353,8 +471,13 @@ private fun TelemetryValueTile(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Label and value form one group centred in the tile.
-        BlockLabel(blockLabel(item), labelSize, color = tokens.content)
+        // Label and value are centred in the tile; the pictogram hangs beside the label.
+        val iconSize = with(LocalDensity.current) { (labelSize.toPx() * CAP_HEIGHT_RATIO * ICON_TO_LABEL).toDp() }
+        LabelWithHangingIcon(
+            icon = { BlockIcon(item, tokens.accent, Modifier.size(iconSize)) },
+            label = { BlockLabel(blockLabel(item), labelSize, color = tokens.content) },
+            gap = iconSize * .45f,
+        )
         Spacer(Modifier.height(ReadingGap))
         // Every value keeps the full-size height, so a shrunk odometer stays aligned.
         val valueHeight = with(LocalDensity.current) { (valueSize.toPx() * CAP_HEIGHT_RATIO).toDp() }
@@ -371,6 +494,24 @@ private fun TelemetryValueTile(
                     color = if (reading.warning) tokens.warning else null,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Lays out [label] as if it were alone, so it is what gets centred, and hangs
+ * [icon] to its left outside those bounds.
+ */
+@Composable
+private fun LabelWithHangingIcon(icon: @Composable () -> Unit, label: @Composable () -> Unit, gap: Dp) {
+    Layout(content = { icon(); label() }) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val iconPlaceable = measurables[0].measure(loose)
+        val labelPlaceable = measurables[1].measure(loose)
+        val height = max(iconPlaceable.height, labelPlaceable.height)
+        layout(labelPlaceable.width, height) {
+            labelPlaceable.place(0, (height - labelPlaceable.height) / 2)
+            iconPlaceable.place(-(iconPlaceable.width + gap.roundToPx()), (height - iconPlaceable.height) / 2)
         }
     }
 }

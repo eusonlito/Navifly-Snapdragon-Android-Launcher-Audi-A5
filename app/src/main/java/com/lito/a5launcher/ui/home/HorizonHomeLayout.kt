@@ -201,8 +201,9 @@ internal fun HorizonHomeLayout(
                 axis = ReorderAxis.HORIZONTAL,
                 labelSize = labelSize,
                 valueSize = valueSize,
-                unitSize = valueSize,
+                unitSize = valueSize * .64f,
                 modifier = Modifier.fillMaxSize().padding(horizontal = pad),
+                fadingDividers = true,
                 labelGap = 8.dp,
             )
         }
@@ -280,6 +281,7 @@ private fun HorizonSpeedBar(state: HomeState, modifier: Modifier) {
         barHeight = 12.dp,
         labelSize = 14.sp,
         modifier = modifier,
+        brightTip = true,
     )
 }
 
@@ -295,6 +297,7 @@ private fun HorizonRpmBar(state: HomeState, modifier: Modifier) {
         modifier = modifier,
         redZoneFrom = RPM_RED_ZONE_FRACTION,
         showMinorTicks = false,
+        brightTip = true,
     )
 }
 

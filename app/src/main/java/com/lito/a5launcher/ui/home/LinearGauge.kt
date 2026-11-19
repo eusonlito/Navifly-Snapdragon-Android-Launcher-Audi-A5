@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
@@ -109,11 +110,15 @@ internal fun HorizontalBarGauge(
     segmentColor: ((index: Int, segments: Int) -> Color)? = null,
     showMinorTicks: Boolean = true,
     marker: Boolean = false,
+    brightTip: Boolean = false,
 ) {
     val tokens = LocalHomeTokens.current
     Canvas(
         modifier.drawWithCache {
             val bar = barHeight.toPx()
+            val fillColors = if (tokens.gaugeFill.size > 1) tokens.gaugeFill else tokens.gaugeFill + tokens.gaugeFill
+            val tipWidth = 2.5.dp.toPx()
+            val tipColor = lerp(tokens.gaugeFill.last(), Color.White, .75f)
             val radius = CornerRadius(bar / 2f, bar / 2f)
             val labelPx = labelSize.toPx()
             val paint = labelPaint(tokens.label, labelPx, GaugeLabelTypeface, Paint.Align.CENTER)
@@ -134,9 +139,16 @@ internal fun HorizontalBarGauge(
                 val shown = fraction.value.coerceIn(0f, 1f) * startup.depthProgress
                 if (segments <= 0) {
                     drawRoundRect(tokens.gaugeTrack, Offset.Zero, Size(size.width, bar), radius, alpha = startup.dialOutlineAlpha)
+                    val filled = size.width * shown
                     if (shown > 0f) {
-                        clipRect(right = size.width * shown) {
-                            drawRoundRect(fillBrush, Offset.Zero, Size(size.width, bar), radius)
+                        clipRect(right = filled) {
+                            // With a bright tip the fill always ends in its lightest colour.
+                            val brush = if (brightTip) {
+                                Brush.horizontalGradient(fillColors, startX = 0f, endX = filled.coerceAtLeast(1f))
+                            } else {
+                                fillBrush
+                            }
+                            drawRoundRect(brush, Offset.Zero, Size(size.width, bar), radius)
                         }
                     }
                     redZoneFrom?.let { from ->
@@ -147,6 +159,9 @@ internal fun HorizontalBarGauge(
                             radius,
                             alpha = if (shown >= from) 1f else .78f * startup.depthProgress,
                         )
+                    }
+                    if (brightTip && filled > bar) {
+                        drawRect(tipColor, Offset((filled - tipWidth).coerceAtMost(size.width - bar / 2f), 0f), Size(tipWidth, bar))
                     }
                 } else {
                     val lit = gaugeSegmentsLit(shown, segments)

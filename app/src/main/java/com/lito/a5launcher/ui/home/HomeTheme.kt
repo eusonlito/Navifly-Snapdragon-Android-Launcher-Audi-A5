@@ -85,17 +85,19 @@ internal val ClassicHomeTokens = HomeTokens(
 )
 
 private val HorizonCyan = Color(0xFF22D3EE)
+private val HorizonCyanDeep = Color(0xFF0B8FA3)
 private val HorizonGlass = Color(0xFF1C2127)
 
 private fun horizonTokens(dark: Boolean) = HomeTokens(
     background = Color(0xFF101418),
     chrome = Color.Transparent,
     surface = HorizonGlass.copy(alpha = if (dark) .90f else .84f),
-    surfaceBorder = Color.White.copy(alpha = if (dark) .07f else .10f),
+    // A fine edge of light that keeps the glass apart from the dark map.
+    surfaceBorder = Color(0xFFC8D1D8).copy(alpha = if (dark) .20f else .26f),
     content = Color.White,
     label = Color.White.copy(alpha = .64f),
     accent = HorizonCyan,
-    gaugeFill = listOf(HorizonCyan, HorizonCyan),
+    gaugeFill = listOf(HorizonCyanDeep, HorizonCyan),
     gaugeTrack = Color.White.copy(alpha = .20f),
     gaugeOutline = Color.White.copy(alpha = .55f),
     redZone = Color(0xFFEF4444),

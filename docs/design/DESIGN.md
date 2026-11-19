@@ -42,8 +42,8 @@ sombras localizadas.
 * Las esferas no dibujan contornos exteriores claros. Su corona grande es negra
   y se funde con el lateral; el núcleo pequeño usa grafito con un degradado
   radial muy suave, más claro arriba, para separar la lectura central, un
-  contorno cromado de 0,7 dp al 50 % y un reflejo tenue en la parte superior de
-  ese contorno, sin recuperar el aspecto de reloj enmarcado.
+  contorno cromado de 0,7 dp al 50 % y un reflejo suave en la parte superior
+  izquierda de ese contorno, sin recuperar el aspecto de reloj enmarcado.
 * Los accesos superiores no muestran caja, relleno ni contorno en reposo; una
   placa grafito aparece únicamente al pulsar o arrastrar. La cabecera y el pie
   usan negro absoluto, sin borde, para prolongar ópticamente el marco del

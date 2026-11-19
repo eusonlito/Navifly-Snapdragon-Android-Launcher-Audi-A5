@@ -7,9 +7,9 @@ puntos de interés, Asistente IA y animación de arranque.
 | Tema | Captura | Disposición |
 |---|---|---|
 | **Clásico** | [`dashboard.png`](../screenshots/es/dashboard.png) | Esferas circulares de velocidad y RPM pegadas a los bordes, sobre el mapa, con arco que se aviva hacia el valor y zona roja que se enciende; es el valor por defecto. |
-| **Horizonte** | [`theme-horizon.png`](../screenshots/es/theme-horizon.png) | Mapa a pantalla completa con paneles de cristal en dos columnas alineadas abajo. Velocidad y RPM en barras horizontales a la izquierda; combustible horizontal y testigos a la derecha. |
-| **Facetas** | [`theme-facets.png`](../screenshots/es/theme-facets.png) | Velocidad y RPM en tarjetas en forma de L (la de RPM invertida): banda vertical coral-magenta a toda altura y la lectura en el pie. Los ocho bloques van en una fila inferior. |
-| **Telemetría** | [`theme-telemetry.png`](../screenshots/es/theme-telemetry.png) | Mapa enmarcado a la izquierda y fichas a la derecha: velocidad y RPM absolutas con barras segmentadas, marcha en caja propia, cuadrícula de 3×2 valores, combustible y testigos. |
+| **Horizonte** | [`theme-horizon.png`](../screenshots/es/theme-horizon.png) | Mapa a pantalla completa con paneles de cristal en dos columnas alineadas abajo. Velocidad y RPM en barras horizontales a la izquierda, con relleno en degradado y punta clara; combustible horizontal y testigos a la derecha. |
+| **Facetas** | [`theme-facets.png`](../screenshots/es/theme-facets.png) | Velocidad y RPM en tarjetas en forma de L (la de RPM invertida): banda vertical coral-magenta a toda altura y la lectura en el pie, sobre un fondo de facetas en tonos del mismo azul. Los ocho bloques van en una fila inferior. |
+| **Telemetría** | [`theme-telemetry.png`](../screenshots/es/theme-telemetry.png) | Mapa enmarcado a la izquierda y fichas a la derecha: velocidad y RPM absolutas con barras segmentadas, marcha entre corchetes amarillos, cuadrícula abierta de 3×2 valores con pictograma junto a cada etiqueta, combustible y testigos. |
 | **Submarino** | [`theme-submarine.png`](../screenshots/es/theme-submarine.png) | Ilustrado submarino: velocidad en una portilla de latón con base submarina, RPM en una portilla alargada con la marcha arriba, algas sobre roca, pez y burbujas. Barras superior e inferior transparentes, sólo con su contorno; combustible con barra segmentada. |
 | **Luna** | [`theme-moon.png`](../screenshots/es/theme-moon.png) | Ilustrado lunar con bordes de neón: astronauta saludando en la esfera de velocidad, platillo con alienígena y marcha en insignia en la de RPM, cohete, robot y suelo lunar. Barra superior en tres píldoras y combustible con barra segmentada. |
 | **Galaxia** | [`theme-galaxy.png`](../screenshots/es/theme-galaxy.png) | Paneles de cristal espaciales: velocidad (con cohete) y RPM con marcha (sobre una nebulosa) en barras a la izquierda, mapa en el centro, combustible sobre la Tierra y testigos sobre suelo lunar a la derecha, y los seis valores en una barra inferior. |
@@ -47,6 +47,19 @@ puntos de interés, Asistente IA y animación de arranque.
   sea el mismo arriba, abajo y a los lados.
 - Las tarjetas en L de Facetas se dimensionan a partir de su contenido más
   ancho (tres cifras de velocidad; marcha y una cifra con decimal en RPM).
+  Sus facetas sólo aclaran u oscurecen el fondo de la tarjeta y ninguna
+  arista pasa por detrás de la lectura del pie; las barras superior e
+  inferior se aclaran ligeramente hacia el mapa.
+- Los paneles de Horizonte son de cristal: un borde fino de luz, un brillo
+  tenue en su parte superior y, en la fila de valores, separadores que se
+  desvanecen en los extremos y unidades más pequeñas que la cifra.
+- En Telemetría, los seis valores no tienen caja: los separan líneas finas.
+  Cada etiqueta va centrada sobre su cifra y lleva colgado a su izquierda un
+  pictograma de línea (`BlockIcons.kt`) en el amarillo de acento, del doble
+  de alto que sus mayúsculas; el pictograma no cuenta para centrar ni resta
+  ancho a la cifra. El fondo no es negro plano: una trama de fibra de carbono
+  (sarga 2/2) que se oscurece hacia abajo, y las fichas son placas de grafito
+  algo más claras con un contorno tenue.
 - Sólo se usan fuentes del sistema; Telemetría y los temas ilustrados usan
   Roboto Black para las cifras.
 - Los paneles de estadísticas de viaje, parcial y total sustituyen al mapa:
