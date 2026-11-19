@@ -237,7 +237,13 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     var showLauncherSettings by remember { mutableStateOf(false) }
     var statisticsPanel by remember { mutableStateOf<StatisticsPanelScope?>(null) }
     var showManualPartialResetConfirmation by remember { mutableStateOf(false) }
-    var launcherSettingsTab by remember { mutableStateOf(LauncherSettingsTab.TRIPS) }
+    // Settings reopen on the tab the user last looked at, also after a restart.
+    var launcherSettingsTab by remember {
+        mutableStateOf(parseLauncherSettingsTab(launcherPreferences.getString(LAUNCHER_SETTINGS_TAB_KEY, null)))
+    }
+    LaunchedEffect(launcherSettingsTab) {
+        launcherPreferences.edit { putString(LAUNCHER_SETTINGS_TAB_KEY, launcherSettingsTab.name) }
+    }
     val topCommandOrderState = remember {
         mutableStateOf(parseTopCommandOrder(launcherPreferences.getString(TOP_COMMAND_ORDER_KEY, null)))
     }
@@ -581,10 +587,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             onNavigation = launchNavigation,
             onAssistant = { currentStartAssistantTurn() },
             onApps = { showApps = true },
-            onLauncherSettings = {
-                launcherSettingsTab = LauncherSettingsTab.TRIPS
-                showLauncherSettings = true
-            },
+            onLauncherSettings = { showLauncherSettings = true },
             onDeviceSettings = viewModel::launchSettings,
             onRecents = viewModel::openRecentApps,
             onMmi = viewModel::launchOriginalMMI,
@@ -739,6 +742,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                         homeTheme = theme
                         footerBlockOrder = storedFooterBlockOrder(theme)
                         launcherPreferences.edit { putString(HOME_THEME_KEY, theme.name) }
+                        // Choosing a theme is the whole task: go straight back to the home screen.
+                        showLauncherSettings = false
                     },
                     selectedTab = launcherSettingsTab,
                     onSelectedTabChanged = { launcherSettingsTab = it },
@@ -1693,6 +1698,12 @@ private fun PoiItemRow(icon: ImageVector, label: String, detail: String, onDelet
         )
     }
 }
+
+internal const val LAUNCHER_SETTINGS_TAB_KEY = "launcher_settings_tab"
+
+/** The stored tab, or the first one when nothing (or an unknown name) is stored. */
+internal fun parseLauncherSettingsTab(value: String?): LauncherSettingsTab =
+    LauncherSettingsTab.entries.firstOrNull { it.name == value } ?: LauncherSettingsTab.TRIPS
 
 internal enum class LauncherSettingsTab(val labelRes: Int) {
     TRIPS(R.string.launcher_settings_tab_trips),

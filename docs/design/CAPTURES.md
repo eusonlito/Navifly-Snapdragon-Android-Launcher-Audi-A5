@@ -36,7 +36,10 @@ escena temporal.
 
 La sesión de desarrollo dispone de display local. Para cambios visuales se
 debe lanzar el emulador en modo gráfico con `./scripts/emulator.sh --replay RUTA_JSONL` y mantenerlo
-abierto para que el usuario revise directamente el resultado. La tarea no se
+abierto para que el usuario revise directamente el resultado. Si ya hay un
+emulador sin ventana en marcha (por ejemplo, el que deja
+`capture-emulator.sh --keep-emulator`), el script lo detiene y arranca el mismo
+AVD con ventana, en lugar de reutilizarlo. La tarea no se
 considera cerrada y no se genera el APK de producción hasta recibir su
 validación visual explícita.
 

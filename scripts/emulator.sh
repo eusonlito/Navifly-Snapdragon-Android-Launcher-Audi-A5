@@ -171,10 +171,28 @@ echo -e "${GREEN}[INFO]${NC} Ejecutable de ADB: ${BOLD}$ADB_PATH${NC}"
 # 3. Reutilizar únicamente un emulador, nunca un dispositivo físico.
 TARGET_SERIAL=$("$ADB_PATH" devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }')
 
+PREFERRED_AVD=""
 if [ -n "$TARGET_SERIAL" ]; then
-    echo -e "${YELLOW}${BOLD}[DETECTADO]${NC} Emulador activo: ${BOLD}$TARGET_SERIAL${NC}"
-    echo -e "Se reutilizará y se aplicará de nuevo el perfil de pantalla Navifly."
-else
+    # Un emulador sin ventana (el que deja capture-emulator.sh) no se ve en el
+    # escritorio: se detiene y se vuelve a arrancar el mismo AVD con ventana.
+    RUNNING_AVD=$("$ADB_PATH" -s "$TARGET_SERIAL" emu avd name 2>/dev/null | head -1 | tr -d '\r')
+    if [ -n "$RUNNING_AVD" ] && pgrep -f "qemu-system-[^ ]* -avd $RUNNING_AVD( |$).*-no-window" >/dev/null; then
+        echo -e "${YELLOW}${BOLD}[DETECTADO]${NC} Emulador sin ventana: ${BOLD}$TARGET_SERIAL${NC} ($RUNNING_AVD)"
+        echo -e "Se detiene para arrancarlo de nuevo con ventana."
+        "$ADB_PATH" -s "$TARGET_SERIAL" emu kill >/dev/null 2>&1 || true
+        for _ in $(seq 1 60); do
+            pgrep -f "qemu-system-[^ ]* -avd $RUNNING_AVD( |$)" >/dev/null || break
+            sleep 1
+        done
+        PREFERRED_AVD=$RUNNING_AVD
+        TARGET_SERIAL=""
+    else
+        echo -e "${YELLOW}${BOLD}[DETECTADO]${NC} Emulador activo: ${BOLD}$TARGET_SERIAL${NC}"
+        echo -e "Se reutilizará y se aplicará de nuevo el perfil de pantalla Navifly."
+    fi
+fi
+
+if [ -z "$TARGET_SERIAL" ]; then
     # 4. Listar AVDs disponibles si no hay ninguno encendido
     echo -e "${CYAN}[SEARCH]${NC} Buscando dispositivos virtuales (AVDs)..."
     AVD_LIST=()
@@ -191,7 +209,10 @@ else
     fi
 
     SELECTED_AVD=""
-    if [ ${#AVD_LIST[@]} -eq 1 ]; then
+    if [ -n "$PREFERRED_AVD" ]; then
+        SELECTED_AVD="$PREFERRED_AVD"
+        echo -e "${GREEN}[INFO]${NC} Se vuelve a arrancar: ${BOLD}$SELECTED_AVD${NC}"
+    elif [ ${#AVD_LIST[@]} -eq 1 ]; then
         SELECTED_AVD="${AVD_LIST[0]}"
         echo -e "${GREEN}[INFO]${NC} Se ha detectado un único dispositivo: ${BOLD}$SELECTED_AVD${NC}"
     else

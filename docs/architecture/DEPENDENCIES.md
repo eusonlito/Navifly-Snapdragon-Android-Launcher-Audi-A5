@@ -1,6 +1,6 @@
 # Estado de dependencias
 
-Auditoría actualizada el 17 de noviembre de 2026. Sólo se seleccionan versiones
+Auditoría actualizada el 19 de noviembre de 2026. Sólo se seleccionan versiones
 estables publicadas en los repositorios oficiales.
 
 ## Versiones activas
@@ -20,7 +20,8 @@ estables publicadas en los repositorios oficiales.
 | JUnit | 4.13.2 | Última versión estable de JUnit 4 |
 | org.json (pruebas) | 20260814 | Actualizado; no se empaqueta en el APK |
 | Plugin de informe de actualizaciones | 0.67.0 | Actualizado |
-| grpcio (emulador) | 1.85.1 | Actualizado; no se empaqueta en el APK |
+| grpcio (emulador) | 1.85.3 | Actualizado; no se empaqueta en el APK |
+| Acciones de GitHub Actions | checkout 7.0.1 · setup-java 6.3.0 · setup-android 4.0.4 · gradle/actions 6.4.1 | Actualizadas y fijadas por commit |
 
 MapLibre utiliza los estilos vectoriales Positron, Liberty y Bright de
 OpenFreeMap. osmdroid se ha retirado del APK; el directorio de su antigua caché
@@ -43,9 +44,9 @@ las notas de versión de [AGP](https://developer.android.com/build/releases/abou
 y la [guía de Kotlin](https://kotlinlang.org/docs/gradle-configure-project.html);
 la combinación seleccionada se valida localmente con las pruebas y la compilación.
 
-La combinación actual compila con `testDebugUnitTest` (326 pruebas sin fallos),
+La combinación actual compila con `testDebugUnitTest` (333 pruebas sin fallos),
 `lintRelease`, `minifyReleaseWithR8` y `assembleDebug`. El informe de
-actualizaciones del 17 de noviembre de 2026 no registra dependencias obsoletas
+actualizaciones del 19 de noviembre de 2026 no registra dependencias obsoletas
 salvo la variante `2026.11.2-globe` de MapLibre ni fallos de resolución.
 
 No se usan versiones dinámicas ni snapshots. La compilación y la prueba en el
@@ -96,7 +97,7 @@ procesadas. La configuración de empaquetado evita intentar aplicarles `strip`
 por segunda vez, sin conservar símbolos adicionales ni aumentar el APK.
 
 Lint forma parte de `scripts/compile.sh` y debe finalizar sin errores (el último informe
-local registra 0 errores y 16 advertencias). Sólo se
+local registra 0 errores y 17 advertencias). Sólo se
 excluyen dos reglas deliberadas: compatibilidad ChromeOS/x86, que no corresponde
 al APK específico del coche, y la recomendación Timber originada por una
 dependencia transitiva de MapLibre; el diagnóstico del launcher usa Logcat.

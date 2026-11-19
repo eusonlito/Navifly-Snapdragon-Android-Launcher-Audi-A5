@@ -78,6 +78,8 @@ private val TileColors = mapOf(
     FooterBlockItem.FUEL to (Color(0xFF2F7DEB) to Color(0xFF1653C6)),
     FooterBlockItem.WITNESSES to (Color(0xFF2050B6) to Color(0xFF173C92)),
 )
+/** A value in warning (low range, for instance) turns its whole tile red and keeps white figures. */
+private val WarningTileColors = Color(0xFFF0353F) to Color(0xFFB8122B)
 private val SpeedTileColors = Color(0xFF3DA9F8) to Color(0xFF1B6BDD)
 private val RpmTileColors = Color(0xFF8C5EF1) to Color(0xFF6033D3)
 private val GearTileColors = Color(0xFFFFE066) to Color(0xFFF6B100)
@@ -271,7 +273,7 @@ private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
         }
         Box(
             Modifier.width(h * .21f).fillMaxHeight().adventureTile(GearTileColors).drawWithCache {
-                val star = starPath(Offset(size.width / 2f, (size.height - 4.dp.toPx()) / 2f), size.width * .44f)
+                val star = starPath(Offset(size.width / 2f, (size.height - 4.dp.toPx()) / 2f), size.width * .49f)
                 onDrawBehind {
                     drawPath(star, Color(0xFFFFEB8A))
                     drawPath(star, Color(0xFFE8A200), style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
@@ -281,10 +283,13 @@ private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
             },
             contentAlignment = Alignment.Center,
         ) {
-            IllustratedText(state.gear.value, (h.value * .13f).sp, Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = -2.dp))
+            IllustratedText(state.gear.value, (h.value * .112f).sp, Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = -2.dp))
         }
     }
 }
+
+/** Space between a value tile's label and its reading, as in Telemetry. */
+private val ValueGap = 12.dp
 
 /** Five-point star with rounded joins, for the gear tile. */
 private fun starPath(center: Offset, radius: Float) = Path().apply {
@@ -320,7 +325,9 @@ private fun AdventureValueGrid(state: HomeState, actions: HomeActions, h: Dp, ga
                             onMove = actions.onFooterBlockOrderChanged,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
-                            Box(Modifier.fillMaxSize().adventureTile(TileColors.getValue(item)).padding(bottom = 4.dp)) {
+                            val warning = rememberBlockReading(item, state)?.warning == true
+                            val colors = if (warning) WarningTileColors else TileColors.getValue(item)
+                            Box(Modifier.fillMaxSize().adventureTile(colors).padding(bottom = 4.dp)) {
                                 IconValueTile(
                                     item,
                                     state,
@@ -331,7 +338,7 @@ private fun AdventureValueGrid(state: HomeState, actions: HomeActions, h: Dp, ga
                                     padding = h * .028f,
                                     labelColor = Color.White,
                                     contentColor = Color.White,
-                                    iconScale = 3.2f,
+                                    iconScale = 2.2f,
                                 )
                             }
                         }
@@ -459,33 +466,43 @@ private fun IconValueTile(
     val iconImage = ImageBitmap.imageResource(icon)
     val labelHeight = with(LocalDensity.current) { labelSize.toDp() * CAP_HEIGHT_RATIO }
     val iconHeight = labelHeight * iconScale
+    // Built like the Telemetry tiles: label and value centred, the icon hanging
+    // beside the label without moving it, and the same gap between both.
     Column(
         Modifier
             .fillMaxSize()
             .then(if (scope != null) Modifier.clickable { actions.onStatistics(scope) } else Modifier)
             .padding(horizontal = padding),
         verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                iconImage,
-                contentDescription = null,
-                modifier = Modifier.size(iconHeight * iconImage.width / iconImage.height, iconHeight),
-            )
-            Spacer(Modifier.width(padding * .5f))
-            BlockLabel(blockLabel(item), labelSize, color = labelColor)
-        }
-        Spacer(Modifier.height(labelHeight * .6f))
-        val reading = rememberBlockReading(item, state)
-        if (reading != null) {
-            val fit = (7f / reading.value.length).coerceAtMost(1f)
-            ValueWithUnit(
-                reading.value,
-                reading.unit,
-                valueSize * fit,
-                valueSize * .5f,
-                color = if (reading.warning) tokens.warning else contentColor,
-            )
+        LabelWithHangingIcon(
+            icon = {
+                Image(
+                    iconImage,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconHeight * iconImage.width / iconImage.height, iconHeight),
+                )
+            },
+            label = { BlockLabel(blockLabel(item), labelSize, color = labelColor) },
+            gap = labelHeight * .8f,
+        )
+        Spacer(Modifier.height(ValueGap))
+        // Every value keeps the full-size height, so a shrunk odometer stays aligned.
+        val valueHeight = with(LocalDensity.current) { valueSize.toDp() * CAP_HEIGHT_RATIO }
+        Box(Modifier.fillMaxWidth().height(valueHeight), contentAlignment = Alignment.BottomCenter) {
+            val reading = rememberBlockReading(item, state)
+            if (reading != null) {
+                val fit = (7f / reading.value.length).coerceAtMost(1f)
+                ValueWithUnit(
+                    reading.value,
+                    reading.unit,
+                    valueSize * fit,
+                    valueSize * .5f,
+                    // The warning is shown by the tile colour, so the figures stay white.
+                    color = contentColor,
+                )
+            }
         }
     }
 }

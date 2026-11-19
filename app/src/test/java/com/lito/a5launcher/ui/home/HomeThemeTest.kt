@@ -71,14 +71,15 @@ class HomeThemeTest {
     }
 
     @Test
-    fun footprintsInflateEvenlyForTheMapCutouts() {
+    fun mapCutoutsFollowTheInstrumentsWithoutAGap() {
         val dial = Footprint(10.dp, 20.dp, 100.dp, 100.dp, 50.dp)
-        val cut = dial.inflate(8.dp)
-        assertEquals(2.dp, cut.left)
-        assertEquals(12.dp, cut.top)
-        assertEquals(116.dp, cut.width)
-        assertEquals(58.dp, cut.radius)
-        assertEquals(118.dp, cut.right)
+        // The cutout is the instrument itself, moved into the map's coordinates.
+        val cut = dial.shift((-60).dp, (-20).dp)
+        assertEquals((-50).dp, cut.left)
+        assertEquals(0.dp, cut.top)
+        assertEquals(dial.width, cut.width)
+        assertEquals(dial.radius, cut.radius)
+        assertEquals(50.dp, cut.right)
         assertEquals(60.dp, dial.centerX)
     }
 

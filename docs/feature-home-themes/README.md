@@ -11,15 +11,16 @@ puntos de interés, Asistente IA y animación de arranque.
 | **Facetas** | [`theme-facets.png`](../screenshots/es/theme-facets.png) | Velocidad y RPM en tarjetas en forma de L (la de RPM invertida): banda vertical coral-magenta a toda altura y la lectura en el pie, sobre un fondo de facetas en tonos del mismo azul. Los ocho bloques van en una fila inferior. |
 | **Telemetría** | [`theme-telemetry.png`](../screenshots/es/theme-telemetry.png) | Mapa enmarcado a la izquierda y fichas a la derecha: velocidad y RPM absolutas con barras segmentadas, marcha entre corchetes amarillos, cuadrícula abierta de 3×2 valores con pictograma junto a cada etiqueta, combustible y testigos. |
 | **Submarino** | [`theme-submarine.png`](../screenshots/es/theme-submarine.png) | Ilustrado submarino: velocidad en una portilla de latón con base submarina, RPM en una portilla alargada con la marcha arriba, algas sobre roca, pez y burbujas. Barras superior e inferior transparentes, sólo con su contorno; combustible con barra segmentada. |
-| **Luna** | [`theme-moon.png`](../screenshots/es/theme-moon.png) | Ilustrado lunar con bordes de neón: astronauta saludando en la esfera de velocidad, platillo con alienígena y marcha en insignia en la de RPM, cohete, robot y suelo lunar. Barra superior en tres píldoras y combustible con barra segmentada. |
+| **Luna** | [`theme-moon.png`](../screenshots/es/theme-moon.png) | Ilustrado lunar con bordes de neón: astronauta saludando en la esfera de velocidad, platillo con alienígena y marcha en insignia en la de RPM, cohete, robot y suelo lunar apoyado en el borde inferior (dos copias en espejo que se unen en el centro), que se intuye tras la barra de valores, ligeramente translúcida. Barra superior en tres píldoras y combustible con barra segmentada. |
 | **Galaxia** | [`theme-galaxy.png`](../screenshots/es/theme-galaxy.png) | Paneles de cristal espaciales: velocidad (con cohete) y RPM con marcha (sobre una nebulosa) en barras a la izquierda, mapa en el centro, combustible sobre la Tierra y testigos sobre suelo lunar a la derecha, y los seis valores en una barra inferior. |
-| **Aventura** | [`theme-adventure.png`](../screenshots/es/theme-adventure.png) | Dibujos infantiles con la estructura de Telemetría: comandos en un carril a la izquierda, mapa grande y fichas de colores para velocidad, RPM, marcha (estrella), los seis valores con iconos de colores, combustible y testigos. |
+| **Aventura** | [`theme-adventure.png`](../screenshots/es/theme-adventure.png) | Dibujos infantiles con la estructura de Telemetría: comandos en un carril a la izquierda, mapa grande y fichas de colores para velocidad, RPM, marcha (estrella), los seis valores con iconos de colores (una ficha en aviso, como la autonomía baja, pasa a rojo con la cifra en blanco), combustible y testigos. |
 
 ## Uso
 
-- El tema se elige en **Ajustes → Temas**, una cuadrícula de tarjetas con una
-  miniatura de cada tema; la activa queda resaltada. El cambio es inmediato y
-  no recrea el mapa.
+- El tema se elige en **Ajustes → Temas**, una cuadrícula de tarjetas con la
+  miniatura de cada tema y su nombre centrado debajo; la activa queda
+  resaltada. El cambio es inmediato,
+  no recrea el mapa y cierra Ajustes para volver directamente a la home.
 - Cada tema tiene variante de día y de noche y sigue el modo Automático, Claro
   u Oscuro del mapa.
 - El estilo del mapa es siempre el que elige el usuario; ningún tema lo
@@ -57,9 +58,10 @@ puntos de interés, Asistente IA y animación de arranque.
   Cada etiqueta va centrada sobre su cifra y lleva colgado a su izquierda un
   pictograma de línea (`BlockIcons.kt`) en el amarillo de acento, del doble
   de alto que sus mayúsculas; el pictograma no cuenta para centrar ni resta
-  ancho a la cifra. El fondo no es negro plano: una trama de fibra de carbono
-  (sarga 2/2) que se oscurece hacia abajo, y las fichas son placas de grafito
-  algo más claras con un contorno tenue.
+  ancho a la cifra. El fondo es una trama de fibra de carbono (sarga 2/2)
+  sobre negro puro, para fundirse con el marco del dispositivo: sólo la
+  cresta de cada hilo recoge algo de luz, que se apaga hacia abajo. Las
+  fichas son placas de grafito algo más claras con un contorno tenue.
 - Sólo se usan fuentes del sistema; Telemetría y los temas ilustrados usan
   Roboto Black para las cifras.
 - Los paneles de estadísticas de viaje, parcial y total sustituyen al mapa:
@@ -93,10 +95,14 @@ colores y dibujos:
   descansan sobre su roca encima de la barra inferior.
 - Velocidad y RPM pegadas a los bordes de la pantalla, a un margen del 2 % del
   alto, y tan altas como la franja central.
-- El mapa ocupa todo el espacio entre ambos instrumentos: es un rectángulo
-  redondeado al que se le recorta la silueta de cada instrumento más un hueco,
-  así que también aprovecha las esquinas. Las estadísticas sustituyen sólo a
-  esa ventana.
+- El mapa ocupa todo el espacio entre ambos instrumentos y llega hasta su
+  aro, como en Clásico: se le recorta la silueta de cada instrumento sin hueco,
+  porque una ventana separada mareaba al conducir. Lleva un marco fino a juego
+  con los instrumentos: en Submarino, un ribete de latón que bordea también las
+  dos portillas por igual y tapa la junta; en Luna, el neón de los aros, que
+  pasa bajo los discos. Como el disco lunar es algo menor que su hueco, el mapa
+  entra un poco bajo él y sus bordes superior e inferior se alinean con los
+  discos; nunca asoma el fondo en la junta. Las estadísticas sustituyen sólo a esa zona.
 - Velocidad en esfera de 240° con aguja (Submarino) o arco iluminado y
   etiquetas encendidas (Luna). RPM en arco con zona roja desde 4.500.
 - Las escalas se centran en el hueco transparente de cada portilla. Sus
@@ -117,9 +123,11 @@ permiten las cifras.
 ### Aventura
 
 `AdventureHomeLayout` sigue la estructura de Telemetría con fichas de colores
-con relieve. Cada valor conserva su color aunque se reordene. Los iconos de
-colores van junto a la etiqueta, no junto a la cifra, para que la cifra use
-todo el ancho de la ficha; los valores largos se reducen.
+con relieve. Cada valor conserva su color aunque se reordene. Las fichas de
+valor se montan como en Telemetría: etiqueta y cifra centradas, con el mismo
+espacio entre ambas, y el icono de colores colgado a la izquierda de la
+etiqueta sin desplazarla, para que la cifra use todo el ancho de la ficha; los
+valores largos se reducen. La marcha va sobre una estrella grande.
 
 ### Imágenes
 

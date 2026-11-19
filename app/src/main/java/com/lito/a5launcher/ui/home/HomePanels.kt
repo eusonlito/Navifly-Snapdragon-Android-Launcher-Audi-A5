@@ -81,10 +81,10 @@ internal fun Modifier.capHeightBounds(fontSize: TextUnit): Modifier = layout { m
     }
 }
 
-/** Translucent rounded panel used by the themes that float chrome over the map. */
 /** Opacity of the light along the top of a glass panel. */
 private const val GLASS_SHEEN_ALPHA = .07f
 
+/** Translucent rounded panel used by the themes that float chrome over the map. */
 @Composable
 internal fun GlassPanel(
     modifier: Modifier = Modifier,

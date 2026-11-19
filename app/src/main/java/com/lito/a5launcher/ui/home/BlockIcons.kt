@@ -12,7 +12,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Dp
 import com.lito.a5launcher.ui.components.FooterBlockItem
+import kotlin.math.max
 
 /** Units of the square grid every block pictogram is drawn on. */
 private const val ICON_GRID = 24f
@@ -91,5 +94,23 @@ internal fun DrawScope.drawBlockIcon(item: FooterBlockItem, color: Color) {
             line(12f to 15.5f, 16.2f to 10.2f)
         }
         FooterBlockItem.FUEL, FooterBlockItem.WITNESSES -> Unit
+    }
+}
+
+/**
+ * Lays out [label] as if it were alone, so it is what gets centred, and hangs
+ * [icon] to its left outside those bounds.
+ */
+@Composable
+internal fun LabelWithHangingIcon(icon: @Composable () -> Unit, label: @Composable () -> Unit, gap: Dp) {
+    Layout(content = { icon(); label() }) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val iconPlaceable = measurables[0].measure(loose)
+        val labelPlaceable = measurables[1].measure(loose)
+        val height = max(iconPlaceable.height, labelPlaceable.height)
+        layout(labelPlaceable.width, height) {
+            labelPlaceable.place(0, (height - labelPlaceable.height) / 2)
+            iconPlaceable.place(-(iconPlaceable.width + gap.roundToPx()), (height - iconPlaceable.height) / 2)
+        }
     }
 }

@@ -63,6 +63,7 @@ import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
 import kotlin.math.PI
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -97,18 +98,22 @@ private const val TILE_BORDER_ALPHA = .26f
 private val CarbonTow = 3.dp
 private const val CARBON_REPEAT = 4
 
-/** Brightness of the tows that run down and across, from their edge to their crown. */
-private const val CARBON_WARP_BASE = .055f
-private const val CARBON_WARP_SHEEN = .085f
-private const val CARBON_WEFT_BASE = .035f
-private const val CARBON_WEFT_SHEEN = .05f
+/**
+ * Light the tows catch along their crown. The weave sits on pure black, which
+ * also fills every gap and tow edge, so it blends into the device frame.
+ */
+private const val CARBON_WARP_SHEEN = .26f
+private const val CARBON_WEFT_SHEEN = .16f
+
+/** Higher values narrow the sheen to the middle of each tow, leaving more black. */
+private const val CARBON_SHEEN_FOCUS = 1.4f
 
 /** How much the weave darkens towards the bottom of the screen. */
-private const val CARBON_SHADE = .5f
+private const val CARBON_SHADE = .35f
 
 /**
- * Carbon-fibre backdrop: a 2/2 twill whose tows catch the light along their
- * crown, darker towards the bottom. The weave is one tiled shader, so it costs
+ * Carbon-fibre backdrop: a 2/2 twill on pure black whose tows catch the light
+ * along their crown, darker towards the bottom. The weave is one tiled shader, so it costs
  * a single rectangle however often the instruments redraw.
  */
 private fun Modifier.telemetryBackdrop(): Modifier = drawWithCache {
@@ -142,14 +147,11 @@ private fun carbonWeaveTile(tow: Int): ImageBitmap {
                 across = (y % tow + .5f) / tow
                 along = ((x - (row + 2) * tow).mod(side) + .5f) / (tow * 2)
             }
-            val crown = sin(PI * across).toFloat() * (.5f + .5f * sin(PI * along).toFloat())
-            val light = if (warpOnTop) {
-                CARBON_WARP_BASE + CARBON_WARP_SHEEN * crown
-            } else {
-                CARBON_WEFT_BASE + CARBON_WEFT_SHEEN * crown
-            }
+            val crown = (sin(PI * across).toFloat() * (.5f + .5f * sin(PI * along).toFloat()))
+                .pow(CARBON_SHEEN_FOCUS)
+            val light = crown * if (warpOnTop) CARBON_WARP_SHEEN else CARBON_WEFT_SHEEN
             // A cool grey: slightly more blue than red.
-            pixels[y * side + x] = Color(light * .94f, light, light * 1.1f).toArgb()
+            pixels[y * side + x] = Color(light * .94f, light, (light * 1.1f).coerceAtMost(1f)).toArgb()
         }
     }
     return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
@@ -494,24 +496,6 @@ private fun TelemetryValueTile(
                     color = if (reading.warning) tokens.warning else null,
                 )
             }
-        }
-    }
-}
-
-/**
- * Lays out [label] as if it were alone, so it is what gets centred, and hangs
- * [icon] to its left outside those bounds.
- */
-@Composable
-private fun LabelWithHangingIcon(icon: @Composable () -> Unit, label: @Composable () -> Unit, gap: Dp) {
-    Layout(content = { icon(); label() }) { measurables, constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val iconPlaceable = measurables[0].measure(loose)
-        val labelPlaceable = measurables[1].measure(loose)
-        val height = max(iconPlaceable.height, labelPlaceable.height)
-        layout(labelPlaceable.width, height) {
-            labelPlaceable.place(0, (height - labelPlaceable.height) / 2)
-            iconPlaceable.place(-(iconPlaceable.width + gap.roundToPx()), (height - iconPlaceable.height) / 2)
         }
     }
 }

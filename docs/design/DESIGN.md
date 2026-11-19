@@ -272,8 +272,9 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   Su contenido también comienza inmediatamente bajo la cabecera para conservar
   la misma retícula vertical al alternar entre dashboard, Aplicaciones y
   Ajustes.
-  Ajustes abre por defecto la pestaña `Viajes`, seguida de `Mapa`, `Asistente IA`,
-  `Registros` y `Sistema`. Las pestañas son píldoras con icono integradas en la
+  Ajustes se abre en la última pestaña consultada (se conserva también tras
+  reiniciar; la primera vez, `Viajes`). El orden es `Viajes`, `Mapa`,
+  `Asistente`, `Registros`, `Temas` y `Sistema`. Las pestañas son píldoras con icono integradas en la
   propia cabecera, a la derecha del título, para que el contenido disponga de
   toda la altura restante; ninguna pestaña necesita desplazamiento vertical salvo
   sus listas.
@@ -326,7 +327,7 @@ a introducirse anchos estructurales fijos pensados para una densidad concreta.
 
 La home admite ocho temas (Clásico, Horizonte, Facetas, Telemetría,
 Submarino, Luna, Galaxia y Aventura) que se eligen en Ajustes → Temas, una cuadrícula de tarjetas
-con la miniatura de cada uno. Las reglas de cada tema, los márgenes
+con la miniatura y el nombre centrado de cada uno. Las reglas de cada tema, los márgenes
 comunes y la reordenación por tema están en
 [`../feature-home-themes/README.md`](../feature-home-themes/README.md).
 Clásico sigue siendo la referencia de esta sección.

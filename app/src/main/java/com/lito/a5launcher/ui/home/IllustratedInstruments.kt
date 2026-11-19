@@ -236,10 +236,13 @@ private fun GearText(state: HomeState, textSize: TextUnit, color: Color, modifie
 }
 
 /** Neon dial of the Moon theme: dark rim, soft edge and a lighter inner disc, all concentric. */
+/** Radius of the Moon dial disc, as a fraction of its footprint width. */
+internal const val NEON_DIAL_RADIUS = .485f
+
 private fun DrawScope.drawNeonDial(palette: IllustratedPalette) {
     val d = size.width
     val c = center
-    val outer = d * .485f
+    val outer = d * NEON_DIAL_RADIUS
     drawCircle(Color(0xFF0C1246), outer, c)
     drawGlow(Path().apply { addOval(Rect(c, outer)) }, palette.frame)
     drawCircle(Brush.radialGradient(listOf(Color(0xFF1C2A86), palette.dialFace), c, outer), d * .44f, c)

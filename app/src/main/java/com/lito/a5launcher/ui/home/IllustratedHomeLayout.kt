@@ -110,6 +110,17 @@ private val FooterWeights = mapOf(
 /** Seaweed width as a fraction of the instruments' height. */
 private const val SEAWEED_WIDTH = .3f
 
+/** Brass of the Submarine map trim, matching the portholes. */
+private val SubmarineTrim = Color(0xFFF2B428)
+private val SubmarineTrimShade = Color(0xFF0B2C35)
+private val SubmarineTrimWidth = 5.5.dp
+
+/** How far the map reaches under the rim of each instrument. */
+private val MAP_TUCK = 1.5.dp
+
+/** Opacity of the Moon value bar: barely translucent. */
+private const val MOON_FOOTER_ALPHA = .86f
+
 /**
  * Illustrated home: a framed top bar, the speed dial and the RPM instrument
  * against the screen edges, the map filling everything between them and a
@@ -139,14 +150,28 @@ internal fun IllustratedHomeLayout(
             }
             IllustratedStyle.MOON -> Footprint(w - margin - middleHeight, middleTop, middleHeight, middleHeight, middleHeight / 2f)
         }
-        // The map window spans from one instrument centre to the other; the
-        // instruments, plus a gap, are cut out of it.
+        // The map spans from one instrument centre to the other and runs right up
+        // to their rims, as in Classic: no gap, so the eye does not keep jumping
+        // between outlines while driving. In Submarine the brass trim wraps both
+        // portholes evenly: the cut sits just outside them and the trim covers the
+        // seam. The Moon disc is drawn smaller than its footprint: there the map
+        // reaches a little under the disc and its top and bottom edges line up
+        // with the discs.
         val mapLeft = left.centerX
         val mapWidth = right.centerX - mapLeft
-        val gap = margin
         val corner = h * .05f
-        val cutouts = remember(left, right, mapLeft, gap) {
-            listOf(left, right).map { it.inflate(gap).shift(-mapLeft, -middleTop) }
+        val discInset = when (style) {
+            IllustratedStyle.SUBMARINE -> 0.dp
+            IllustratedStyle.MOON -> middleHeight * (.5f - NEON_DIAL_RADIUS)
+        }
+        val cutGrow = when (style) {
+            IllustratedStyle.SUBMARINE -> SubmarineTrimWidth / 2f - MAP_TUCK
+            IllustratedStyle.MOON -> -(discInset + MAP_TUCK)
+        }
+        val mapTop = middleTop + discInset
+        val mapHeight = middleHeight - discInset * 2f
+        val cutouts = remember(left, right, mapLeft, mapTop, cutGrow) {
+            listOf(left, right).map { it.inflate(cutGrow).shift(-mapLeft, -mapTop) }
         }
         val visibleStart = cutouts[0].right
         val visibleEnd = mapWidth - cutouts[1].left
@@ -162,7 +187,7 @@ internal fun IllustratedHomeLayout(
             middleHeight,
             left,
             right,
-            Rect(mapLeft.value, middleTop.value, (mapLeft + mapWidth).value, (middleTop + middleHeight).value),
+            Rect(mapLeft.value, mapTop.value, (mapLeft + mapWidth).value, (mapTop + mapHeight).value),
             corner,
             topHeight,
             footerHeight,
@@ -171,8 +196,8 @@ internal fun IllustratedHomeLayout(
 
         Box(
             Modifier
-                .offset(x = mapLeft, y = middleTop)
-                .size(mapWidth, middleHeight)
+                .offset(x = mapLeft, y = mapTop)
+                .size(mapWidth, mapHeight)
                 .clip(mapShape),
         ) {
             slots.map(Modifier.fillMaxSize(), viewport)
@@ -180,15 +205,16 @@ internal fun IllustratedHomeLayout(
             // Statistics replace only the map window, between the instruments.
             slots.mapOverlay(this, PaddingValues(start = visibleStart, end = visibleEnd))
         }
+        // Thin frame in the instruments' style; along the cutouts it runs under
+        // their rims, so it only shows on the map's free edges.
         Canvas(
             Modifier
-                .offset(x = mapLeft, y = middleTop)
-                .size(mapWidth, middleHeight)
+                .offset(x = mapLeft, y = mapTop)
+                .size(mapWidth, mapHeight)
                 .startupOutlineAlpha(state.startupProgress),
         ) {
             drawMapFrame(style, cutoutMapPath(size, this, corner, cutouts))
         }
-
         Box(Modifier.offset(x = left.left, y = left.top).size(left.width, left.height).zIndex(1f)) {
             IllustratedSpeedInstrument(style, state, left.width)
         }
@@ -227,20 +253,21 @@ internal fun IllustratedHomeLayout(
 }
 
 private fun DrawScope.drawMapFrame(style: IllustratedStyle, outline: Path) {
-    val palette = style.palette
     when (style) {
+        // Thin brass trim like the portholes: a dark edge under a gold line.
         IllustratedStyle.SUBMARINE -> {
-            drawPath(outline, palette.frameShade, style = Stroke(4.dp.toPx()))
-            drawPath(outline, Color(0xFFD5E1DB), style = Stroke(2.5.dp.toPx()))
+            drawPath(outline, SubmarineTrimShade, style = Stroke(SubmarineTrimWidth.toPx()))
+            drawPath(outline, SubmarineTrim, style = Stroke(SubmarineTrimWidth.toPx() * .55f))
         }
-        IllustratedStyle.MOON -> drawGlow(outline, palette.frame)
+        // The neon of the dial rims, a little heavier.
+        IllustratedStyle.MOON -> drawGlow(outline, style.palette.frame, line = 2.5.dp, halo = 7.dp)
     }
 }
 
 /** Neon outline: two soft halos under a sharp line. */
-internal fun DrawScope.drawGlow(outline: Path, color: Color) {
-    drawPath(outline, color.copy(alpha = .08f), style = Stroke(5.dp.toPx()))
-    drawPath(outline, color.copy(alpha = .55f), style = Stroke(1.5.dp.toPx()))
+internal fun DrawScope.drawGlow(outline: Path, color: Color, line: Dp = 1.5.dp, halo: Dp = 5.dp) {
+    drawPath(outline, color.copy(alpha = .08f), style = Stroke(halo.toPx()))
+    drawPath(outline, color.copy(alpha = .55f), style = Stroke(line.toPx()))
 }
 
 private fun roundRectPath(rect: Rect, radius: Float) = Path().apply {
@@ -248,14 +275,18 @@ private fun roundRectPath(rect: Rect, radius: Float) = Path().apply {
 }
 
 /** Frame of a bar or pill in the theme's style, drawn behind its content. */
-private fun Modifier.illustratedPanel(style: IllustratedStyle, radiusFraction: Float = .5f): Modifier = drawWithCache {
+private fun Modifier.illustratedPanel(
+    style: IllustratedStyle,
+    radiusFraction: Float = .5f,
+    fillAlpha: Float = 1f,
+): Modifier = drawWithCache {
     val palette = style.palette
     val inset = 2.dp.toPx()
     val rect = Rect(inset, inset, size.width - inset, size.height - inset)
     val radius = rect.height * radiusFraction
     val outline = roundRectPath(rect, radius)
     onDrawBehind {
-        if (style != IllustratedStyle.SUBMARINE) drawPath(outline, palette.panel)
+        if (style != IllustratedStyle.SUBMARINE) drawPath(outline, palette.panel, alpha = fillAlpha)
         when (style) {
             // Clear glass over the water: only its outline is drawn.
             IllustratedStyle.SUBMARINE -> drawPath(outline, palette.panelBorder, style = Stroke(1.5.dp.toPx()))
@@ -341,10 +372,12 @@ private fun IllustratedFooter(
     h: Dp,
     modifier: Modifier,
 ) {
-    val labelSize = (h.value * .027f).sp
-    val valueSize = (h.value * .05f).sp
-    val unitSize = (h.value * .032f).sp
-    Box(modifier.illustratedPanel(style, radiusFraction = if (style == IllustratedStyle.MOON) .5f else .3f)) {
+    val labelSize = (h.value * .024f).sp
+    val valueSize = (h.value * .044f).sp
+    val unitSize = (h.value * .028f).sp
+    // On the Moon the bar lets a hint of the ground behind it show through.
+    val moon = style == IllustratedStyle.MOON
+    Box(modifier.illustratedPanel(style, radiusFraction = if (moon) .5f else .3f, fillAlpha = if (moon) MOON_FOOTER_ALPHA else 1f)) {
         BlockStrip(
             state = state,
             actions = actions,
@@ -359,7 +392,7 @@ private fun IllustratedFooter(
         ) { item ->
             when (item) {
                 FooterBlockItem.WITNESSES -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    WitnessGroup(state, scale = 1f, arrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth())
+                    WitnessGroup(state, scale = .9f, arrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth())
                 }
                 FooterBlockItem.FUEL -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     SegmentedFuel(state, h, valueSize)
@@ -380,9 +413,9 @@ private fun SegmentedFuel(state: HomeState, h: Dp, valueSize: TextUnit) {
     val tone = fuelSegmentTone(fuelSegments(fuel))
     val textColor = fuelContentColor(tone, tokens)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        FuelPumpIcon(textColor, Modifier.size(h * .058f))
+        FuelPumpIcon(textColor, Modifier.size(h * .052f))
         Spacer(Modifier.width(8.dp))
-        Canvas(Modifier.width(h * .2f).height(h * .034f)) {
+        Canvas(Modifier.width(h * .19f).height(h * .03f)) {
             val gapPx = 3.dp.toPx()
             val segmentWidth = (size.width - gapPx * (segments - 1)) / segments
             repeat(segments) { index ->
@@ -451,13 +484,13 @@ private fun IllustratedBackdrop(
                     IllustratedStyle.MOON -> {
                         drawStarField(seed = 3, count = 70, dot = Color.White, sparkle = Color.White, star = Color(0xFFFFD43B))
                         val ground = art[0]
-                        // Lunar ground along the bottom: mirrored on the left so the planet hill sits at both edges.
-                        val groundWidth = size.width * .55f
-                        val rightGround = ground.rectAboveBase(size.width - groundWidth / 2f, bottom + mid * .06f, groundWidth)
+                        // Lunar ground resting on the bottom edge of the screen, partly seen through the
+                        // value bar. Each half of the screen holds one copy, the left one mirrored, so
+                        // they meet seamlessly in the middle and the planet hill sits at both edges.
+                        val half = size.width / 2f
+                        val rightGround = ground.rectAboveBase(half + half / 2f, size.height, half)
                         drawArt(ground, rightGround)
-                        scale(-1f, 1f, pivot = Offset(groundWidth / 2f, 0f)) {
-                            drawArt(ground, ground.rectAboveBase(groundWidth / 2f, bottom + mid * .06f, groundWidth))
-                        }
+                        scale(-1f, 1f, pivot = Offset(half, 0f)) { drawArt(ground, rightGround) }
                     }
                 }
             }
