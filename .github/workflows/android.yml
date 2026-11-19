@@ -67,10 +67,24 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      # The Ubuntu mirror is sometimes very slow (95 MB took 15 minutes), so the
+      # downloaded packages are cached and only the package lists are fetched.
+      - name: Restore boot generator packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-archives
+          key: apt-boot-${{ runner.os }}-${{ hashFiles('.github/workflows/android.yml') }}
+          restore-keys: apt-boot-${{ runner.os }}-
+
       - name: Test boot package generator
         run: |
+          mkdir -p ~/apt-archives/partial
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick zip unzip
+          sudo apt-get install -y --no-install-recommends \
+            -o Dir::Cache::Archives="$HOME/apt-archives" \
+            -o APT::Keep-Downloaded-Packages=true \
+            ffmpeg imagemagick zip unzip
+          sudo chown -R "$USER" ~/apt-archives
           bash -n boot/scripts/*.sh
           ./boot/scripts/test-generate.sh
 

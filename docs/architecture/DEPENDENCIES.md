@@ -21,7 +21,7 @@ estables publicadas en los repositorios oficiales.
 | org.json (pruebas) | 20260814 | Actualizado; no se empaqueta en el APK |
 | Plugin de informe de actualizaciones | 0.67.0 | Actualizado |
 | grpcio (emulador) | 1.85.3 | Actualizado; no se empaqueta en el APK |
-| Acciones de GitHub Actions | checkout 7.0.1 · setup-java 6.3.0 · setup-android 4.0.4 · gradle/actions 6.4.1 | Actualizadas y fijadas por commit |
+| Acciones de GitHub Actions | checkout 7.0.1 · setup-java 6.3.0 · setup-android 4.0.4 · gradle/actions 6.4.1 · cache 6.1.0 | Actualizadas y fijadas por commit |
 
 MapLibre utiliza los estilos vectoriales Positron, Liberty y Bright de
 OpenFreeMap. osmdroid se ha retirado del APK; el directorio de su antigua caché
