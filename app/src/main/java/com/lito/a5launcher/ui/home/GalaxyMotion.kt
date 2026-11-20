@@ -18,18 +18,10 @@ import kotlin.math.sin
 internal fun DrawScope.drawGalaxyLaunch(rocket: ImageBitmap, rest: Rect, p: Float, filter: ColorFilter?) {
     if (p == 0f) return drawArt(rocket, rest, filter = filter)
     val width = size.width
-    val offset: Offset
-    val tilt: Float
-    if (p < .36f) {
-        val u = smoothStep((p - .06f) / .3f)
-        offset = Offset(.51f, -.23f) * (width * u * u)
-        tilt = -9f * u
-    } else {
-        val u = smoothStep((p - .36f) / .64f)
-        val docking = smoothStep((u - .45f) / .55f)
-        offset = Offset(-1.15f * (1f - u), -.17f * (1f - docking) + .035f * sin(2 * ART_PI * u)) * width
-        tilt = 26f * (1f - docking)
-    }
+    val travel = artWave(p)
+    val arc = sin(2f * ART_PI * p)
+    val offset = Offset(-rest.width * .42f * travel, -rest.top * (.50f + .30f * arc) * travel)
+    val tilt = -9f * arc * travel
     val rect = rest.translate(offset)
     rotate(tilt, rect.center) {
         val power = smoothStep(p / .08f) * smoothStep((1f - p) / .22f)

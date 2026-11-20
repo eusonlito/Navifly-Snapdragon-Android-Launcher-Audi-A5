@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import kotlin.math.cos
@@ -56,22 +55,15 @@ internal fun DrawScope.drawRobotHeart(image: ImageBitmap, rect: Rect, p: Float) 
 
 internal fun DrawScope.drawMoonLaunch(image: ImageBitmap, rest: Rect, p: Float, filter: ColorFilter?) {
     if (p == 0f) return drawArt(image, rest, filter = filter)
-    val flight = (p / .67f).coerceIn(0f, 1f)
-    val climb = flight * flight
-    val moving = rest.translate(Offset(rest.width * .4f * sin(ART_PI * flight), -size.height * 1.12f * climb))
-    clipRect(right = rest.right + rest.width * .44f) {
-        if (flight < 1f) {
-            for (i in 1..7) {
-                val past = (flight - i * .021f).coerceAtLeast(0f)
-                val lift = size.height * 1.12f * past * past
-                val trail = Offset(rest.center.x + rest.width * .4f * sin(ART_PI * past), rest.bottom - lift)
-                val fade = smoothStep(flight / .06f) * (1f - i / 8f)
-                drawCircle(Color(0xFFFFBC78), rest.width * (.045f + i * .015f), trail, alpha = fade * .74f)
-            }
-            rotate(12f * sin(2f * ART_PI * flight), moving.center) { drawArt(image, moving, filter = filter) }
-        } else {
-            drawArt(image, rest, alpha = smoothStep((p - .73f) / .22f), filter = filter)
+    val lift = artWave(p)
+    val arc = sin(2f * ART_PI * p)
+    val moving = rest.translate(Offset(rest.width * (.38f + .18f * arc) * lift, -size.height * .55f * lift))
+    rotate(12f * arc * lift, moving.center) {
+        for (i in 1..7) {
+            val trail = Offset(moving.center.x - rest.width * .043f * i * arc, moving.bottom - rest.height * .07f + rest.height * .032f * i * lift)
+            drawCircle(Color(0xFFFFBC78), rest.width * (.045f + i * .015f) * lift, trail, alpha = lift * .74f * (1f - i / 8f))
         }
+        drawArt(image, moving, filter = filter)
     }
 }
 

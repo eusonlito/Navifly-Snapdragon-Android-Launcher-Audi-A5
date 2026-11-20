@@ -30,11 +30,9 @@ internal fun DrawScope.drawAdventureFlight(image: ImageBitmap, rect: Rect, right
         val split = (image.width * .595f).roundToInt()
         drawArtSlice(image, 0, 0, split, image.height, filter = filter)
         val pivot = Offset(image.width * .82f, image.height * .56f)
-        val turn = smoothStep((p - .46f) / .085f) * (1f - smoothStep((p - .89f) / .10f))
         withTransform({
             translate(dx * image.width / rect.width, image.height * .095f * sin(angle))
-            rotate(-11f * sin(angle), pivot)
-            scale(1f - 2f * turn, 1f, pivot)
+            rotate(-18f * sin(angle), pivot)
         }) {
             val glow = artWave(p)
             val nozzle = Offset(image.width * .689f, image.height * .63f)
