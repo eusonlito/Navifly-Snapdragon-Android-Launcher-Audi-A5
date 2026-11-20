@@ -703,8 +703,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            val tripArt = rememberTripArt(homeTheme) {
-                speedState.value > 0 && startupProgress.value == null && !poiWarningVisible &&
+            val tripArt = rememberTripArt(homeTheme, speedState) {
+                startupProgress.value == null && !poiWarningVisible &&
                     !showApps && !showLauncherSettings && statisticsPanel == null &&
                     pendingRefuelConfirmation == null && !showManualPartialResetConfirmation &&
                     !homeState.assistantActive.value

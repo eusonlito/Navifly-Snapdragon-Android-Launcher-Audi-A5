@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="trip_art_fish">Animar el pez</string>
+    <string name="trip_art_shoal">Animar el banco de peces</string>
+    <string name="trip_art_periscope">Animar el periscopio</string>
+    <string name="trip_art_astronaut">Animar al astronauta</string>
+    <string name="trip_art_ufo">Animar el ovni</string>
+    <string name="trip_art_robot">Animar el robot</string>
+    <string name="trip_art_launch">Lanzar el cohete</string>
+    <string name="trip_art_aurora">Animar la aurora</string>
+    <string name="trip_art_rover">Poner en marcha el róver</string>
+    <string name="trip_art_plane">Hacer volar el cohete</string>
+    <string name="trip_art_butterfly">Animar la mariposa</string>
+    <string name="trip_art_stars">Animar las estrellas fugaces</string>
     <string name="recent_apps_service_name">Aplicaciones recientes de A5 Cockpit</string>
     <string name="recent_apps_accessibility_description">Permite que el botón del launcher abra la pantalla nativa de aplicaciones recientes de Android.</string>
     <string name="enable_recent_apps_service">Activa «Aplicaciones recientes de A5 Cockpit» para usar este botón</string>

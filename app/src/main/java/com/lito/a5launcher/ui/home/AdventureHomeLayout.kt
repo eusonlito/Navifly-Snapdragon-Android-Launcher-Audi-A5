@@ -121,8 +121,11 @@ internal fun AdventureHomeLayout(
         AdventureBackdrop(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress))
 
         val motion = LocalTripArt.current
-        Canvas(Modifier.width(railWidth).fillMaxHeight().clipToBounds()) {
-            drawButterfly(motion[TripGesture.BUTTERFLY])
+        Box(Modifier.width(railWidth).fillMaxHeight().clipToBounds()) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawButterfly(motion[TripGesture.BUTTERFLY])
+            }
+            TripTapTarget(TripGesture.BUTTERFLY) { (w, h) -> Rect(0f, h * .89f, w, h) }
         }
         Row(Modifier.fillMaxSize()) {
             Box(
@@ -199,12 +202,22 @@ private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
     val motion = LocalTripArt.current
     val dateWidth = remember { mutableIntStateOf(0) }
     val tempWidth = remember { mutableIntStateOf(0) }
+    fun rocketBounds(size: Size) = rocket.rectCentered(
+        size.width * .5f + size.height * 2.5f, size.height * .5f, size.height * .85f * rocket.width / rocket.height,
+    )
+    fun skyBounds(rocketLeft: Float, height: Float) = Rect(
+        maxOf(dateWidth.intValue + height * .1f, rocketLeft - height * 4.4f), 0f, rocketLeft - height * .15f, height,
+    )
     Box(modifier) {
         Canvas(Modifier.fillMaxSize().clipToBounds()) {
             val height = size.height
-            val rest = rocket.rectCentered(center.x + height * 2.5f, center.y, height * .85f * rocket.width / rocket.height)
-            val left = maxOf(dateWidth.intValue + height * .1f, rest.left - height * 4.4f)
-            drawShootingStars(left, rest.left - height * .15f, motion[TripGesture.STARS])
+            val rest = rocketBounds(size)
+            val sky = skyBounds(rest.left, height)
+            if (sky.width > 0f) {
+                val star = sky.center
+                drawPath(starPath(star, height * .13f), Color(0xFFFFD43B))
+                drawShootingStars(sky.left, sky.right, motion[TripGesture.STARS])
+            }
             drawAdventureFlight(rocket, rest, size.width - tempWidth.intValue - height * .2f, motion[TripGesture.PLANE])
         }
         Row(Modifier.align(Alignment.CenterStart).onSizeChanged { dateWidth.intValue = it.width }.padding(start = h * .01f), verticalAlignment = Alignment.CenterVertically) {
@@ -221,6 +234,11 @@ private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
         Box(Modifier.align(Alignment.CenterEnd).onSizeChanged { tempWidth.intValue = it.width }.padding(end = h * .01f)) {
             OutsideTemperatureText(state, (h.value * .05f).sp)
         }
+        TripTapTarget(TripGesture.PLANE) { size ->
+            val rest = rocketBounds(size)
+            rest.copy(left = rest.left + rest.width * .595f)
+        }
+        TripTapTarget(TripGesture.STARS) { size -> skyBounds(rocketBounds(size).left, size.height) }
     }
 }
 

@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="trip_art_fish">Animate the fish</string>
+    <string name="trip_art_shoal">Animate the school of fish</string>
+    <string name="trip_art_periscope">Animate the periscope</string>
+    <string name="trip_art_astronaut">Animate the astronaut</string>
+    <string name="trip_art_ufo">Animate the UFO</string>
+    <string name="trip_art_robot">Animate the robot</string>
+    <string name="trip_art_launch">Launch the rocket</string>
+    <string name="trip_art_aurora">Animate the aurora</string>
+    <string name="trip_art_rover">Drive the rover</string>
+    <string name="trip_art_plane">Fly the rocket</string>
+    <string name="trip_art_butterfly">Animate the butterfly</string>
+    <string name="trip_art_stars">Animate the shooting stars</string>
     <string name="app_name" translatable="false">A5 Cockpit</string>
     <string name="recent_apps_service_name">A5 Cockpit recent apps</string>
     <string name="recent_apps_accessibility_description">Allows the launcher button to open Android’s native recent apps screen.</string>

@@ -221,6 +221,7 @@ private fun SpaceSpeedPanel(state: HomeState, h: Dp, corner: Dp, modifier: Modif
                 modifier = Modifier.fillMaxWidth().height(h * .1f),
             )
         }
+        TripTapTarget(TripGesture.LAUNCH) { (w, h) -> rocket.rectCentered(w * .78f, h * .30f, w * .40f) }
     }
 }
 
@@ -341,6 +342,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                             contentAlignment = Alignment.Center,
                         ) {
                             SpaceFuel(state, h, Modifier.fillMaxWidth().padding(horizontal = h * .04f).offset(y = -h * .03f))
+                            TripTapTarget(TripGesture.AURORA) { (w, h) -> earth.rectAboveBase(w * .5f, h * 1.02f, w * 1.15f) }
                         }
                         else -> Box(
                             Modifier.fillMaxSize().spacePanel(palette, corner) {
@@ -355,6 +357,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                                 arrangement = Arrangement.SpaceEvenly,
                                 modifier = Modifier.fillMaxWidth().offset(y = -h * .03f),
                             )
+                            TripTapTarget(TripGesture.ROVER) { (w, h) -> lunar.rectAboveBase(w * .5f, h * 1.02f, w * 1.1f) }
                         }
                     }
                 }

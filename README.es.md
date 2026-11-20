@@ -64,8 +64,9 @@ No instales esta versión esperando compatibilidad con:
 - Nueve temas para la home (Clásico, Horizonte, Facetas, Telemetría, Nácar,
   Submarino, Luna, Galaxia y Aventura), elegibles con
   miniaturas en Ajustes → Temas. Durante la marcha, cada tema ilustrado alterna
-  tres animaciones breves con pausas de dos a cuatro minutos. Si aparece un aviso
-  de POI, la animación se interrumpe.
+  tres animaciones breves con pausas de dos a cuatro minutos. Toca los elementos
+  ilustrados para animarlos, también con el coche parado. Puedes animar varios a
+  la vez. Un aviso de POI interrumpe las animaciones.
 - Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
   guarda su propio orden de bloques.
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.

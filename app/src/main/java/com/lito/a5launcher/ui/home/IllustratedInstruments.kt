@@ -120,6 +120,15 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
                 }
             }
         }
+        when (style) {
+            IllustratedStyle.SUBMARINE -> {
+                TripTapTarget(TripGesture.FISH) { (d) -> art[2].rectCentered(d * .09f, d * .07f, d * .2f) }
+                TripTapTarget(TripGesture.SHOAL) { (d) -> art[1].rectAboveBase(d * .5f, d * .9f, d * .5f) }
+            }
+            IllustratedStyle.MOON -> {
+                TripTapTarget(TripGesture.ASTRONAUT) { (d) -> art[0].rectAboveBase(d * .5f, d * .99f, d * .25f) }
+            }
+        }
     }
 }
 
@@ -166,6 +175,8 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 drawGlow(Path().apply { addOval(Rect(badge, d * .07f)) }, palette.frame)
             }
             GearText(state, (width.value * .085f).sp, palette.content, Modifier.align(Alignment.TopCenter), height * .89f)
+            TripTapTarget(TripGesture.UFO) { (d) -> ufo.rectCentered(d * .5f, d * .68f, d * .28f) }
+            TripTapTarget(TripGesture.HEART) { (d) -> robot.rectAboveBase(d * .93f, d, d * .19f) }
         }
         IllustratedStyle.SUBMARINE -> Box(Modifier.size(width, height)) {
             val porthole = ImageBitmap.imageResource(R.drawable.illustration_sub_porthole_tall)
@@ -211,6 +222,7 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 centerY = height * .60f,
             )
             GearText(state, (width.value * .15f).sp, palette.content, Modifier.align(Alignment.TopCenter), height * .21f)
+            TripTapTarget(TripGesture.PERISCOPE) { (w, h) -> hut.rectAboveBase(w * .5f, h * .955f, w * .42f) }
         }
     }
 }
