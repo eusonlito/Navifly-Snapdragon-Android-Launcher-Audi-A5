@@ -1,5 +1,6 @@
 package com.lito.a5launcher.ui.home
 
+import android.graphics.Paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -7,6 +8,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -15,17 +19,31 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+private val fishPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+
 internal fun DrawScope.drawSwimmingFish(image: ImageBitmap, rect: Rect, p: Float) {
     if (p == 0f) return drawArt(image, rect)
     inArt(image, rect) {
         val kick = artWave(p)
         translate(20f * kick, -8f * kick) {
-            for (x in 0 until 80 step 4) {
-                val weight = 1f - x / 80f
-                val bend = (14f * weight * weight * kick * sin(p * ART_PI * 8)).roundToInt()
-                drawArtSlice(image, x, 0, 4, image.height, destY = bend)
+            // Shared vertices keep the outline continuous as the tail bends.
+            val columns = 12
+            val vertices = FloatArray((columns + 1) * 4)
+            val swing = 14f * kick * sin(p * ART_PI * 8)
+            for (col in 0..columns) {
+                val x = image.width * col.toFloat() / columns
+                val weight = (1f - x / 80f).coerceAtLeast(0f)
+                val bend = swing * weight * weight
+                val top = col * 2
+                val bottom = top + (columns + 1) * 2
+                vertices[top] = x
+                vertices[top + 1] = bend
+                vertices[bottom] = x
+                vertices[bottom + 1] = image.height + bend
             }
-            drawArtSlice(image, 80, 0, image.width - 80, image.height)
+            drawIntoCanvas {
+                it.nativeCanvas.drawBitmapMesh(image.asAndroidBitmap(), columns, 1, vertices, 0, null, 0, fishPaint)
+            }
         }
         fun bubble(start: Float, rise: Float, radius: Float) {
             val u = (p - start) / (1f - start)
