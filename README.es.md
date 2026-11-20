@@ -63,7 +63,9 @@ No instales esta versión esperando compatibilidad con:
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
 - Ocho temas para la home (Clásico, Horizonte, Facetas, Telemetría y los
   ilustrados Submarino, Luna, Galaxia y Aventura), elegibles con
-  miniaturas en Ajustes → Temas.
+  miniaturas en Ajustes → Temas. Durante la marcha, cada tema ilustrado alterna
+  tres animaciones breves con pausas de dos a cuatro minutos. Si aparece un aviso
+  de POI, la animación se interrumpe.
 - Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
   guarda su propio orden de bloques.
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.

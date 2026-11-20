@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
@@ -38,6 +39,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
@@ -117,6 +120,10 @@ internal fun AdventureHomeLayout(
 
         AdventureBackdrop(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress))
 
+        val motion = LocalTripArt.current
+        Canvas(Modifier.width(railWidth).fillMaxHeight().clipToBounds()) {
+            drawButterfly(motion[TripGesture.BUTTERFLY])
+        }
         Row(Modifier.fillMaxSize()) {
             Box(
                 Modifier
@@ -189,8 +196,18 @@ internal fun AdventureHomeLayout(
 @Composable
 private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
     val rocket = ImageBitmap.imageResource(R.drawable.illustration_adv_rocket)
+    val motion = LocalTripArt.current
+    val dateWidth = remember { mutableIntStateOf(0) }
+    val tempWidth = remember { mutableIntStateOf(0) }
     Box(modifier) {
-        Row(Modifier.align(Alignment.CenterStart).padding(start = h * .01f), verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.fillMaxSize().clipToBounds()) {
+            val height = size.height
+            val rest = rocket.rectCentered(center.x + height * 2.5f, center.y, height * .85f * rocket.width / rocket.height)
+            val left = maxOf(dateWidth.intValue + height * .1f, rest.left - height * 4.4f)
+            drawShootingStars(left, rest.left - height * .15f, motion[TripGesture.STARS])
+            drawAdventureFlight(rocket, rest, size.width - tempWidth.intValue - height * .2f, motion[TripGesture.PLANE])
+        }
+        Row(Modifier.align(Alignment.CenterStart).onSizeChanged { dateWidth.intValue = it.width }.padding(start = h * .01f), verticalAlignment = Alignment.CenterVertically) {
             IllustratedText(state.time.value, (h.value * .062f).sp, Color.White, FontWeight.Black)
             Box(
                 Modifier
@@ -201,15 +218,7 @@ private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
             )
             IllustratedText(state.date.value, (h.value * .04f).sp, Color.White, FontWeight.Bold)
         }
-        Image(
-            rocket,
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(x = h * .25f)
-                .size(h * .085f * rocket.width / rocket.height, h * .085f),
-        )
-        Box(Modifier.align(Alignment.CenterEnd).padding(end = h * .01f)) {
+        Box(Modifier.align(Alignment.CenterEnd).onSizeChanged { tempWidth.intValue = it.width }.padding(end = h * .01f)) {
             OutsideTemperatureText(state, (h.value * .05f).sp)
         }
     }
@@ -233,6 +242,8 @@ private fun Modifier.adventureTile(colors: Pair<Color, Color>, corner: Dp = 14.d
 @Composable
 private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Modifier) {
     val valueSize = (h.value * .085f).sp
+    val gearWidth = h * .21f
+    val starCenterOffset = gearWidth * .49f * .08f - 2.dp
     val gaugeHeight = h * .085f
     val speed = animatedGaugeFraction(state.speed, SPEED_DIAL_MAX_KMH, rpm = false)
     val rpm = animatedGaugeFraction(state.rpm, RPM_SCALE_MAX, rpm = true)
@@ -272,8 +283,8 @@ private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
             }
         }
         Box(
-            Modifier.width(h * .21f).fillMaxHeight().adventureTile(GearTileColors).drawWithCache {
-                val star = starPath(Offset(size.width / 2f, (size.height - 4.dp.toPx()) / 2f), size.width * .49f)
+            Modifier.width(gearWidth).fillMaxHeight().adventureTile(GearTileColors).drawWithCache {
+                val star = starPath(Offset(size.width / 2f, size.height / 2f + starCenterOffset.toPx()), size.width * .49f)
                 onDrawBehind {
                     drawPath(star, Color(0xFFFFEB8A))
                     drawPath(star, Color(0xFFE8A200), style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
@@ -283,7 +294,7 @@ private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
             },
             contentAlignment = Alignment.Center,
         ) {
-            IllustratedText(state.gear.value, (h.value * .112f).sp, Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = -2.dp))
+            IllustratedText(state.gear.value, (h.value * .112f).sp, Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = starCenterOffset))
         }
     }
 }
@@ -297,7 +308,7 @@ private fun starPath(center: Offset, radius: Float) = Path().apply {
         val r = if (i % 2 == 0) radius else radius * .55f
         val a = (-90f + i * 36f) * PI.toFloat() / 180f
         val x = center.x + cos(a) * r
-        val y = center.y + sin(a) * r + radius * .08f
+        val y = center.y + sin(a) * r
         if (i == 0) moveTo(x, y) else lineTo(x, y)
     }
     close()

@@ -384,6 +384,7 @@ internal fun CockpitMap(
     viewport: MapViewportSpec = MapViewportSpec(),
     topOverlay: @Composable () -> Unit = {},
     onDiagnosticsChanged: (MapDiagnostics) -> Unit = {},
+    onPoiWarningChanged: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -491,6 +492,7 @@ internal fun CockpitMap(
     val gpsAvailable = permissionGranted && locationState.gpsAvailable(tick)
     var approachIndex by remember(poiSnapshot) { mutableStateOf<PoiApproachIndex?>(null) }
     var poiApproach by remember(approachIndex) { mutableStateOf<PoiApproach?>(null) }
+    LaunchedEffect(poiApproach != null) { onPoiWarningChanged(poiApproach != null) }
     LaunchedEffect(poiSnapshot) {
         approachIndex = withContext(Dispatchers.Default) { PoiApproachIndex(poiSnapshot) }
     }

@@ -1,9 +1,11 @@
 package com.lito.a5launcher.ui.home
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
@@ -32,3 +34,18 @@ internal fun ImageBitmap.rectCentered(centerX: Float, centerY: Float, width: Flo
     val height = width * this.height / this.width
     return Rect(centerX - width / 2f, centerY - height / 2f, centerX + width / 2f, centerY + height / 2f)
 }
+
+/** Local coordinates in pixels of the original illustration. */
+internal inline fun DrawScope.inArt(image: ImageBitmap, rect: Rect, draw: DrawScope.() -> Unit) =
+    withTransform({
+        translate(rect.left, rect.top)
+        scale(rect.width / image.width, rect.height / image.height, Offset.Zero)
+    }, draw)
+
+internal fun DrawScope.drawArtSlice(
+    image: ImageBitmap, x: Int, y: Int, width: Int, height: Int,
+    destY: Int = y, destHeight: Int = height, alpha: Float = 1f,
+) = drawImage(
+    image, IntOffset(x, y), IntSize(width, height), IntOffset(x, destY), IntSize(width, destHeight),
+    alpha = alpha, filterQuality = FilterQuality.High,
+)

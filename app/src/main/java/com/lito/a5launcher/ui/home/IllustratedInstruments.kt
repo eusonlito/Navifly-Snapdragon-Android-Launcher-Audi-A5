@@ -35,6 +35,8 @@ import com.lito.a5launcher.ui.components.DialType
 import com.lito.a5launcher.ui.components.SPEED_DIAL_MAX_KMH
 import com.lito.a5launcher.ui.components.formatDialValue
 
+import kotlin.math.sin
+
 private val CoarseSpeedScale = GaugeScale(maxValue = SPEED_DIAL_MAX_KMH, labelStep = 40, minorPerLabel = 4)
 private val FineSpeedScale = GaugeScale(maxValue = SPEED_DIAL_MAX_KMH, labelStep = 20, minorPerLabel = 2)
 
@@ -59,6 +61,7 @@ private fun Rect.scaled(width: Float, height: Float) =
 /** Speed dial of the illustrated themes, [size] wide and tall. */
 @Composable
 internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeState, size: Dp) {
+    val motion = LocalTripArt.current
     val palette = style.palette
     val fraction = animatedGaugeFraction(state.speed, SPEED_DIAL_MAX_KMH, rpm = false)
     val art = when (style) {
@@ -87,7 +90,9 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
                     val opening = d * (PORTHOLE_OPENING_RADIUS + .01f)
                     drawCircle(palette.dialFace, opening)
                     clipPath(Path().apply { addOval(Rect(center, opening)) }) {
-                        drawArt(art[1], art[1].rectAboveBase(d * .5f, d * .9f, d * .5f), alpha = .9f)
+                        val base = art[1].rectAboveBase(d * .5f, d * .9f, d * .5f)
+                        drawArt(art[1], base, alpha = .9f)
+                        drawShoal(art[1], base, motion[TripGesture.SHOAL])
                     }
                     drawArt(art[0], Rect(0f, 0f, d, d))
                 }
@@ -106,9 +111,11 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
         Canvas(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress)) {
             val d = this.size.width
             when (style) {
-                IllustratedStyle.SUBMARINE -> drawArt(art[2], art[2].rectCentered(d * .09f, d * .07f, d * .2f))
+                IllustratedStyle.SUBMARINE -> drawSwimmingFish(art[2], art[2].rectCentered(d * .09f, d * .07f, d * .2f), motion[TripGesture.FISH])
                 IllustratedStyle.MOON -> {
-                    drawArt(art[0], art[0].rectAboveBase(d * .5f, d * .99f, d * .25f))
+                    val hop = artWave(motion[TripGesture.ASTRONAUT])
+                    val astronaut = art[0].rectAboveBase(d * (.5f + .007f * hop), d * (.99f - .031f * hop), d * .25f)
+                    rotate(-1.4f * hop, astronaut.center) { drawArt(art[0], astronaut) }
                     drawArt(art[1], art[1].rectAboveBase(d * .05f, d * .99f, d * .13f))
                 }
             }
@@ -119,6 +126,7 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
 /** RPM instrument with the gear, [width] × [height]. */
 @Composable
 internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState, width: Dp, height: Dp) {
+    val motion = LocalTripArt.current
     val palette = style.palette
     val fraction = animatedGaugeFraction(state.rpm, RPM_SCALE_MAX, rpm = true)
     when (style) {
@@ -146,8 +154,13 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
             )
             Canvas(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress)) {
                 val d = size.width
-                drawArt(ufo, ufo.rectCentered(d * .5f, d * .68f, d * .28f))
-                drawArt(robot, robot.rectAboveBase(d * .93f, d * 1f, d * .19f))
+                val p = motion[TripGesture.UFO]
+                val bob = artWave(p)
+                val ship = ufo.rectCentered(d * (.5f + .012f * bob * sin(p * 6f)), d * (.68f - .015f * bob), d * .28f)
+                rotate(4.9f * bob * sin(p * 9f), ship.center) { drawArt(ufo, ship) }
+                val base = robot.rectAboveBase(d * .93f, d, d * .19f)
+                drawArt(robot, base)
+                drawRobotHeart(robot, base, motion[TripGesture.HEART])
                 val badge = Offset(d * .5f, d * .89f)
                 drawCircle(palette.panel, d * .07f, badge)
                 drawGlow(Path().apply { addOval(Rect(badge, d * .07f)) }, palette.frame)
@@ -165,7 +178,7 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 val glassShape = RoundRect(glass, CornerRadius(glass.width / 2f))
                 drawPath(Path().apply { addRoundRect(glassShape) }, palette.dialFace)
                 clipPath(Path().apply { addRoundRect(glassShape) }) {
-                    drawArt(hut, hut.rectAboveBase(w * .5f, h * .955f, w * .42f), alpha = .9f)
+                    drawPeriscope(hut, hut.rectAboveBase(w * .5f, h * .955f, w * .42f), motion[TripGesture.PERISCOPE])
                 }
                 drawArt(porthole, Rect(0f, 0f, w, h))
                 // Gear window.

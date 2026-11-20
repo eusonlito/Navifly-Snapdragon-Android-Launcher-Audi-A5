@@ -197,12 +197,13 @@ private fun DrawScope.drawArtCover(image: ImageBitmap, rect: Rect, alpha: Float)
 @Composable
 private fun SpaceSpeedPanel(state: HomeState, h: Dp, corner: Dp, modifier: Modifier) {
     val fraction = animatedGaugeFraction(state.speed, SPEED_DIAL_MAX_KMH, rpm = false)
+    val motion = LocalTripArt.current
     val rocket = ImageBitmap.imageResource(R.drawable.illustration_galaxy_rocket)
     Box(
         modifier
             .startupOutlineAlpha(state.startupProgress)
             .spacePanel(GalaxyPalette, corner) {
-                drawArt(rocket, rocket.rectCentered(size.width * .78f, size.height * .30f, size.width * .40f))
+                drawGalaxyLaunch(rocket, rocket.rectCentered(size.width * .78f, size.height * .30f, size.width * .40f), motion[TripGesture.LAUNCH])
             },
     ) {
         SpaceReading(
@@ -313,6 +314,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
     val tiles = remember(order) { order.filter(SpaceSideTiles::contains) }
     val sizes = remember { mutableStateMapOf<FooterBlockItem, Int>() }
     val gapPx = with(LocalDensity.current) { gap.roundToPx() }
+    val motion = LocalTripArt.current
     val earth = ImageBitmap.imageResource(R.drawable.illustration_galaxy_earth)
     val lunar = ImageBitmap.imageResource(R.drawable.illustration_galaxy_lunar)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -332,7 +334,9 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                     when (item) {
                         FooterBlockItem.FUEL -> Box(
                             Modifier.fillMaxSize().spacePanel(palette, corner) {
-                                drawArt(earth, earth.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.15f))
+                                val horizon = earth.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.15f)
+                                drawArt(earth, horizon)
+                                drawAurora(horizon, motion[TripGesture.AURORA])
                             },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -341,6 +345,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                         else -> Box(
                             Modifier.fillMaxSize().spacePanel(palette, corner) {
                                 drawArt(lunar, lunar.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.1f), alpha = .9f)
+                                drawRover(motion[TripGesture.ROVER])
                             },
                             contentAlignment = Alignment.Center,
                         ) {

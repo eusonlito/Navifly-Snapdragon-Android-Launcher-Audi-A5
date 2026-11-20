@@ -612,6 +612,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             },
         )
     }
+    var poiWarningVisible by remember { mutableStateOf(false) }
     // A single movable map: switching themes moves the MapView instead of rebuilding it.
     val mapContent = remember {
         movableContentOf { mapModifier: Modifier, viewport: MapViewportSpec ->
@@ -640,6 +641,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     )
                 },
                 onDiagnosticsChanged = { mapDiagnostics = it },
+                onPoiWarningChanged = { poiWarningVisible = it },
             )
         }
     }
@@ -696,7 +698,13 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            CompositionLocalProvider(LocalHomeTokens provides homeTokens) {
+            val tripArt = rememberTripArt(homeTheme) {
+                speedState.value > 0 && startupProgress.value == null && !poiWarningVisible &&
+                    !showApps && !showLauncherSettings && statisticsPanel == null &&
+                    pendingRefuelConfirmation == null && !showManualPartialResetConfirmation &&
+                    !homeState.assistantActive.value
+            }
+            CompositionLocalProvider(LocalHomeTokens provides homeTokens, LocalTripArt provides tripArt) {
                 when (homeTheme) {
                     HomeTheme.CLASSIC -> ClassicHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.HORIZON -> HorizonHomeLayout(homeState, homeActions, homeSlots)
