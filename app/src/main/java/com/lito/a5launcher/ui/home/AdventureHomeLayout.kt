@@ -133,7 +133,7 @@ internal fun AdventureHomeLayout(
                 Modifier
                     .width(railWidth)
                     .fillMaxHeight()
-                    .padding(top = topHeight, bottom = h * .04f)
+                    .padding(top = topHeight * .6f, bottom = h * .14f)
                     .startupContentAlpha(state)
                     .zIndex(3f),
                 contentAlignment = Alignment.Center,
@@ -144,7 +144,7 @@ internal fun AdventureHomeLayout(
                     CommandMetrics(buttonSize = h * .11f, iconSize = h * .068f, horizontalPadding = 4.dp),
                     ReorderAxis.VERTICAL,
                     dividers = false,
-                    spacing = h * .025f,
+                    spacing = h * .004f,
                 )
             }
             Column(Modifier.weight(1f).fillMaxHeight().padding(end = gap)) {
