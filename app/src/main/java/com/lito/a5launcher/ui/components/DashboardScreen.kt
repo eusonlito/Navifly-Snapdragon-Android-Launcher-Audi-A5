@@ -714,6 +714,9 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     HomeTheme.MOON -> IllustratedHomeLayout(IllustratedStyle.MOON, homeState, homeActions, homeSlots)
                     HomeTheme.GALAXY -> GalaxyHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.ADVENTURE -> AdventureHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.BLUE_CYAN, HomeTheme.BLUE_LIGHT -> BlueHomeLayout(
+                        homeState, homeActions, homeSlots, cyan = homeTheme == HomeTheme.BLUE_CYAN,
+                    )
                 }
             }
 

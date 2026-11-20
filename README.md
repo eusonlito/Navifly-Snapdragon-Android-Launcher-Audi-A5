@@ -60,7 +60,7 @@ Do not install this build expecting compatibility with:
 - Importable GeoJSON points of interest with configurable categories, icons and
   pulses, and an alert distance per category.
 - Speed-camera POI markers supplied through the user's local files.
-- Eight home themes (Classic, Horizon, Facets, Telemetry and the illustrated
+- Ten home themes (Classic, Horizon, Facets, Telemetry, Cyan Blue, Light Blue,
   Submarine, Moon, Galaxy and Adventure), chosen from previews in
   Settings → Themes. Each illustrated theme cycles through three short animations
   while driving, with a two- to four-minute pause between them. A nearby POI
