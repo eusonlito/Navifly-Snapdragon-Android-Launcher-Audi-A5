@@ -231,7 +231,7 @@ internal fun defaultFooterBlockOrder(theme: HomeTheme): List<FooterBlockItem> = 
     else -> DefaultFooterBlockOrder
 }
 
-internal fun homeTokensFor(theme: HomeTheme, dark: Boolean): HomeTokens = when (theme) {
+internal fun homeTokensFor(theme: HomeTheme, dark: Boolean, mapDark: Boolean = dark): HomeTokens = when (theme) {
     HomeTheme.CLASSIC -> ClassicHomeTokens
     HomeTheme.HORIZON -> horizonTokens(dark)
     HomeTheme.FACETS -> facetsTokens(dark)
@@ -239,7 +239,7 @@ internal fun homeTokensFor(theme: HomeTheme, dark: Boolean): HomeTokens = when (
     HomeTheme.SUBMARINE -> illustratedTokens(SubmarinePalette, dark)
     HomeTheme.MOON -> illustratedTokens(MoonPalette, dark)
     HomeTheme.GALAXY -> illustratedTokens(GalaxyPalette, dark)
-    HomeTheme.BLUE_LIGHT -> blueHomeTokens(dark)
+    HomeTheme.BLUE_LIGHT -> blueHomeTokens(dark, mapDark)
     // White witnesses and a dark empty fuel level read better on the bright tiles.
     HomeTheme.ADVENTURE -> illustratedTokens(AdventurePalette, dark).copy(
         witnessInactive = Color.White.copy(alpha = .9f),

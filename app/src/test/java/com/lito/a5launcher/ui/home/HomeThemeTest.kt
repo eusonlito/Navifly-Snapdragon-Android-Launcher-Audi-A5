@@ -31,6 +31,16 @@ class HomeThemeTest {
     }
 
     @Test
+    fun pearlNightPanelsRespectAnExplicitLightMap() {
+        val day = homeTokensFor(HomeTheme.BLUE_LIGHT, dark = false)
+        val night = homeTokensFor(HomeTheme.BLUE_LIGHT, dark = true, mapDark = false)
+
+        assertNotEquals(day.background, night.background)
+        assertNotEquals(day.content, night.content)
+        assertEquals(day.map, night.map)
+    }
+
+    @Test
     fun unknownOrMissingThemeFallsBackToClassic() {
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme(null))
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme("NEON"))

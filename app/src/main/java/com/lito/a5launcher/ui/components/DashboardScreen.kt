@@ -546,9 +546,14 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
         }
     }
 
-    val homeTokens = remember(homeTheme, darkModeActive) { homeTokensFor(homeTheme, darkModeActive) }
+    // Pearl dims as soon as the headlights turn on, even with a fixed light map.
+    val darkHome = darkModeActive || (homeTheme == HomeTheme.BLUE_LIGHT && lightsOn == true)
+    val homeTokens = remember(homeTheme, darkHome, darkModeActive) {
+        homeTokensFor(homeTheme, dark = darkHome, mapDark = darkModeActive)
+    }
     val homeTokensState = rememberUpdatedState(homeTokens)
     val darkModeActiveState = rememberUpdatedState(darkModeActive)
+    val homeLightsActiveState = rememberUpdatedState(darkHome)
     val assistantEnabledState = rememberUpdatedState(
         assistantController.settings.provider != AssistantProvider.DISABLED,
     )
@@ -566,7 +571,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
             seatbeltAlert = derivedStateOf { !seatbeltState.value },
             parkingBrake = brakeState,
             // The original footer lit the witness with the effective dark mode.
-            lightsActive = darkModeActiveState,
+            lightsActive = homeLightsActiveState,
             trip = tripStatisticsState,
             partial = partialStatisticsState,
             time = timeState,
@@ -714,7 +719,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     HomeTheme.MOON -> IllustratedHomeLayout(IllustratedStyle.MOON, homeState, homeActions, homeSlots)
                     HomeTheme.GALAXY -> GalaxyHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.ADVENTURE -> AdventureHomeLayout(homeState, homeActions, homeSlots)
-                    HomeTheme.BLUE_LIGHT -> BlueHomeLayout(homeState, homeActions, homeSlots)
+                    HomeTheme.BLUE_LIGHT -> BlueHomeLayout(homeState, homeActions, homeSlots, dark = darkHome)
                 }
             }
 

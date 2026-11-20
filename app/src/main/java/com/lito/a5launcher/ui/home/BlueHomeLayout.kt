@@ -43,8 +43,8 @@ import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
 
 @Composable
-internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeSlots) {
-    BoxWithConstraints(Modifier.fillMaxSize().blueBackdrop()) {
+internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeSlots, dark: Boolean) {
+    BoxWithConstraints(Modifier.fillMaxSize().blueBackdrop(dark)) {
         val screenHeight = maxHeight
         val unit = screenHeight.coerceAtMost(maxWidth * (896f / 2400f))
         val railWidth = maxWidth * .053f
@@ -52,11 +52,11 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
         val corner = unit * .024f
         val viewport = remember(corner) { MapViewportSpec(cornerRadius = corner) }
         Row(Modifier.fillMaxSize()) {
-            BlueRail(state, actions, railWidth, screenHeight, unit)
+            BlueRail(state, actions, railWidth, screenHeight, unit, dark)
             Column(Modifier.weight(1f).fillMaxHeight().padding(start = gap, end = gap, bottom = gap)) {
                 Row(
                     Modifier.fillMaxWidth().height(screenHeight * .076f)
-                        .startupContentAlpha(state).blueLightEdge(vertical = false)
+                        .startupContentAlpha(state).blueLightEdge(dark, vertical = false)
                         .padding(horizontal = unit * .015f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -69,19 +69,19 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
                     Modifier.weight(1f).fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(gap),
                 ) {
-                    LightInstruments(state, unit, corner, Modifier.weight(.29f).fillMaxHeight())
+                    BlueInstruments(state, unit, corner, dark, Modifier.weight(.29f).fillMaxHeight())
                     Box(Modifier.weight(.71f).fillMaxHeight()) {
                         Box(Modifier.fillMaxSize().clip(RoundedCornerShape(corner))) {
                             slots.map(Modifier.fillMaxSize(), viewport)
                             StartupMapCover(state)
                             slots.mapOverlay(this, PaddingValues())
                         }
-                        Canvas(Modifier.fillMaxSize().blueMapRim(corner)) { }
+                        Canvas(Modifier.fillMaxSize().blueMapRim(corner, dark)) { }
                     }
                 }
                 Spacer(Modifier.height(gap))
                 BlueFooter(
-                    state, actions, unit,
+                    state, actions, unit, dark,
                     Modifier.fillMaxWidth().height(screenHeight * .124f).startupContentAlpha(state),
                 )
             }
@@ -91,11 +91,11 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
 
 @Composable
 private fun BlueRail(
-    state: HomeState, actions: HomeActions, width: Dp, height: Dp, unit: Dp,
+    state: HomeState, actions: HomeActions, width: Dp, height: Dp, unit: Dp, dark: Boolean,
 ) {
     val count = TopCommandItem.entries.size - if (state.assistantEnabled.value) 0 else 1
     Box(
-        Modifier.width(width).fillMaxHeight().blueRailSurface().blueLightEdge(vertical = true)
+        Modifier.width(width).fillMaxHeight().blueRailSurface(dark).blueLightEdge(dark, vertical = true)
             .startupContentAlpha(state),
         contentAlignment = Alignment.Center,
     ) {
@@ -113,17 +113,17 @@ private fun BlueRail(
 }
 
 @Composable
-private fun LightInstruments(state: HomeState, unit: Dp, corner: Dp, modifier: Modifier) {
+private fun BlueInstruments(state: HomeState, unit: Dp, corner: Dp, dark: Boolean, modifier: Modifier) {
     Column(
-        modifier.bluePearlPanel(corner).padding(top = unit * .017f),
+        modifier.bluePearlPanel(corner, dark).padding(top = unit * .017f),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            BlueSpeedometer(state, Modifier.fillMaxSize())
+            BlueSpeedometer(state, dark, Modifier.fillMaxSize())
             BlueGear(
-                state,
+                state, dark,
                 Modifier.align(Alignment.BottomCenter).padding(bottom = maxHeight * .016f)
-                    .size(width = minOf(maxWidth * .43f, maxHeight * .67f), height = maxHeight * .195f),
+                    .size(width = minOf(maxWidth * .37f, maxHeight * .60f), height = maxHeight * .224f),
             )
         }
         Box(
@@ -186,16 +186,17 @@ internal fun BlueText(text: String, size: TextUnit, color: Color, weight: FontWe
 }
 
 @Composable
-private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, modifier: Modifier) {
+private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, dark: Boolean, modifier: Modifier) {
     val corner = unit * .017f
     val labelSize = (unit.value * .022f).sp
     val valueSize = (unit.value * .041f).sp
     val unitSize = valueSize * .64f
+    val labelGap = unit * .017f
     BlockStrip(
         state, actions, pinned = emptySet(),
         axis = ReorderAxis.HORIZONTAL,
         labelSize = labelSize, valueSize = valueSize, unitSize = unitSize,
-        modifier = modifier.bluePearlPanel(corner),
+        modifier = modifier.bluePearlPanel(corner, dark),
         plateShape = RoundedCornerShape(corner),
         itemWeight = {
             when (it) {
@@ -214,24 +215,27 @@ private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, modifie
                 arrangement = Arrangement.SpaceEvenly,
             )
             FooterBlockItem.FUEL -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                BlueFuel(state, unit, labelSize, valueSize, unitSize)
+                BlueFuel(state, unit, labelSize, valueSize, unitSize, labelGap)
             }
             else -> DefaultBlockContent(
-                item, state, actions, labelSize, valueSize, unitSize, labelGap = unit * .011f,
+                item, state, actions, labelSize, valueSize, unitSize, labelGap = labelGap,
             )
         }
     }
 }
 
 @Composable
-private fun BlueFuel(state: HomeState, unit: Dp, labelSize: TextUnit, valueSize: TextUnit, unitSize: TextUnit) {
+private fun BlueFuel(
+    state: HomeState, unit: Dp, labelSize: TextUnit, valueSize: TextUnit, unitSize: TextUnit, labelGap: Dp,
+) {
     val fuel = state.fuel.value
     val active = fuelSegments(fuel)
     val tone = fuelSegmentTone(active)
     val tokens = LocalHomeTokens.current
     Column(
         Modifier.fillMaxWidth().padding(horizontal = unit * .018f),
-        verticalArrangement = Arrangement.spacedBy(unit * .011f),
+        verticalArrangement = Arrangement.spacedBy(labelGap),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         BlockLabel(blockLabel(FooterBlockItem.FUEL), labelSize)
         Row(
@@ -255,7 +259,7 @@ private fun BlueFuel(state: HomeState, unit: Dp, labelSize: TextUnit, valueSize:
             }
             ValueWithUnit(
                 "$fuel/$A5_FUEL_TANK_CAPACITY_LITRES", "L",
-                valueSize * .90f, unitSize, color = color,
+                valueSize, unitSize, color = color,
             )
         }
     }
