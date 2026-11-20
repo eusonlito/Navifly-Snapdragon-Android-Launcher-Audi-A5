@@ -78,10 +78,10 @@ private val BlueNightTokens = BlueDayTokens.copy(
     fuelInactive = Color(0xFF32445C),
 )
 
-internal fun blueHomeTokens(dark: Boolean, mapDark: Boolean) = (if (dark) BlueNightTokens else BlueDayTokens).copy(
+internal fun blueHomeTokens(dark: Boolean) = (if (dark) BlueNightTokens else BlueDayTokens).copy(
     map = MapThemeColors.Classic.copy(
-        loadingBackground = if (mapDark) Color(0xFF151A1E) else Pearl,
-        attribution = if (mapDark) Color.White.copy(alpha = .42f) else Color.Black.copy(alpha = .47f),
+        loadingBackground = if (dark) Color(0xFF151A1E) else Pearl,
+        attribution = if (dark) Color.White.copy(alpha = .42f) else Color.Black.copy(alpha = .47f),
     ),
 )
 

@@ -5,7 +5,6 @@ import com.lito.a5launcher.R
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -29,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
@@ -59,9 +59,12 @@ import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
 
 /** The porthole themes share one layout and differ in their art. */
-internal enum class IllustratedStyle(val palette: IllustratedPalette) {
-    SUBMARINE(SubmarinePalette),
-    MOON(MoonPalette),
+internal enum class IllustratedStyle(private val theme: HomeTheme) {
+    SUBMARINE(HomeTheme.SUBMARINE),
+    MOON(HomeTheme.MOON);
+
+    val palette: IllustratedPalette
+        @Composable get() = currentIllustratedPalette(theme)
 }
 
 /** Rounded rectangle of the screen taken by an instrument, in dp. */
@@ -135,6 +138,7 @@ internal fun IllustratedHomeLayout(
     modifier: Modifier = Modifier,
 ) {
     val palette = style.palette
+    val night = LocalIllustratedNight.current
     BoxWithConstraints(modifier.fillMaxSize()) {
         val h = maxHeight
         val w = maxWidth
@@ -183,8 +187,6 @@ internal fun IllustratedHomeLayout(
         IllustratedBackdrop(
             style,
             Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress),
-            middleTop,
-            middleHeight,
             left,
             right,
             Rect(mapLeft.value, mapTop.value, (mapLeft + mapWidth).value, (mapTop + mapHeight).value),
@@ -193,6 +195,9 @@ internal fun IllustratedHomeLayout(
             footerHeight,
             margin,
         )
+        if (style == IllustratedStyle.SUBMARINE) {
+            SubmarineSeaweed(left, Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress))
+        }
 
         Box(
             Modifier
@@ -213,7 +218,7 @@ internal fun IllustratedHomeLayout(
                 .size(mapWidth, mapHeight)
                 .startupOutlineAlpha(state.startupProgress),
         ) {
-            drawMapFrame(style, cutoutMapPath(size, this, corner, cutouts))
+            drawMapFrame(style, palette, cutoutMapPath(size, this, corner, cutouts), night)
         }
         Box(Modifier.offset(x = left.left, y = left.top).size(left.width, left.height).zIndex(1f)) {
             IllustratedSpeedInstrument(style, state, left.width)
@@ -252,15 +257,15 @@ internal fun IllustratedHomeLayout(
     }
 }
 
-private fun DrawScope.drawMapFrame(style: IllustratedStyle, outline: Path) {
+private fun DrawScope.drawMapFrame(style: IllustratedStyle, palette: IllustratedPalette, outline: Path, night: Boolean) {
     when (style) {
         // Thin brass trim like the portholes: a dark edge under a gold line.
         IllustratedStyle.SUBMARINE -> {
-            drawPath(outline, SubmarineTrimShade, style = Stroke(SubmarineTrimWidth.toPx()))
-            drawPath(outline, SubmarineTrim, style = Stroke(SubmarineTrimWidth.toPx() * .55f))
+            drawPath(outline, if (night) palette.dialFace else SubmarineTrimShade, style = Stroke(SubmarineTrimWidth.toPx()))
+            drawPath(outline, if (night) palette.frame else SubmarineTrim, style = Stroke(SubmarineTrimWidth.toPx() * .55f))
         }
         // The neon of the dial rims, a little heavier.
-        IllustratedStyle.MOON -> drawGlow(outline, style.palette.frame, line = 2.5.dp, halo = 7.dp)
+        IllustratedStyle.MOON -> drawGlow(outline, palette.frame, line = 2.5.dp, halo = 7.dp)
     }
 }
 
@@ -275,22 +280,25 @@ private fun roundRectPath(rect: Rect, radius: Float) = Path().apply {
 }
 
 /** Frame of a bar or pill in the theme's style, drawn behind its content. */
+@Composable
 private fun Modifier.illustratedPanel(
     style: IllustratedStyle,
     radiusFraction: Float = .5f,
     fillAlpha: Float = 1f,
-): Modifier = drawWithCache {
+): Modifier {
     val palette = style.palette
-    val inset = 2.dp.toPx()
-    val rect = Rect(inset, inset, size.width - inset, size.height - inset)
-    val radius = rect.height * radiusFraction
-    val outline = roundRectPath(rect, radius)
-    onDrawBehind {
-        if (style != IllustratedStyle.SUBMARINE) drawPath(outline, palette.panel, alpha = fillAlpha)
-        when (style) {
-            // Clear glass over the water: only its outline is drawn.
-            IllustratedStyle.SUBMARINE -> drawPath(outline, palette.panelBorder, style = Stroke(1.5.dp.toPx()))
-            IllustratedStyle.MOON -> drawGlow(outline, palette.panelBorder)
+    return drawWithCache {
+        val inset = 2.dp.toPx()
+        val rect = Rect(inset, inset, size.width - inset, size.height - inset)
+        val radius = rect.height * radiusFraction
+        val outline = roundRectPath(rect, radius)
+        onDrawBehind {
+            if (style != IllustratedStyle.SUBMARINE) drawPath(outline, palette.panel, alpha = fillAlpha)
+            when (style) {
+                // Clear glass over the water: only its outline is drawn.
+                IllustratedStyle.SUBMARINE -> drawPath(outline, palette.panelBorder, style = Stroke(1.5.dp.toPx()))
+                IllustratedStyle.MOON -> drawGlow(outline, palette.panelBorder)
+            }
         }
     }
 }
@@ -328,7 +336,7 @@ private fun IllustratedTopBar(
             Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().illustratedPanel(style).padding(horizontal = pad), contentAlignment = Alignment.Center) { clock() }
             Box(Modifier.align(Alignment.Center).fillMaxHeight().illustratedPanel(style).padding(horizontal = pad * .5f), contentAlignment = Alignment.Center) { commands() }
             Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
-                TopBarPlanet(R.drawable.illustration_moon_planet, barHeight * 1.05f)
+                TopBarPlanet(R.drawable.illustration_moon_planet, barHeight * 1.05f, TripGesture.MOON_PLANET)
                 Spacer(Modifier.width(pad))
                 Box(Modifier.fillMaxHeight().illustratedPanel(style).padding(horizontal = pad), contentAlignment = Alignment.Center) { temperature() }
             }
@@ -343,9 +351,14 @@ private fun IllustratedTopBar(
 }
 
 @Composable
-internal fun TopBarPlanet(resource: Int, height: Dp) {
+internal fun TopBarPlanet(resource: Int, height: Dp, gesture: TripGesture) {
     val image = ImageBitmap.imageResource(resource)
-    Image(image, contentDescription = null, modifier = Modifier.size(height * image.width / image.height, height))
+    val motion = LocalTripArt.current
+    val filter = illustratedArtworkFilter()
+    Box(Modifier.size(height * image.width / image.height, height).clipToBounds()) {
+        Canvas(Modifier.fillMaxSize()) { drawOrbitingPlanet(image, motion[gesture], gesture == TripGesture.SATURN, filter) }
+        TripTapTarget(gesture) { Rect(Offset.Zero, it) }
+    }
 }
 
 @Composable
@@ -437,8 +450,6 @@ private fun SegmentedFuel(state: HomeState, h: Dp, valueSize: TextUnit) {
 private fun IllustratedBackdrop(
     style: IllustratedStyle,
     modifier: Modifier,
-    middleTop: Dp,
-    middleHeight: Dp,
     left: Footprint,
     right: Footprint,
     mapWindow: Rect,
@@ -448,15 +459,12 @@ private fun IllustratedBackdrop(
     margin: Dp,
 ) {
     val palette = style.palette
-    val art = when (style) {
-        IllustratedStyle.SUBMARINE -> listOf(R.drawable.illustration_sub_seaweed)
-        IllustratedStyle.MOON -> listOf(R.drawable.illustration_moon_ground)
-    }.map { ImageBitmap.imageResource(it) }
+    val ground = if (style == IllustratedStyle.MOON) ImageBitmap.imageResource(R.drawable.illustration_moon_ground) else null
+    val night = LocalIllustratedNight.current
+    val filter = illustratedArtworkFilter()
     Canvas(
         modifier.drawWithCache {
             val sky = Brush.verticalGradient(listOf(palette.skyTop, palette.skyBottom))
-            val bottom = (middleTop + middleHeight).toPx()
-            val mid = middleHeight.toPx()
             // Map window and instruments, in pixels: nothing may peek out from behind them.
             val px = density
             val covers = listOf(
@@ -467,33 +475,57 @@ private fun IllustratedBackdrop(
             val barTop = margin.toPx() + topHeight.toPx()
             val barBottom = size.height - margin.toPx() - footerHeight.toPx()
             val fade = { p: Offset -> if (p.y < barTop || p.y > barBottom) .45f else 1f }
-            val seaweedLeft = left.left.toPx()
             onDrawBehind {
                 drawRect(sky)
                 when (style) {
                     IllustratedStyle.SUBMARINE -> {
-                        drawBubbles(seed = 11, count = 90, color = Color(0xFFBFF3F0), hidden = hidden, fade = fade)
-                        // Seaweed on its rock in the outer bottom corners, rising behind the
-                        // portholes; the rock rests just above the value bar, never cut.
-                        val seaweed = art[0]
-                        val width = mid * SEAWEED_WIDTH
-                        val base = seaweed.rectAboveBase(seaweedLeft + width / 2f, bottom, width)
-                        drawArt(seaweed, base)
-                        scale(-1f, 1f, pivot = Offset(size.width / 2f, 0f)) { drawArt(seaweed, base) }
+                        drawBubbles(seed = 11, count = 90, color = if (night) Color(0xFFA2CFCA) else Color(0xFFBFF3F0), hidden = hidden, fade = fade)
                     }
                     IllustratedStyle.MOON -> {
-                        drawStarField(seed = 3, count = 70, dot = Color.White, sparkle = Color.White, star = Color(0xFFFFD43B))
-                        val ground = art[0]
+                        drawStarField(seed = 3, count = 70, dot = palette.content, sparkle = palette.content, star = if (night) Color(0xFFB3A067) else Color(0xFFFFD43B))
                         // Lunar ground resting on the bottom edge of the screen, partly seen through the
                         // value bar. Each half of the screen holds one copy, the left one mirrored, so
                         // they meet seamlessly in the middle and the planet hill sits at both edges.
                         val half = size.width / 2f
-                        val rightGround = ground.rectAboveBase(half + half / 2f, size.height, half)
-                        drawArt(ground, rightGround)
-                        scale(-1f, 1f, pivot = Offset(half, 0f)) { drawArt(ground, rightGround) }
+                        val lunar = checkNotNull(ground)
+                        val rightGround = lunar.rectAboveBase(half + half / 2f, size.height, half)
+                        drawArt(lunar, rightGround, filter = filter)
+                        scale(-1f, 1f, pivot = Offset(half, 0f)) { drawArt(lunar, rightGround, filter = filter) }
                     }
                 }
             }
         },
     ) { }
+}
+
+@Composable
+private fun SubmarineSeaweed(left: Footprint, modifier: Modifier) {
+    val image = ImageBitmap.imageResource(R.drawable.illustration_sub_seaweed)
+    val filter = illustratedArtworkFilter()
+    val motion = LocalTripArt.current
+    val width = left.height * SEAWEED_WIDTH
+    val height = width * (image.height.toFloat() / image.width)
+    val pivot = left.height * .105f
+    val bottom = left.top + left.height
+    Box(modifier) {
+        for (alignment in listOf(Alignment.TopStart, Alignment.TopEnd)) {
+            Box(
+                Modifier.align(alignment)
+                    .offset(y = bottom - height).size(width, height),
+            ) {
+                val mirrored = alignment == Alignment.TopEnd
+                Canvas(Modifier.fillMaxSize()) {
+                    val base = image.rectAboveBase(pivot.toPx(), size.height, size.width)
+                    val progress = motion[TripGesture.SEAWEED]
+                    if (mirrored) {
+                        scale(-1f, 1f, pivot = center) { drawSwayingSeaweed(image, base, progress, filter) }
+                    } else drawSwayingSeaweed(image, base, progress, filter)
+                }
+                TripTapTarget(TripGesture.SEAWEED) { (w, h) ->
+                    val cut = w * .54f
+                    if (mirrored) Rect(w - cut, h * .20f, w, h) else Rect(0f, h * .20f, cut, h)
+                }
+            }
+        }
+    }
 }

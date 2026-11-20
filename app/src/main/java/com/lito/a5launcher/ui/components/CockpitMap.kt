@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -67,8 +66,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -374,9 +373,8 @@ internal fun CockpitMap(
     poiRepository: PoiRepository,
     locationRepository: LocationRepository,
     modifier: Modifier = Modifier,
-    tileStyle: MapTileStyle = MapTileStyle.POSITRON,
-    colorMode: MapColorMode = MapColorMode.AUTOMATIC,
-    vehicleLightsOn: Boolean? = null,
+    effectiveTileStyle: MapTileStyle,
+    preferredLightStyle: MapTileStyle,
     cacheLimit: MapCacheLimit = MapCacheLimit.GB_2,
     cacheGeneration: Int = 0,
     debugEnabled: Boolean = false,
@@ -388,10 +386,6 @@ internal fun CockpitMap(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val systemNight = configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
-        Configuration.UI_MODE_NIGHT_YES
-    val effectiveTileStyle =
-        resolveMapTileStyle(colorMode, vehicleLightsOn, systemNight, tileStyle)
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     val lifecycleActive = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
@@ -577,7 +571,7 @@ internal fun CockpitMap(
                 position = position,
                 motionSmoother = motionSmoother,
                 tileStyle = effectiveTileStyle,
-                zoomPreferenceKey = tileStyle.cacheKey,
+                zoomPreferenceKey = preferredLightStyle.cacheKey,
                 cacheLimit = cacheLimit,
                 cacheGeneration = cacheGeneration,
                 debugEnabled = debugEnabled,

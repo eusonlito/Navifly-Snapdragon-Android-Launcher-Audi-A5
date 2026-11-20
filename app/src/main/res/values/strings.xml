@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="trip_art_seaweed">Animate the seaweed</string>
+    <string name="trip_art_moon_planet">Animate the planet</string>
+    <string name="trip_art_saturn">Animate Saturn</string>
     <string name="trip_art_fish">Animate the fish</string>
     <string name="trip_art_shoal">Animate the school of fish</string>
     <string name="trip_art_periscope">Animate the periscope</string>

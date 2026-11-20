@@ -1,7 +1,11 @@
 package com.lito.a5launcher.ui.home
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import com.lito.a5launcher.ui.components.MapThemeColors
@@ -107,6 +111,59 @@ internal val AdventurePalette = IllustratedPalette(
     divider = Color.White.copy(alpha = .35f),
     redZone = Color(0xFFFF4D4D),
 )
+
+private val SubmarineNight = SubmarinePalette.copy(
+    skyTop = Color(0xFF082A34), skyBottom = Color(0xFF041A23),
+    panel = Color(0xFF0A2730), panelBorder = Color(0xFF275361),
+    frame = Color(0xFF9D8763), frameShade = Color(0xFF514D43),
+    accent = Color(0xFFE39158), dialFace = Color(0xFF06242D),
+    arc = Color(0xFF6ABDBB), arcTrack = Color(0xFF24505A),
+    content = Color(0xFFDBE7DD), label = Color(0xFFBECFC9), unit = Color(0xFFD2E3DB),
+)
+
+private val MoonNight = MoonPalette.copy(
+    skyTop = Color(0xFF090D27), skyBottom = Color(0xFF151838),
+    panel = Color(0xFF0C132F), panelBorder = Color(0xFF378BAC),
+    frame = Color(0xFF4795B3), accent = Color(0xFF76CDDF),
+    dialFace = Color(0xFF101734), arc = Color(0xFF68BCCF), arcTrack = Color(0xFF283656),
+    content = Color(0xFFDBE5F2), label = Color(0xFFCDD7E7), unit = Color(0xFF83CDE0),
+)
+
+private val GalaxyNight = GalaxyPalette.copy(
+    skyTop = Color(0xFF040617), skyBottom = Color(0xFF0A102B),
+    panel = Color(0xF00B1535), panelBorder = Color(0xFF3989B0),
+    frame = Color(0xFF458FB6), frameShade = Color(0xFF76549F),
+    accent = Color(0xFFDAA368), dialFace = Color(0xF0080E27),
+    arc = Color(0xFF67C3D5), arcTrack = Color(0xFF283754),
+    content = Color(0xFFDEE7F3), label = Color(0xFFCBD6EA), unit = Color(0xFF92CEE0),
+)
+
+private val AdventureNight = AdventurePalette.copy(
+    skyTop = Color(0xFF0B1739), skyBottom = Color(0xFF070F29),
+    panel = Color(0xFF152A54), panelBorder = Color(0xFF416698),
+    frame = Color(0xFF7496C0), frameShade = Color(0xFF0C1631),
+    accent = Color(0xFFD7B567), dialFace = Color(0xFF13254D),
+    arc = Color(0xFFD7B567), arcTrack = Color(0xFF657FA8),
+    content = Color(0xFFE3EAF4), label = Color(0xFFD3DDED), unit = Color(0xFFD3DDED),
+)
+
+internal fun illustratedPaletteFor(theme: HomeTheme, night: Boolean): IllustratedPalette = when (theme) {
+    HomeTheme.SUBMARINE -> if (night) SubmarineNight else SubmarinePalette
+    HomeTheme.MOON -> if (night) MoonNight else MoonPalette
+    HomeTheme.GALAXY -> if (night) GalaxyNight else GalaxyPalette
+    HomeTheme.ADVENTURE -> if (night) AdventureNight else AdventurePalette
+    else -> error("No illustrated palette for ${theme.name}")
+}
+
+internal val LocalIllustratedNight = staticCompositionLocalOf { false }
+
+@Composable
+internal fun currentIllustratedPalette(theme: HomeTheme) = illustratedPaletteFor(theme, LocalIllustratedNight.current)
+
+private val NightArtwork by lazy { ColorFilter.colorMatrix(ColorMatrix().apply { setToScale(.64f, .69f, .79f, 1f) }) }
+
+@Composable
+internal fun illustratedArtworkFilter(): ColorFilter? = if (LocalIllustratedNight.current) NightArtwork else null
 
 internal fun illustratedTokens(palette: IllustratedPalette, dark: Boolean) = HomeTokens(
     background = palette.skyBottom,

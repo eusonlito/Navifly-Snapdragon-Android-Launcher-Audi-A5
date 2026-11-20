@@ -108,6 +108,7 @@ internal fun AdventureHomeLayout(
     slots: HomeSlots,
     modifier: Modifier = Modifier,
 ) {
+    val palette = currentIllustratedPalette(HomeTheme.ADVENTURE)
     BoxWithConstraints(modifier.fillMaxSize()) {
         val h = maxHeight
         val w = maxWidth
@@ -164,7 +165,7 @@ internal fun AdventureHomeLayout(
                         }
                         Canvas(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress)) {
                             drawRoundRect(
-                                Color.White,
+                                palette.frame,
                                 cornerRadius = CornerRadius(corner.toPx()),
                                 style = Stroke(3.dp.toPx()),
                             )
@@ -200,6 +201,8 @@ internal fun AdventureHomeLayout(
 private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
     val rocket = ImageBitmap.imageResource(R.drawable.illustration_adv_rocket)
     val motion = LocalTripArt.current
+    val palette = currentIllustratedPalette(HomeTheme.ADVENTURE)
+    val filter = illustratedArtworkFilter()
     val dateWidth = remember { mutableIntStateOf(0) }
     val tempWidth = remember { mutableIntStateOf(0) }
     fun rocketBounds(size: Size) = rocket.rectCentered(
@@ -215,21 +218,21 @@ private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
             val sky = skyBounds(rest.left, height)
             if (sky.width > 0f) {
                 val star = sky.center
-                drawPath(starPath(star, height * .13f), Color(0xFFFFD43B))
+                drawPath(starPath(star, height * .13f), palette.accent)
                 drawShootingStars(sky.left, sky.right, motion[TripGesture.STARS])
             }
-            drawAdventureFlight(rocket, rest, size.width - tempWidth.intValue - height * .2f, motion[TripGesture.PLANE])
+            drawAdventureFlight(rocket, rest, size.width - tempWidth.intValue - height * .2f, motion[TripGesture.PLANE], filter)
         }
         Row(Modifier.align(Alignment.CenterStart).onSizeChanged { dateWidth.intValue = it.width }.padding(start = h * .01f), verticalAlignment = Alignment.CenterVertically) {
-            IllustratedText(state.time.value, (h.value * .062f).sp, Color.White, FontWeight.Black)
+            IllustratedText(state.time.value, (h.value * .062f).sp, palette.content, FontWeight.Black)
             Box(
                 Modifier
                     .padding(horizontal = h * .03f)
                     .width(2.dp)
                     .height(h * .05f)
-                    .drawWithCache { onDrawBehind { drawRect(Color.White.copy(alpha = .6f)) } },
+                    .drawWithCache { onDrawBehind { drawRect(palette.content.copy(alpha = .6f)) } },
             )
-            IllustratedText(state.date.value, (h.value * .04f).sp, Color.White, FontWeight.Bold)
+            IllustratedText(state.date.value, (h.value * .04f).sp, palette.content, FontWeight.Bold)
         }
         Box(Modifier.align(Alignment.CenterEnd).onSizeChanged { tempWidth.intValue = it.width }.padding(end = h * .01f)) {
             OutsideTemperatureText(state, (h.value * .05f).sp)
@@ -243,22 +246,30 @@ private fun AdventureTopBar(state: HomeState, h: Dp, modifier: Modifier) {
 }
 
 /** Glossy cartoon tile: darker lip under a vertical gradient and a light top edge. */
-private fun Modifier.adventureTile(colors: Pair<Color, Color>, corner: Dp = 14.dp): Modifier = drawWithCache {
-    val radius = CornerRadius(corner.toPx())
-    val lip = 4.dp.toPx()
-    val body = Size(size.width, size.height - lip)
-    val fill = Brush.verticalGradient(listOf(colors.first, colors.second), endY = body.height)
-    val outline = Path().apply { addRoundRect(RoundRect(Rect(Offset.Zero, body), radius)) }
-    onDrawBehind {
-        drawRoundRect(colors.second.copy(red = colors.second.red * .7f, green = colors.second.green * .7f, blue = colors.second.blue * .7f), Offset(0f, lip), body, radius)
-        drawPath(outline, fill)
-        drawPath(outline, Color.White.copy(alpha = .35f), style = Stroke(1.5.dp.toPx()))
-        drawPath(outline, TileOutline.copy(alpha = .35f), style = Stroke(1.dp.toPx()))
+@Composable
+private fun Modifier.adventureTile(colors: Pair<Color, Color>, corner: Dp = 14.dp): Modifier {
+    val night = LocalIllustratedNight.current
+    val (top, bottom) = if (night) colors.first.adventureNightColor() to colors.second.adventureNightColor() else colors
+    return drawWithCache {
+        val radius = CornerRadius(corner.toPx())
+        val lip = 4.dp.toPx()
+        val body = Size(size.width, size.height - lip)
+        val fill = Brush.verticalGradient(listOf(top, bottom), endY = body.height)
+        val outline = Path().apply { addRoundRect(RoundRect(Rect(Offset.Zero, body), radius)) }
+        onDrawBehind {
+            drawRoundRect(bottom.copy(red = bottom.red * .7f, green = bottom.green * .7f, blue = bottom.blue * .7f), Offset(0f, lip), body, radius)
+            drawPath(outline, fill)
+            drawPath(outline, Color.White.copy(alpha = if (night) .22f else .35f), style = Stroke(1.5.dp.toPx()))
+            drawPath(outline, TileOutline.copy(alpha = .35f), style = Stroke(1.dp.toPx()))
+        }
     }
 }
 
+private fun Color.adventureNightColor() = Color(red * .47f, green * .49f, blue * .56f, alpha)
+
 @Composable
 private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Modifier) {
+    val night = LocalIllustratedNight.current
     val valueSize = (h.value * .085f).sp
     val gearWidth = h * .21f
     val starCenterOffset = gearWidth * .49f * .08f - 2.dp
@@ -304,15 +315,16 @@ private fun AdventureInstruments(state: HomeState, h: Dp, gap: Dp, modifier: Mod
             Modifier.width(gearWidth).fillMaxHeight().adventureTile(GearTileColors).drawWithCache {
                 val star = starPath(Offset(size.width / 2f, size.height / 2f + starCenterOffset.toPx()), size.width * .49f)
                 onDrawBehind {
-                    drawPath(star, Color(0xFFFFEB8A))
-                    drawPath(star, Color(0xFFE8A200), style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
-                    drawStar(Offset(size.width * .17f, size.height * .15f), size.width * .07f, Color(0xFFFFF3B0))
-                    drawStar(Offset(size.width * .85f, size.height * .14f), size.width * .06f, Color(0xFFFFF3B0))
+                    val points = if (night) Color(0xFFD7B567) else Color(0xFFFFF3B0)
+                    drawPath(star, if (night) Color(0xFF695225) else Color(0xFFFFEB8A))
+                    drawPath(star, if (night) Color(0xFFB58B45) else Color(0xFFE8A200), style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
+                    drawStar(Offset(size.width * .17f, size.height * .15f), size.width * .07f, points)
+                    drawStar(Offset(size.width * .85f, size.height * .14f), size.width * .06f, points)
                 }
             },
             contentAlignment = Alignment.Center,
         ) {
-            IllustratedText(state.gear.value, (h.value * .112f).sp, Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = starCenterOffset))
+            IllustratedText(state.gear.value, (h.value * .112f).sp, if (night) Color(0xFFFFECC4) else Color(0xFF15204A), FontWeight.Black, Modifier.offset(y = starCenterOffset))
         }
     }
 }
@@ -335,6 +347,7 @@ private fun starPath(center: Offset, radius: Float) = Path().apply {
 /** The six values, reorderable by dragging in both directions. */
 @Composable
 private fun AdventureValueGrid(state: HomeState, actions: HomeActions, h: Dp, gap: Dp, modifier: Modifier) {
+    val tokens = LocalHomeTokens.current
     val order = state.footerBlockOrder.value
     val visibleItems = remember(order) { order.filterNot(AdventureWideTiles::contains) }
     val visibleSet = remember(visibleItems) { visibleItems.toSet() }
@@ -365,8 +378,8 @@ private fun AdventureValueGrid(state: HomeState, actions: HomeActions, h: Dp, ga
                                     labelSize = (h.value * .03f).sp,
                                     valueSize = (h.value * .062f).sp,
                                     padding = h * .028f,
-                                    labelColor = Color.White,
-                                    contentColor = Color.White,
+                                    labelColor = tokens.label,
+                                    contentColor = tokens.content,
                                     iconScale = 2.2f,
                                 )
                             }
@@ -433,7 +446,7 @@ private fun AdventureFuel(state: HomeState, h: Dp) {
             Spacer(Modifier.width(h * .025f))
             ValueWithUnit(fuel.toString(), "L", (h.value * .062f).sp, (h.value * .032f).sp, color = color)
             Spacer(Modifier.weight(1f))
-            IllustratedText("$A5_FUEL_TANK_CAPACITY_LITRES L", (h.value * .03f).sp, Color.White.copy(alpha = .85f), FontWeight.Bold)
+            IllustratedText("$A5_FUEL_TANK_CAPACITY_LITRES L", (h.value * .03f).sp, tokens.content.copy(alpha = .85f), FontWeight.Bold)
         }
         Spacer(Modifier.height(h * .022f))
         Canvas(Modifier.fillMaxWidth().height(h * .026f)) {
@@ -454,7 +467,8 @@ private fun AdventureFuel(state: HomeState, h: Dp) {
 /** Night-blue sky with stars, clouds and bushes in the lower corners. */
 @Composable
 private fun AdventureBackdrop(modifier: Modifier) {
-    val palette = AdventurePalette
+    val palette = currentIllustratedPalette(HomeTheme.ADVENTURE)
+    val filter = illustratedArtworkFilter()
     val cloud = ImageBitmap.imageResource(R.drawable.illustration_adv_cloud)
     val bush = ImageBitmap.imageResource(R.drawable.illustration_adv_bush)
     Canvas(
@@ -462,12 +476,12 @@ private fun AdventureBackdrop(modifier: Modifier) {
             val sky = Brush.verticalGradient(listOf(palette.skyTop, palette.skyBottom))
             onDrawBehind {
                 drawRect(sky)
-                drawStarField(seed = 21, count = 45, dot = Color.White, sparkle = Color.White, star = Color(0xFFFFD43B))
+                drawStarField(seed = 21, count = 45, dot = palette.content, sparkle = palette.content, star = palette.accent)
                 val unit = size.height
-                drawArt(cloud, cloud.rectCentered(size.width * .47f, unit * .07f, unit * .15f), alpha = .85f)
-                drawArt(cloud, cloud.rectCentered(size.width * .79f, unit * .065f, unit * .18f), alpha = .85f)
-                drawArt(bush, bush.rectAboveBase(unit * .05f, unit * 1.01f, unit * .2f))
-                drawArt(bush, bush.rectAboveBase(size.width - unit * .04f, unit * 1.01f, unit * .2f))
+                drawArt(cloud, cloud.rectCentered(size.width * .47f, unit * .07f, unit * .15f), alpha = .85f, filter = filter)
+                drawArt(cloud, cloud.rectCentered(size.width * .79f, unit * .065f, unit * .18f), alpha = .85f, filter = filter)
+                drawArt(bush, bush.rectAboveBase(unit * .05f, unit * 1.01f, unit * .2f), filter = filter)
+                drawArt(bush, bush.rectAboveBase(size.width - unit * .04f, unit * 1.01f, unit * .2f), filter = filter)
             }
         },
     ) { }
@@ -493,6 +507,7 @@ private fun IconValueTile(
     val tokens = LocalHomeTokens.current
     val scope = blockStatisticsScope(item)
     val iconImage = ImageBitmap.imageResource(icon)
+    val iconFilter = illustratedArtworkFilter()
     val labelHeight = with(LocalDensity.current) { labelSize.toDp() * CAP_HEIGHT_RATIO }
     val iconHeight = labelHeight * iconScale
     // Built like the Telemetry tiles: label and value centred, the icon hanging
@@ -510,6 +525,7 @@ private fun IconValueTile(
                 Image(
                     iconImage,
                     contentDescription = null,
+                    colorFilter = iconFilter,
                     modifier = Modifier.size(iconHeight * iconImage.width / iconImage.height, iconHeight),
                 )
             },

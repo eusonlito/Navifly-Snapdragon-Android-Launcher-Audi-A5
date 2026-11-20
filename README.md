@@ -62,10 +62,11 @@ Do not install this build expecting compatibility with:
 - Speed-camera POI markers supplied through the user's local files.
 - Nine home themes (Classic, Horizon, Facets, Telemetry, Pearl,
   Submarine, Moon, Galaxy and Adventure), chosen from previews in
-  Settings → Themes. Each illustrated theme cycles through three short animations
-  while driving, with a two- to four-minute pause between them. Tap an illustrated
-  element to animate it, including while parked. Several elements can animate at
-  once. A nearby POI alert interrupts the animations.
+  Settings → Themes. Pearl and the illustrated homes switch to night colours
+  with the map. While driving, the illustrated themes cycle through animations
+  with 25–50 seconds between them. Tap an illustrated element to animate it,
+  including while parked. Several elements can animate at once. A nearby POI
+  alert interrupts the animations.
 - Reorderable top actions and trip blocks using a long press; each theme keeps
   its own block order.
 - Application launcher, app switcher, settings and original Audi MMI access.

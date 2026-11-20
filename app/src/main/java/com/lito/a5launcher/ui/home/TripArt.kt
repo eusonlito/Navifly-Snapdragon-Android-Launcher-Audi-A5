@@ -46,12 +46,16 @@ internal enum class TripGesture(val theme: HomeTheme, val durationMs: Int, @Stri
     FISH(HomeTheme.SUBMARINE, 4600, R.string.trip_art_fish),
     SHOAL(HomeTheme.SUBMARINE, 5500, R.string.trip_art_shoal),
     PERISCOPE(HomeTheme.SUBMARINE, 4800, R.string.trip_art_periscope),
+    SEAWEED(HomeTheme.SUBMARINE, 6200, R.string.trip_art_seaweed),
     ASTRONAUT(HomeTheme.MOON, 5200, R.string.trip_art_astronaut),
     UFO(HomeTheme.MOON, 4900, R.string.trip_art_ufo),
     HEART(HomeTheme.MOON, 4500, R.string.trip_art_robot),
+    MOON_LAUNCH(HomeTheme.MOON, 7600, R.string.trip_art_launch),
+    MOON_PLANET(HomeTheme.MOON, 6900, R.string.trip_art_moon_planet),
     LAUNCH(HomeTheme.GALAXY, 8000, R.string.trip_art_launch),
     AURORA(HomeTheme.GALAXY, 5700, R.string.trip_art_aurora),
     ROVER(HomeTheme.GALAXY, 7300, R.string.trip_art_rover),
+    SATURN(HomeTheme.GALAXY, 7200, R.string.trip_art_saturn),
     PLANE(HomeTheme.ADVENTURE, 8900, R.string.trip_art_plane),
     BUTTERFLY(HomeTheme.ADVENTURE, 6500, R.string.trip_art_butterfly),
     STARS(HomeTheme.ADVENTURE, 5400, R.string.trip_art_stars),
@@ -112,7 +116,7 @@ internal fun rememberTripArt(theme: HomeTheme, speed: State<Int>, canPlay: () ->
                         val gesture = art.gestures[next]
                         next = (next + 1) % art.gestures.size
                         // An interruption restores the still art and preserves the next turn.
-                        val pause = Random.nextLong(120_000L, 240_001L)
+                        val pause = Random.nextLong(25_000L, 50_001L)
                         due = SystemClock.uptimeMillis() + pause
                         art.play(gesture)
                         due = SystemClock.uptimeMillis() + pause

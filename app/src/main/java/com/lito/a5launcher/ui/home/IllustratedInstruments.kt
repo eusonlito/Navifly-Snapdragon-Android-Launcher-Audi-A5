@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +64,7 @@ private fun Rect.scaled(width: Float, height: Float) =
 internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeState, size: Dp) {
     val motion = LocalTripArt.current
     val palette = style.palette
+    val filter = illustratedArtworkFilter()
     val fraction = animatedGaugeFraction(state.speed, SPEED_DIAL_MAX_KMH, rpm = false)
     val art = when (style) {
         IllustratedStyle.SUBMARINE -> listOf(
@@ -91,10 +93,10 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
                     drawCircle(palette.dialFace, opening)
                     clipPath(Path().apply { addOval(Rect(center, opening)) }) {
                         val base = art[1].rectAboveBase(d * .5f, d * .9f, d * .5f)
-                        drawArt(art[1], base, alpha = .9f)
+                        drawArt(art[1], base, alpha = .9f, filter = filter)
                         drawShoal(art[1], base, motion[TripGesture.SHOAL])
                     }
-                    drawArt(art[0], Rect(0f, 0f, d, d))
+                    drawArt(art[0], Rect(0f, 0f, d, d), filter = filter)
                 }
                 IllustratedStyle.MOON -> drawNeonDial(palette)
             }
@@ -111,12 +113,13 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
         Canvas(Modifier.fillMaxSize().startupOutlineAlpha(state.startupProgress)) {
             val d = this.size.width
             when (style) {
-                IllustratedStyle.SUBMARINE -> drawSwimmingFish(art[2], art[2].rectCentered(d * .09f, d * .07f, d * .2f), motion[TripGesture.FISH])
+                IllustratedStyle.SUBMARINE -> drawSwimmingFish(art[2], art[2].rectCentered(d * .09f, d * .07f, d * .2f), motion[TripGesture.FISH], filter)
                 IllustratedStyle.MOON -> {
-                    val hop = artWave(motion[TripGesture.ASTRONAUT])
-                    val astronaut = art[0].rectAboveBase(d * (.5f + .007f * hop), d * (.99f - .031f * hop), d * .25f)
-                    rotate(-1.4f * hop, astronaut.center) { drawArt(art[0], astronaut) }
-                    drawArt(art[1], art[1].rectAboveBase(d * .05f, d * .99f, d * .13f))
+                    val p = motion[TripGesture.ASTRONAUT]
+                    val hop = artWave(p)
+                    val astronaut = art[0].rectAboveBase(d * (.5f + .047f * hop * sin(p * ART_PI * 2)), d * (.99f - .09f * hop), d * .25f)
+                    rotate(-10f * hop, astronaut.center) { drawArt(art[0], astronaut, filter = filter) }
+                    drawMoonLaunch(art[1], art[1].rectAboveBase(d * .05f, d * .99f, d * .13f), motion[TripGesture.MOON_LAUNCH], filter)
                 }
             }
         }
@@ -127,6 +130,7 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
             }
             IllustratedStyle.MOON -> {
                 TripTapTarget(TripGesture.ASTRONAUT) { (d) -> art[0].rectAboveBase(d * .5f, d * .99f, d * .25f) }
+                TripTapTarget(TripGesture.MOON_LAUNCH) { (d) -> art[1].rectAboveBase(d * .05f, d * .99f, d * .13f) }
             }
         }
     }
@@ -137,6 +141,7 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
 internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState, width: Dp, height: Dp) {
     val motion = LocalTripArt.current
     val palette = style.palette
+    val filter = illustratedArtworkFilter()
     val fraction = animatedGaugeFraction(state.rpm, RPM_SCALE_MAX, rpm = true)
     when (style) {
         IllustratedStyle.MOON -> Box(Modifier.size(width, height)) {
@@ -165,10 +170,11 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 val d = size.width
                 val p = motion[TripGesture.UFO]
                 val bob = artWave(p)
-                val ship = ufo.rectCentered(d * (.5f + .012f * bob * sin(p * 6f)), d * (.68f - .015f * bob), d * .28f)
-                rotate(4.9f * bob * sin(p * 9f), ship.center) { drawArt(ufo, ship) }
+                val ship = ufo.rectCentered(d * (.5f + .12f * bob * sin(p * 8f)), d * (.68f - .044f * bob), d * .28f)
+                if (p > 0f) drawUfoBeam(ship, d * .815f, bob)
+                rotate(15f * bob * sin(p * 9f), ship.center) { drawArt(ufo, ship, filter = filter) }
                 val base = robot.rectAboveBase(d * .93f, d, d * .19f)
-                drawArt(robot, base)
+                drawArt(robot, base, filter = filter)
                 drawRobotHeart(robot, base, motion[TripGesture.HEART])
                 val badge = Offset(d * .5f, d * .89f)
                 drawCircle(palette.panel, d * .07f, badge)
@@ -189,13 +195,13 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 val glassShape = RoundRect(glass, CornerRadius(glass.width / 2f))
                 drawPath(Path().apply { addRoundRect(glassShape) }, palette.dialFace)
                 clipPath(Path().apply { addRoundRect(glassShape) }) {
-                    drawPeriscope(hut, hut.rectAboveBase(w * .5f, h * .955f, w * .42f), motion[TripGesture.PERISCOPE])
+                    drawPeriscope(hut, hut.rectAboveBase(w * .5f, h * .955f, w * .42f), motion[TripGesture.PERISCOPE], filter)
                 }
-                drawArt(porthole, Rect(0f, 0f, w, h))
+                drawArt(porthole, Rect(0f, 0f, w, h), filter = filter)
                 // Gear window.
                 val gear = Rect(w * .30f, h * .15f, w * .70f, h * .27f)
                 drawRoundRect(palette.panel, gear.topLeft, gear.size, CornerRadius(gear.height * .3f))
-                drawRoundRect(Color(0xFFBFD7D3), gear.topLeft, gear.size, CornerRadius(gear.height * .3f), style = Stroke(w * .012f))
+                drawRoundRect(palette.unit.copy(alpha = .75f), gear.topLeft, gear.size, CornerRadius(gear.height * .3f), style = Stroke(w * .012f))
             }
             Box(
                 Modifier
@@ -268,9 +274,9 @@ private fun DrawScope.drawNeonDial(palette: IllustratedPalette) {
     val d = size.width
     val c = center
     val outer = d * NEON_DIAL_RADIUS
-    drawCircle(Color(0xFF0C1246), outer, c)
+    drawCircle(lerp(palette.dialFace, Color.Black, .30f), outer, c)
     drawGlow(Path().apply { addOval(Rect(c, outer)) }, palette.frame)
-    drawCircle(Brush.radialGradient(listOf(Color(0xFF1C2A86), palette.dialFace), c, outer), d * .44f, c)
-    drawCircle(Color(0xFF1B2780), d * .22f, c)
+    drawCircle(Brush.radialGradient(listOf(lerp(palette.dialFace, palette.arcTrack, .8f), palette.dialFace), c, outer), d * .44f, c)
+    drawCircle(palette.arcTrack, d * .22f, c)
     drawCircle(palette.frame.copy(alpha = .22f), d * .22f, c, style = Stroke(d * .004f))
 }

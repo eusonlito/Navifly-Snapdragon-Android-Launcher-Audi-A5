@@ -2,6 +2,7 @@ package com.lito.a5launcher.ui.home
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -11,7 +12,7 @@ import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
 
 /** Draws an illustration stretched to [rect]; callers keep the source proportions. */
-internal fun DrawScope.drawArt(image: ImageBitmap, rect: Rect, alpha: Float = 1f) {
+internal fun DrawScope.drawArt(image: ImageBitmap, rect: Rect, alpha: Float = 1f, filter: ColorFilter? = null) {
     drawImage(
         image = image,
         srcOffset = IntOffset.Zero,
@@ -19,6 +20,7 @@ internal fun DrawScope.drawArt(image: ImageBitmap, rect: Rect, alpha: Float = 1f
         dstOffset = IntOffset(rect.left.roundToInt(), rect.top.roundToInt()),
         dstSize = IntSize(rect.width.roundToInt(), rect.height.roundToInt()),
         alpha = alpha,
+        colorFilter = filter,
         filterQuality = FilterQuality.High,
     )
 }
@@ -44,8 +46,8 @@ internal inline fun DrawScope.inArt(image: ImageBitmap, rect: Rect, draw: DrawSc
 
 internal fun DrawScope.drawArtSlice(
     image: ImageBitmap, x: Int, y: Int, width: Int, height: Int,
-    destY: Int = y, destHeight: Int = height, alpha: Float = 1f,
+    destY: Int = y, destHeight: Int = height, alpha: Float = 1f, filter: ColorFilter? = null,
 ) = drawImage(
     image, IntOffset(x, y), IntSize(width, height), IntOffset(x, destY), IntSize(width, destHeight),
-    alpha = alpha, filterQuality = FilterQuality.High,
+    alpha = alpha, colorFilter = filter, filterQuality = FilterQuality.High,
 )

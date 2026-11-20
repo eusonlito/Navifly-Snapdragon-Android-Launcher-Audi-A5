@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="trip_art_seaweed">Animar el alga</string>
+    <string name="trip_art_moon_planet">Animar el planeta</string>
+    <string name="trip_art_saturn">Animar Saturno</string>
     <string name="trip_art_fish">Animar el pez</string>
     <string name="trip_art_shoal">Animar el banco de peces</string>
     <string name="trip_art_periscope">Animar el periscopio</string>

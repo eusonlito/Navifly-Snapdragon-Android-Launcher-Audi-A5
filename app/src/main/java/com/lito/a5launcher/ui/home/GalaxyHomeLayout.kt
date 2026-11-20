@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -72,7 +73,7 @@ internal fun GalaxyHomeLayout(
     slots: HomeSlots,
     modifier: Modifier = Modifier,
 ) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
     BoxWithConstraints(modifier.fillMaxSize()) {
         val h = maxHeight
         val w = maxWidth
@@ -187,11 +188,11 @@ private fun Modifier.spacePanel(
 }
 
 /** Image scaled to cover [rect] entirely, centred, cropped by the caller's clip. */
-private fun DrawScope.drawArtCover(image: ImageBitmap, rect: Rect, alpha: Float) {
+private fun DrawScope.drawArtCover(image: ImageBitmap, rect: Rect, alpha: Float, filter: ColorFilter?) {
     val scale = max(rect.width / image.width, rect.height / image.height)
     val width = image.width * scale
     val height = image.height * scale
-    drawArt(image, Rect(Offset(rect.center.x - width / 2f, rect.center.y - height / 2f), Size(width, height)), alpha)
+    drawArt(image, Rect(Offset(rect.center.x - width / 2f, rect.center.y - height / 2f), Size(width, height)), alpha, filter)
 }
 
 @Composable
@@ -199,11 +200,13 @@ private fun SpaceSpeedPanel(state: HomeState, h: Dp, corner: Dp, modifier: Modif
     val fraction = animatedGaugeFraction(state.speed, SPEED_DIAL_MAX_KMH, rpm = false)
     val motion = LocalTripArt.current
     val rocket = ImageBitmap.imageResource(R.drawable.illustration_galaxy_rocket)
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
+    val filter = illustratedArtworkFilter()
     Box(
         modifier
             .startupOutlineAlpha(state.startupProgress)
-            .spacePanel(GalaxyPalette, corner) {
-                drawGalaxyLaunch(rocket, rocket.rectCentered(size.width * .78f, size.height * .30f, size.width * .40f), motion[TripGesture.LAUNCH])
+            .spacePanel(palette, corner) {
+                drawGalaxyLaunch(rocket, rocket.rectCentered(size.width * .78f, size.height * .30f, size.width * .40f), motion[TripGesture.LAUNCH], filter)
             },
     ) {
         SpaceReading(
@@ -227,14 +230,15 @@ private fun SpaceSpeedPanel(state: HomeState, h: Dp, corner: Dp, modifier: Modif
 
 @Composable
 private fun SpaceRpmPanel(state: HomeState, h: Dp, corner: Dp, modifier: Modifier) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
     val fraction = animatedGaugeFraction(state.rpm, RPM_SCALE_MAX, rpm = true)
+    val filter = illustratedArtworkFilter()
     val nebula = ImageBitmap.imageResource(R.drawable.illustration_galaxy_nebula)
     Box(
         modifier
             .startupOutlineAlpha(state.startupProgress)
             .spacePanel(palette, corner) {
-                drawArtCover(nebula, Rect(Offset.Zero, size), alpha = .5f)
+                drawArtCover(nebula, Rect(Offset.Zero, size), alpha = .5f, filter = filter)
             },
     ) {
         Row(
@@ -310,13 +314,14 @@ private fun SpaceGear(state: HomeState, palette: IllustratedPalette, h: Dp) {
 /** Fuel above witnesses; long-press drag swaps them. */
 @Composable
 private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: Dp, corner: Dp, modifier: Modifier) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
     val order = state.footerBlockOrder.value
     val tiles = remember(order) { order.filter(SpaceSideTiles::contains) }
     val sizes = remember { mutableStateMapOf<FooterBlockItem, Int>() }
     val gapPx = with(LocalDensity.current) { gap.roundToPx() }
     val motion = LocalTripArt.current
     val earth = ImageBitmap.imageResource(R.drawable.illustration_galaxy_earth)
+    val filter = illustratedArtworkFilter()
     val lunar = ImageBitmap.imageResource(R.drawable.illustration_galaxy_lunar)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
         tiles.forEach { item ->
@@ -336,7 +341,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                         FooterBlockItem.FUEL -> Box(
                             Modifier.fillMaxSize().spacePanel(palette, corner) {
                                 val horizon = earth.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.15f)
-                                drawArt(earth, horizon)
+                                drawArt(earth, horizon, filter = filter)
                                 drawAurora(horizon, motion[TripGesture.AURORA])
                             },
                             contentAlignment = Alignment.Center,
@@ -346,7 +351,7 @@ private fun GalaxySideTiles(state: HomeState, actions: HomeActions, h: Dp, gap: 
                         }
                         else -> Box(
                             Modifier.fillMaxSize().spacePanel(palette, corner) {
-                                drawArt(lunar, lunar.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.1f), alpha = .9f)
+                                drawArt(lunar, lunar.rectAboveBase(size.width * .5f, size.height * 1.02f, size.width * 1.1f), alpha = .9f, filter = filter)
                                 drawRover(motion[TripGesture.ROVER])
                             },
                             contentAlignment = Alignment.Center,
@@ -401,7 +406,7 @@ private fun SpaceTopBar(
     barHeight: Dp,
     modifier: Modifier,
 ) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
     val pad = h * .035f
     val pill = Modifier.fillMaxHeight().spacePanel(palette, barHeight / 2f)
     val metrics = CommandMetrics(buttonSize = barHeight, iconSize = barHeight * .58f, horizontalPadding = h * .026f)
@@ -423,7 +428,7 @@ private fun SpaceTopBar(
             HomeCommandGroup(state, actions, metrics, ReorderAxis.HORIZONTAL, dividers = true)
         }
         Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
-            TopBarPlanet(R.drawable.illustration_galaxy_planet, barHeight * 1.1f)
+            TopBarPlanet(R.drawable.illustration_galaxy_planet, barHeight * 1.1f, TripGesture.SATURN)
             Spacer(Modifier.width(pad))
             Box(pill.padding(horizontal = pad), contentAlignment = Alignment.Center) {
                 OutsideTemperatureWithIcon(state, (h.value * .05f).sp, barHeight * .5f)
@@ -435,7 +440,8 @@ private fun SpaceTopBar(
 /** Galaxy: the six values over a lunar horizon. */
 @Composable
 private fun GalaxyFooter(state: HomeState, actions: HomeActions, h: Dp, corner: Dp, modifier: Modifier) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
+    val filter = illustratedArtworkFilter()
     val lunar = ImageBitmap.imageResource(R.drawable.illustration_galaxy_lunar)
     val labelSize = (h.value * .03f).sp
     val valueSize = (h.value * .055f).sp
@@ -449,9 +455,9 @@ private fun GalaxyFooter(state: HomeState, actions: HomeActions, h: Dp, corner: 
             while (x < size.width) {
                 val rect = lunar.rectAboveBase(x + tileWidth / 2f, size.height * 1.05f, tileWidth)
                 if (index % 2 == 0) {
-                    drawArt(lunar, rect, alpha = .45f)
+                    drawArt(lunar, rect, alpha = .45f, filter = filter)
                 } else {
-                    scaleHorizontally(rect.center.x) { drawArt(lunar, rect, alpha = .45f) }
+                    scaleHorizontally(rect.center.x) { drawArt(lunar, rect, alpha = .45f, filter = filter) }
                 }
                 x += tileWidth
                 index++
@@ -504,13 +510,13 @@ private inline fun DrawScope.scaleHorizontally(pivotX: Float, block: DrawScope.(
 /** Deep space with stars and a shooting star next to the clock. */
 @Composable
 private fun SpaceBackdrop(modifier: Modifier) {
-    val palette = GalaxyPalette
+    val palette = currentIllustratedPalette(HomeTheme.GALAXY)
     Canvas(
         modifier.drawWithCache {
             val sky = Brush.verticalGradient(listOf(palette.skyTop, palette.skyBottom))
             onDrawBehind {
                 drawRect(sky)
-                drawStarField(seed = 5, count = 80, dot = Color.White, sparkle = Color(0xFFDDE6FF))
+                drawStarField(seed = 5, count = 80, dot = palette.content, sparkle = palette.label)
                 drawShootingStar(Offset(size.width * .33f, size.height * .07f), size.height * .09f)
             }
         },

@@ -3,6 +3,7 @@ package com.lito.a5launcher.ui.home
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.lito.a5launcher.JourneyStatisticsSnapshot
 import com.lito.a5launcher.ui.components.FooterBlockItem
@@ -31,13 +32,17 @@ class HomeThemeTest {
     }
 
     @Test
-    fun pearlNightPanelsRespectAnExplicitLightMap() {
-        val day = homeTokensFor(HomeTheme.BLUE_LIGHT, dark = false)
-        val night = homeTokensFor(HomeTheme.BLUE_LIGHT, dark = true, mapDark = false)
-
-        assertNotEquals(day.background, night.background)
-        assertNotEquals(day.content, night.content)
-        assertEquals(day.map, night.map)
+    fun colourfulThemesSwitchTheirPanelsAndMapChromeTogether() {
+        val themes = listOf(HomeTheme.BLUE_LIGHT, HomeTheme.SUBMARINE, HomeTheme.MOON, HomeTheme.GALAXY, HomeTheme.ADVENTURE)
+        for (theme in themes) {
+            val day = homeTokensFor(theme, dark = false)
+            val night = homeTokensFor(theme, dark = true)
+            assertTrue(theme.name, night.background.luminance() < day.background.luminance())
+            assertTrue(theme.name, night.chrome.luminance() < day.chrome.luminance())
+            assertTrue(theme.name, night.map.loadingBackground.luminance() < day.map.loadingBackground.luminance())
+            assertNotEquals(day.map.attribution, night.map.attribution)
+        }
+        assertEquals(HomeTheme.SUBMARINE.ordinal - 1, HomeTheme.BLUE_LIGHT.ordinal)
     }
 
     @Test
@@ -58,8 +63,9 @@ class HomeThemeTest {
         IllustratedStyle.entries.forEach { style ->
             val theme = HomeTheme.valueOf(style.name)
             val tokens = homeTokensFor(theme, dark = false)
-            assertEquals(style.palette.skyBottom, tokens.background)
-            assertEquals(style.palette.arc, tokens.accent)
+            val palette = illustratedPaletteFor(theme, night = false)
+            assertEquals(palette.skyBottom, tokens.background)
+            assertEquals(palette.arc, tokens.accent)
             assertEquals("footer_block_order_${style.name.lowercase()}", footerBlockOrderKey(theme))
             assertEquals(DefaultFooterBlockOrder, defaultFooterBlockOrder(theme))
         }

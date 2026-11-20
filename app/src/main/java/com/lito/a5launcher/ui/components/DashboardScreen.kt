@@ -307,12 +307,14 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 ?: MapCacheLimit.GB_2
         )
     }
-    val darkModeActive = resolveMapTileStyle(
+    val effectiveTileStyle = resolveMapTileStyle(
         colorMode = mapColorMode,
         vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
         systemNight = systemNight,
         preferredLightStyle = mapTileStyle,
-    ) == MapTileStyle.DARK
+    )
+    val darkModeActive = effectiveTileStyle == MapTileStyle.DARK
+    val mapStyleState = rememberUpdatedState(effectiveTileStyle)
     val startupProgress = rememberOemStartupProgress()
     var cacheGeneration by remember { mutableIntStateOf(0) }
     var maintenanceSizeGeneration by remember { mutableIntStateOf(0) }
@@ -547,13 +549,12 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
 
     // Pearl dims as soon as the headlights turn on, even with a fixed light map.
-    val darkHome = darkModeActive || (homeTheme == HomeTheme.BLUE_LIGHT && lightsOn == true)
-    val homeTokens = remember(homeTheme, darkHome, darkModeActive) {
-        homeTokensFor(homeTheme, dark = darkHome, mapDark = darkModeActive)
+    val homeTokens = remember(homeTheme, darkModeActive) {
+        homeTokensFor(homeTheme, dark = darkModeActive)
     }
     val homeTokensState = rememberUpdatedState(homeTokens)
     val darkModeActiveState = rememberUpdatedState(darkModeActive)
-    val homeLightsActiveState = rememberUpdatedState(darkHome)
+    val homeLightsActiveState = rememberUpdatedState(darkModeActive || (homeTheme == HomeTheme.BLUE_LIGHT && lightsOn == true))
     val assistantEnabledState = rememberUpdatedState(
         assistantController.settings.provider != AssistantProvider.DISABLED,
     )
@@ -623,9 +624,8 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
         movableContentOf { mapModifier: Modifier, viewport: MapViewportSpec ->
             CockpitMap(
                 modifier = mapModifier,
-                tileStyle = mapTileStyle,
-                colorMode = mapColorMode,
-                vehicleLightsOn = delayedVehicleLights.effectiveLightsOn,
+                effectiveTileStyle = mapStyleState.value,
+                preferredLightStyle = mapTileStyle,
                 cacheLimit = mapCacheLimit,
                 cacheGeneration = cacheGeneration,
                 poiSnapshot = poiSnapshot,
@@ -709,7 +709,11 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     pendingRefuelConfirmation == null && !showManualPartialResetConfirmation &&
                     !homeState.assistantActive.value
             }
-            CompositionLocalProvider(LocalHomeTokens provides homeTokens, LocalTripArt provides tripArt) {
+            CompositionLocalProvider(
+                LocalHomeTokens provides homeTokens,
+                LocalIllustratedNight provides darkModeActive,
+                LocalTripArt provides tripArt,
+            ) {
                 when (homeTheme) {
                     HomeTheme.CLASSIC -> ClassicHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.HORIZON -> HorizonHomeLayout(homeState, homeActions, homeSlots)
@@ -719,7 +723,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     HomeTheme.MOON -> IllustratedHomeLayout(IllustratedStyle.MOON, homeState, homeActions, homeSlots)
                     HomeTheme.GALAXY -> GalaxyHomeLayout(homeState, homeActions, homeSlots)
                     HomeTheme.ADVENTURE -> AdventureHomeLayout(homeState, homeActions, homeSlots)
-                    HomeTheme.BLUE_LIGHT -> BlueHomeLayout(homeState, homeActions, homeSlots, dark = darkHome)
+                    HomeTheme.BLUE_LIGHT -> BlueHomeLayout(homeState, homeActions, homeSlots, dark = darkModeActive)
                 }
             }
 
