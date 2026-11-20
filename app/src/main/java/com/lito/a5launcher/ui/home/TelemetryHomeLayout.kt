@@ -178,10 +178,10 @@ internal fun TelemetryHomeLayout(
         val panelWidth = w * .425f
         val viewport = remember { MapViewportSpec(cornerRadius = 6.dp) }
         Row(Modifier.fillMaxSize()) {
-            TelemetryCommandRail(
+            HomeVerticalCommandRail(
                 state,
                 actions,
-                h,
+                w,
                 Modifier
                     .width(railWidth)
                     .fillMaxHeight()
@@ -240,20 +240,6 @@ internal fun TelemetryHomeLayout(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TelemetryCommandRail(state: HomeState, actions: HomeActions, h: Dp, modifier: Modifier) {
-    Box(modifier.padding(vertical = h * .05f), contentAlignment = Alignment.Center) {
-        HomeCommandGroup(
-            state,
-            actions,
-            CommandMetrics(buttonSize = h * .11f, iconSize = h * .068f, horizontalPadding = 4.dp),
-            ReorderAxis.VERTICAL,
-            dividers = false,
-            spacing = h * .02f,
-        )
     }
 }
 

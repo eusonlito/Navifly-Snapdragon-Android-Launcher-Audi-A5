@@ -69,6 +69,7 @@ private val AdventureWideTiles = setOf(FooterBlockItem.FUEL, FooterBlockItem.WIT
 private const val ADVENTURE_GRID_COLUMNS = 3
 private const val ADVENTURE_SEGMENTS = 24
 private const val ADVENTURE_FUEL_SEGMENTS = 14
+private const val BUTTERFLY_RAIL_FRACTION = .11f
 
 /** Top and bottom colours of a tile; each value keeps its colour wherever it is moved. */
 private val TileColors = mapOf(
@@ -126,27 +127,20 @@ internal fun AdventureHomeLayout(
             Canvas(Modifier.fillMaxSize()) {
                 drawButterfly(motion[TripGesture.BUTTERFLY])
             }
-            TripTapTarget(TripGesture.BUTTERFLY) { (w, h) -> Rect(0f, h * .89f, w, h) }
+            TripTapTarget(TripGesture.BUTTERFLY) { (w, h) -> Rect(0f, h * (1f - BUTTERFLY_RAIL_FRACTION), w, h) }
         }
         Row(Modifier.fillMaxSize()) {
-            Box(
+            HomeVerticalCommandRail(
+                state,
+                actions,
+                w,
                 Modifier
                     .width(railWidth)
                     .fillMaxHeight()
-                    .padding(top = topHeight * .6f, bottom = h * .14f)
                     .startupContentAlpha(state)
                     .zIndex(3f),
-                contentAlignment = Alignment.Center,
-            ) {
-                HomeCommandGroup(
-                    state,
-                    actions,
-                    CommandMetrics(buttonSize = h * .11f, iconSize = h * .068f, horizontalPadding = 4.dp),
-                    ReorderAxis.VERTICAL,
-                    dividers = false,
-                    spacing = h * .004f,
-                )
-            }
+                bottomInset = maxOf(h * BUTTERFLY_RAIL_FRACTION, 48.dp) + h * .01f,
+            )
             Column(Modifier.weight(1f).fillMaxHeight().padding(end = gap)) {
                 AdventureTopBar(state, h, Modifier.fillMaxWidth().height(topHeight).startupContentAlpha(state))
                 Row(

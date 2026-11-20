@@ -37,7 +37,6 @@ import com.lito.a5launcher.A5_FUEL_TANK_CAPACITY_LITRES
 import com.lito.a5launcher.ui.components.FooterBlockItem
 import com.lito.a5launcher.ui.components.FuelSegmentTone
 import com.lito.a5launcher.ui.components.MapViewportSpec
-import com.lito.a5launcher.ui.components.TopCommandItem
 import com.lito.a5launcher.ui.components.formatOneDecimal
 import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
@@ -46,13 +45,20 @@ import com.lito.a5launcher.ui.components.fuelSegments
 internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeSlots, dark: Boolean) {
     BoxWithConstraints(Modifier.fillMaxSize().blueBackdrop(dark)) {
         val screenHeight = maxHeight
-        val unit = screenHeight.coerceAtMost(maxWidth * (896f / 2400f))
-        val railWidth = maxWidth * .053f
+        val screenWidth = maxWidth
+        val unit = screenHeight.coerceAtMost(screenWidth * (896f / 2400f))
+        val railWidth = screenWidth * .053f
         val gap = unit * .017f
         val corner = unit * .024f
         val viewport = remember(corner) { MapViewportSpec(cornerRadius = corner) }
         Row(Modifier.fillMaxSize()) {
-            BlueRail(state, actions, railWidth, screenHeight, unit, dark)
+            HomeVerticalCommandRail(
+                state,
+                actions,
+                screenWidth,
+                Modifier.width(railWidth).fillMaxHeight().blueRailSurface(dark).blueLightEdge(dark, vertical = true)
+                    .startupContentAlpha(state),
+            )
             Column(Modifier.weight(1f).fillMaxHeight().padding(start = gap, end = gap, bottom = gap)) {
                 Row(
                     Modifier.fillMaxWidth().height(screenHeight * .076f)
@@ -86,29 +92,6 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun BlueRail(
-    state: HomeState, actions: HomeActions, width: Dp, height: Dp, unit: Dp, dark: Boolean,
-) {
-    val count = TopCommandItem.entries.size - if (state.assistantEnabled.value) 0 else 1
-    Box(
-        Modifier.width(width).fillMaxHeight().blueRailSurface(dark).blueLightEdge(dark, vertical = true)
-            .startupContentAlpha(state),
-        contentAlignment = Alignment.Center,
-    ) {
-        HomeCommandGroup(
-            state, actions,
-            CommandMetrics(
-                buttonSize = (unit * .112f).coerceIn(minOf(48.dp, height / count), height / count),
-                iconSize = minOf(width * .50f, unit * .066f),
-                horizontalPadding = width * .12f,
-            ),
-            ReorderAxis.VERTICAL,
-            dividers = false,
-        )
     }
 }
 

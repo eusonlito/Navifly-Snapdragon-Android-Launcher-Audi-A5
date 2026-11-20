@@ -4,10 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -47,6 +49,36 @@ internal data class CommandMetrics(
     val iconSize: Dp,
     val horizontalPadding: Dp = 16.dp,
 )
+
+@Composable
+internal fun HomeVerticalCommandRail(
+    state: HomeState,
+    actions: HomeActions,
+    screenWidth: Dp,
+    modifier: Modifier,
+    bottomInset: Dp = 0.dp,
+) {
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val count = TopCommandItem.entries.size - if (state.assistantEnabled.value) 0 else 1
+        val unit = maxHeight.coerceAtMost(screenWidth * (896f / 2400f))
+        val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
+        val maxButtonHeight = availableHeight / count
+        val buttonHeight = (unit * .112f).coerceIn(minOf(48.dp, maxButtonHeight), maxButtonHeight)
+        val centeredBottom = (maxHeight + buttonHeight * count) / 2
+        HomeCommandGroup(
+            state,
+            actions,
+            CommandMetrics(
+                buttonSize = buttonHeight,
+                iconSize = minOf(maxWidth * .50f, unit * .066f),
+                horizontalPadding = maxWidth * .12f,
+            ),
+            ReorderAxis.VERTICAL,
+            modifier = Modifier.offset(y = (availableHeight - centeredBottom).coerceAtMost(0.dp)),
+            dividers = false,
+        )
+    }
+}
 
 @Composable
 internal fun HomeCommandButton(
@@ -101,7 +133,6 @@ internal fun HomeCommandGroup(
     axis: ReorderAxis,
     modifier: Modifier = Modifier,
     dividers: Boolean = true,
-    spacing: Dp = 0.dp,
 ) {
     val tokens = LocalHomeTokens.current
     val order = state.topCommandOrder.value
@@ -146,13 +177,13 @@ internal fun HomeCommandGroup(
         Row(
             modifier = modifier.wrapContentWidth(unbounded = true),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (spacing > 0.dp) Arrangement.spacedBy(spacing, Alignment.CenterHorizontally) else Arrangement.Center,
+            horizontalArrangement = Arrangement.Center,
         ) { items() }
     } else {
         Column(
             modifier = modifier.wrapContentHeight(unbounded = true),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = if (spacing > 0.dp) Arrangement.spacedBy(spacing, Alignment.CenterVertically) else Arrangement.Center,
+            verticalArrangement = Arrangement.Center,
         ) { items() }
     }
 }
