@@ -61,8 +61,8 @@ No instales esta versión esperando compatibilidad con:
 - Puntos de interés GeoJSON importables, con categorías, iconos y pulsos
   configurables, y una distancia de aviso por categoría.
 - Marcadores POI de radares suministrados por ficheros locales del usuario.
-- Diez temas para la home (Clásico, Horizonte, Facetas, Telemetría, Azul Cian,
-  Azul Claro, Submarino, Luna, Galaxia y Aventura), elegibles con
+- Nueve temas para la home (Clásico, Horizonte, Facetas, Telemetría, Azul Claro,
+  Submarino, Luna, Galaxia y Aventura), elegibles con
   miniaturas en Ajustes → Temas. Durante la marcha, cada tema ilustrado alterna
   tres animaciones breves con pausas de dos a cuatro minutos. Si aparece un aviso
   de POI, la animación se interrumpe.

@@ -23,12 +23,12 @@ internal enum class HomeTheme(val labelRes: Int) {
     MOON(R.string.home_theme_moon),
     GALAXY(R.string.home_theme_galaxy),
     ADVENTURE(R.string.home_theme_adventure),
-    BLUE_CYAN(R.string.home_theme_blue_cyan),
     BLUE_LIGHT(R.string.home_theme_blue_light),
 }
 
 internal fun parseHomeTheme(serialized: String?): HomeTheme =
-    HomeTheme.entries.firstOrNull { it.name == serialized } ?: HomeTheme.CLASSIC
+    if (serialized == "BLUE_CYAN") HomeTheme.BLUE_LIGHT
+    else HomeTheme.entries.firstOrNull { it.name == serialized } ?: HomeTheme.CLASSIC
 
 /** Visual tokens shared by every home layout; Classic reproduces the original values. */
 @Immutable
@@ -226,7 +226,7 @@ internal fun defaultFooterBlockOrder(theme: HomeTheme): List<FooterBlockItem> = 
         FooterBlockItem.FUEL,
         FooterBlockItem.WITNESSES,
     )
-    HomeTheme.BLUE_CYAN, HomeTheme.BLUE_LIGHT ->
+    HomeTheme.BLUE_LIGHT ->
         DefaultFooterBlockOrder - FooterBlockItem.WITNESSES + FooterBlockItem.WITNESSES
     else -> DefaultFooterBlockOrder
 }
@@ -239,9 +239,8 @@ internal fun homeTokensFor(theme: HomeTheme, dark: Boolean): HomeTokens = when (
     HomeTheme.SUBMARINE -> illustratedTokens(SubmarinePalette, dark)
     HomeTheme.MOON -> illustratedTokens(MoonPalette, dark)
     HomeTheme.GALAXY -> illustratedTokens(GalaxyPalette, dark)
+    HomeTheme.BLUE_LIGHT -> blueHomeTokens(dark)
     // White witnesses and a dark empty fuel level read better on the bright tiles.
-    HomeTheme.BLUE_CYAN -> blueHomeTokens(cyan = true, dark = dark)
-    HomeTheme.BLUE_LIGHT -> blueHomeTokens(cyan = false, dark = dark)
     HomeTheme.ADVENTURE -> illustratedTokens(AdventurePalette, dark).copy(
         witnessInactive = Color.White.copy(alpha = .9f),
         fuelInactive = Color(0x66081A4D),

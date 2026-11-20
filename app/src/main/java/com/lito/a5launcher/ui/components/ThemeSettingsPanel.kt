@@ -68,7 +68,6 @@ internal fun themePreviewRes(theme: HomeTheme): Int = when (theme) {
     HomeTheme.MOON -> R.drawable.theme_preview_moon
     HomeTheme.GALAXY -> R.drawable.theme_preview_galaxy
     HomeTheme.ADVENTURE -> R.drawable.theme_preview_adventure
-    HomeTheme.BLUE_CYAN -> R.drawable.theme_preview_blue_cyan
     HomeTheme.BLUE_LIGHT -> R.drawable.theme_preview_blue_light
 }
 

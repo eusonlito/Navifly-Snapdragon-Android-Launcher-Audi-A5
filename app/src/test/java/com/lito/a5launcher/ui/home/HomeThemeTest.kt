@@ -26,6 +26,11 @@ import java.util.Locale
 
 class HomeThemeTest {
     @Test
+    fun removedCyanSelectionFallsBackToLightBlue() {
+        assertEquals(HomeTheme.BLUE_LIGHT, parseHomeTheme("BLUE_CYAN"))
+    }
+
+    @Test
     fun unknownOrMissingThemeFallsBackToClassic() {
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme(null))
         assertEquals(HomeTheme.CLASSIC, parseHomeTheme("NEON"))

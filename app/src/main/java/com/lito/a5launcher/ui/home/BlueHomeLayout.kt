@@ -1,7 +1,6 @@
 package com.lito.a5launcher.ui.home
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,7 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -36,28 +35,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lito.a5launcher.A5_FUEL_TANK_CAPACITY_LITRES
 import com.lito.a5launcher.ui.components.FooterBlockItem
+import com.lito.a5launcher.ui.components.FuelSegmentTone
 import com.lito.a5launcher.ui.components.MapViewportSpec
 import com.lito.a5launcher.ui.components.TopCommandItem
-import com.lito.a5launcher.ui.components.FuelSegmentTone
 import com.lito.a5launcher.ui.components.formatOneDecimal
 import com.lito.a5launcher.ui.components.fuelSegmentTone
 import com.lito.a5launcher.ui.components.fuelSegments
 
 @Composable
-internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeSlots, cyan: Boolean) {
-    BoxWithConstraints(Modifier.fillMaxSize().blueBackdrop(cyan)) {
+internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeSlots) {
+    BoxWithConstraints(Modifier.fillMaxSize().blueBackdrop()) {
         val screenHeight = maxHeight
         val unit = screenHeight.coerceAtMost(maxWidth * (896f / 2400f))
         val railWidth = maxWidth * .053f
-        val gap = unit * .009f
+        val gap = unit * .017f
         val corner = unit * .024f
         val viewport = remember(corner) { MapViewportSpec(cornerRadius = corner) }
         Row(Modifier.fillMaxSize()) {
-            BlueRail(state, actions, cyan, railWidth, screenHeight, unit)
-            Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = gap)) {
+            BlueRail(state, actions, railWidth, screenHeight, unit)
+            Column(Modifier.weight(1f).fillMaxHeight().padding(start = gap, end = gap, bottom = gap)) {
                 Row(
                     Modifier.fillMaxWidth().height(screenHeight * .076f)
-                        .startupContentAlpha(state).blueLightEdge(cyan, vertical = false)
+                        .startupContentAlpha(state).blueLightEdge(vertical = false)
                         .padding(horizontal = unit * .015f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -70,28 +69,20 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
                     Modifier.weight(1f).fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(gap),
                 ) {
-                    val instrument = Modifier.weight(if (cyan) .44f else .29f).fillMaxHeight()
-                    if (cyan) {
-                        CyanInstruments(state, unit, instrument)
-                    } else {
-                        LightInstruments(state, unit, corner, instrument)
-                    }
-                    Box(
-                        Modifier.weight(if (cyan) .56f else .71f).fillMaxHeight(),
-                    ) {
+                    LightInstruments(state, unit, corner, Modifier.weight(.29f).fillMaxHeight())
+                    Box(Modifier.weight(.71f).fillMaxHeight()) {
                         Box(Modifier.fillMaxSize().clip(RoundedCornerShape(corner))) {
                             slots.map(Modifier.fillMaxSize(), viewport)
                             StartupMapCover(state)
                             slots.mapOverlay(this, PaddingValues())
                         }
-                        Canvas(Modifier.fillMaxSize().blueMapRim(cyan, corner)) { }
+                        Canvas(Modifier.fillMaxSize().blueMapRim(corner)) { }
                     }
                 }
                 Spacer(Modifier.height(gap))
                 BlueFooter(
-                    state, actions, unit, cyan,
-                    Modifier.fillMaxWidth().height(screenHeight * .133f)
-                        .startupContentAlpha(state).padding(bottom = gap),
+                    state, actions, unit,
+                    Modifier.fillMaxWidth().height(screenHeight * .124f).startupContentAlpha(state),
                 )
             }
         }
@@ -100,18 +91,18 @@ internal fun BlueHomeLayout(state: HomeState, actions: HomeActions, slots: HomeS
 
 @Composable
 private fun BlueRail(
-    state: HomeState, actions: HomeActions, cyan: Boolean, width: Dp, height: Dp, unit: Dp,
+    state: HomeState, actions: HomeActions, width: Dp, height: Dp, unit: Dp,
 ) {
     val count = TopCommandItem.entries.size - if (state.assistantEnabled.value) 0 else 1
     Box(
-        Modifier.width(width).fillMaxHeight().blueRailSurface(cyan).blueLightEdge(cyan, vertical = true)
+        Modifier.width(width).fillMaxHeight().blueRailSurface().blueLightEdge(vertical = true)
             .startupContentAlpha(state),
         contentAlignment = Alignment.Center,
     ) {
         HomeCommandGroup(
             state, actions,
             CommandMetrics(
-                buttonSize = height / count,
+                buttonSize = (unit * .112f).coerceIn(minOf(48.dp, height / count), height / count),
                 iconSize = minOf(width * .50f, unit * .066f),
                 horizontalPadding = width * .12f,
             ),
@@ -122,36 +113,15 @@ private fun BlueRail(
 }
 
 @Composable
-private fun CyanInstruments(state: HomeState, unit: Dp, modifier: Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        BlueSpeedometer(state, cyan = true, Modifier.weight(.66f).fillMaxHeight())
-        Column(
-            Modifier.weight(.34f).fillMaxHeight().padding(end = unit * .005f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.weight(.18f))
-            Box(Modifier.weight(.24f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                BlueRpm(state, cyan = true, unit, Modifier.fillMaxWidth())
-            }
-            Spacer(Modifier.weight(.06f))
-            Box(Modifier.weight(.39f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                BlueGear(state, cyan = true, Modifier.fillMaxSize())
-            }
-            Spacer(Modifier.weight(.13f))
-        }
-    }
-}
-
-@Composable
 private fun LightInstruments(state: HomeState, unit: Dp, corner: Dp, modifier: Modifier) {
     Column(
-        modifier.bluePearlPanel(corner),
+        modifier.bluePearlPanel(corner).padding(top = unit * .017f),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            BlueSpeedometer(state, cyan = false, Modifier.fillMaxSize())
+            BlueSpeedometer(state, Modifier.fillMaxSize())
             BlueGear(
-                state, cyan = false,
+                state,
                 Modifier.align(Alignment.BottomCenter).padding(bottom = maxHeight * .016f)
                     .size(width = minOf(maxWidth * .43f, maxHeight * .67f), height = maxHeight * .195f),
             )
@@ -160,89 +130,73 @@ private fun LightInstruments(state: HomeState, unit: Dp, corner: Dp, modifier: M
             Modifier.fillMaxWidth().height(unit * .131f).padding(horizontal = unit * .023f),
             contentAlignment = Alignment.Center,
         ) {
-            BlueRpm(state, cyan = false, unit, Modifier.fillMaxWidth())
+            BlueRpm(state, unit, Modifier.fillMaxWidth())
         }
     }
 }
 
 @Composable
-private fun BlueRpm(state: HomeState, cyan: Boolean, unit: Dp, modifier: Modifier) {
+private fun BlueRpm(state: HomeState, unit: Dp, modifier: Modifier) {
     val tokens = LocalHomeTokens.current
     val reading = formatOneDecimal(state.rpm.value / 1000.0, LocalConfiguration.current.locales[0])
     val fraction = animatedGaugeFraction(state.rpm, RPM_SCALE_MAX, rpm = true)
-    val labelSize = (unit.value * if (cyan) .030f else .027f).sp
-    val valueSize = (unit.value * if (cyan) .088f else .060f).sp
-    val label: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            BlueText("RPM", labelSize, tokens.content, cyan, FontWeight.Bold)
-            BlueText("×1000", labelSize * .70f, tokens.label, cyan, FontWeight.Medium)
+    val labelSize = (unit.value * .027f).sp
+    val valueSize = (unit.value * .060f).sp
+    val barHeight = unit * .027f
+    val labelGap = unit * .004f
+    val lineHeight = with(LocalDensity.current) {
+        maxOf(valueSize.toDp() * CAP_HEIGHT_RATIO, labelSize.toDp() * (1.7f * CAP_HEIGHT_RATIO) + labelGap)
+    }
+    Row(
+        modifier.startupContentAlpha(state),
+        horizontalArrangement = Arrangement.spacedBy(unit * .022f),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            Modifier.height(lineHeight),
+            verticalArrangement = Arrangement.spacedBy(labelGap, Alignment.CenterVertically),
+        ) {
+            BlueText("RPM", labelSize, tokens.content, FontWeight.Bold)
+            BlueText("×1000", labelSize * .70f, tokens.label, FontWeight.Medium)
         }
-    }
-    val value: @Composable () -> Unit = {
-        BlueText(reading, valueSize, tokens.content, cyan, FontWeight.Black)
-    }
-    val gauge: @Composable (Modifier) -> Unit = { area ->
+        // Only the bar shares the readings' centre line. Its scale hangs below it.
         HorizontalBarGauge(
             fraction, RpmGaugeScale, state.startupProgress,
-            barHeight = unit * .027f,
+            barHeight = barHeight,
             labelSize = (unit.value * .023f).sp,
-            modifier = area.height(unit * .078f),
+            modifier = Modifier.weight(1f).padding(top = (lineHeight - barHeight) / 2f).height(unit * .078f),
             segments = 14,
             redZoneFrom = RPM_RED_ZONE_FRACTION,
             showMinorTicks = false,
             slantedSegments = true,
         )
-    }
-    if (cyan) {
-        Column(modifier.startupContentAlpha(state)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                label()
-                value()
-            }
-            Spacer(Modifier.height(unit * .022f))
-            gauge(Modifier.fillMaxWidth())
-        }
-    } else {
-        Row(
-            modifier.startupContentAlpha(state),
-            horizontalArrangement = Arrangement.spacedBy(unit * .022f),
-            verticalAlignment = Alignment.Top,
-        ) {
-            label()
-            gauge(Modifier.weight(1f))
-            value()
+        Box(Modifier.height(lineHeight), contentAlignment = Alignment.Center) {
+            BlueText(reading, valueSize, tokens.content, FontWeight.Black)
         }
     }
 }
 
 @Composable
-internal fun BlueText(text: String, size: TextUnit, color: Color, italic: Boolean, weight: FontWeight) {
+internal fun BlueText(text: String, size: TextUnit, color: Color, weight: FontWeight) {
     Text(
         text, color = color, fontSize = size, lineHeight = size, fontWeight = weight,
-        fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal,
         fontFamily = LocalHomeTokens.current.numberFamily,
         maxLines = 1, style = TightTextStyle, modifier = Modifier.capHeightBounds(size),
     )
 }
 
 @Composable
-private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, cyan: Boolean, modifier: Modifier) {
+private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, modifier: Modifier) {
     val corner = unit * .017f
     val labelSize = (unit.value * .022f).sp
     val valueSize = (unit.value * .041f).sp
     val unitSize = valueSize * .64f
-    val tokens = LocalHomeTokens.current
     BlockStrip(
         state, actions, pinned = emptySet(),
         axis = ReorderAxis.HORIZONTAL,
         labelSize = labelSize, valueSize = valueSize, unitSize = unitSize,
-        modifier = if (cyan) modifier else modifier.bluePearlPanel(corner),
+        modifier = modifier.bluePearlPanel(corner),
         plateShape = RoundedCornerShape(corner),
-        dividers = !cyan,
         itemWeight = {
             when (it) {
                 FooterBlockItem.FUEL -> 1.74f
@@ -253,41 +207,18 @@ private fun BlueFooter(state: HomeState, actions: HomeActions, unit: Dp, cyan: B
             }
         },
     ) { item ->
-        val scope = blockStatisticsScope(item)
-        val tile = if (cyan) {
-            Modifier.padding(horizontal = unit * .0027f).blueCyanCard(corner)
-        } else Modifier
-        Box(
-            Modifier.fillMaxSize().then(tile)
-                .then(if (scope != null) Modifier.clickable { actions.onStatistics(scope) } else Modifier),
-            contentAlignment = Alignment.Center,
-        ) {
-            when (item) {
-                FooterBlockItem.WITNESSES -> WitnessGroup(
-                    state, Modifier.fillMaxWidth(),
-                    scale = unit.value / 448f * if (cyan) .78f else .84f,
-                    arrangement = Arrangement.SpaceEvenly,
-                )
-                FooterBlockItem.FUEL -> BlueFuel(state, unit, labelSize, valueSize, unitSize)
-                else -> {
-                    val reading = rememberBlockReading(item, state)
-                    if (reading != null) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(unit * .009f),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (cyan) BlockIcon(item, tokens.content, Modifier.size(unit * .035f))
-                            Column(verticalArrangement = Arrangement.spacedBy(unit * .011f)) {
-                                BlockLabel(blockLabel(item), labelSize)
-                                ValueWithUnit(
-                                    reading.value, reading.unit, valueSize, unitSize,
-                                    color = if (reading.warning) tokens.warning else null,
-                                )
-                            }
-                        }
-                    }
-                }
+        when (item) {
+            FooterBlockItem.WITNESSES -> WitnessGroup(
+                state, Modifier.fillMaxSize().padding(horizontal = unit * .008f),
+                scale = unit.value / 448f * .84f,
+                arrangement = Arrangement.SpaceEvenly,
+            )
+            FooterBlockItem.FUEL -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                BlueFuel(state, unit, labelSize, valueSize, unitSize)
             }
+            else -> DefaultBlockContent(
+                item, state, actions, labelSize, valueSize, unitSize, labelGap = unit * .011f,
+            )
         }
     }
 }
@@ -298,36 +229,34 @@ private fun BlueFuel(state: HomeState, unit: Dp, labelSize: TextUnit, valueSize:
     val active = fuelSegments(fuel)
     val tone = fuelSegmentTone(active)
     val tokens = LocalHomeTokens.current
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = unit * .012f),
-        horizontalArrangement = Arrangement.spacedBy(unit * .010f),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = unit * .018f),
+        verticalArrangement = Arrangement.spacedBy(unit * .011f),
     ) {
-        FuelPumpIcon(fuelContentColor(tone, tokens), Modifier.size(unit * .042f))
-        Column(verticalArrangement = Arrangement.spacedBy(unit * .011f)) {
-            BlockLabel(blockLabel(FooterBlockItem.FUEL), labelSize)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(unit * .012f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Canvas(Modifier.weight(1f).height(unit * .015f)) {
-                    val step = size.width / 10
-                    val radius = CornerRadius(size.height * .18f)
-                    repeat(10) { i ->
-                        val color = if (i < active && tone == FuelSegmentTone.NORMAL) {
-                            tokens.accent
-                        } else fuelSegmentColor(i < active, tone, tokens)
-                        drawRoundRect(
-                            color, topLeft = Offset(i * step, 0f),
-                            size = Size(step * .84f, size.height), cornerRadius = radius,
-                        )
-                    }
+        BlockLabel(blockLabel(FooterBlockItem.FUEL), labelSize)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(unit * .014f),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val color = fuelContentColor(tone, tokens)
+            FuelPumpIcon(color, Modifier.size(unit * .031f))
+            Canvas(Modifier.weight(1f).height(unit * .015f)) {
+                val step = size.width / 10
+                val radius = CornerRadius(size.height * .18f)
+                repeat(10) { i ->
+                    val segmentColor = if (i < active && tone == FuelSegmentTone.NORMAL) {
+                        tokens.accent
+                    } else fuelSegmentColor(i < active, tone, tokens)
+                    drawRoundRect(
+                        segmentColor, topLeft = Offset(i * step, 0f),
+                        size = Size(step * .84f, size.height), cornerRadius = radius,
+                    )
                 }
-                ValueWithUnit(
-                    "$fuel/$A5_FUEL_TANK_CAPACITY_LITRES", "L",
-                    valueSize * .90f, unitSize, color = fuelContentColor(tone, tokens),
-                )
             }
+            ValueWithUnit(
+                "$fuel/$A5_FUEL_TANK_CAPACITY_LITRES", "L",
+                valueSize * .90f, unitSize, color = color,
+            )
         }
     }
 }
