@@ -1,41 +1,26 @@
 # Instructions for coding agents
 
-## Change workflow
-
-- Complete the requested change, run the relevant checks, commit it, and push it
-  directly to `master`, following development -> tests -> publication. Do not
-  create working branches or use another branch for implementation, commits,
-  or pushes. This owner preference overrides skill branch/PR workflows.
-- Every commit integrated into `master` must produce a GitHub Release. Check
-  both the build and every `publish-release` job and resolve failures before
-  finishing. Confirm the APK and checksum are published, then leave the working
-  tree clean and synchronized with `origin/master`.
+Work on the branch that was active when the task began. Complete the change,
+run the relevant checks and commit locally. Report the result and wait for the
+owner's explicit authorization for each publication before pushing commits or
+tags, uploading assets, creating releases or dispatching GitHub Actions.
 
 ## Publishing an APK
 
-- Distribute APKs as assets on **GitHub Releases**. This project does not publish
-  to GitHub Packages; do not describe a Release asset as a Package.
-- Push the source commit to `master`; GitHub Actions creates its version tag and
-  Release automatically. No manual tag or extra version commit is required.
-- `scripts/release-version.py` is the version authority, also used by Gradle.
-  Each first-parent commit after the automatic-release baseline increments the
-  patch version and Android `versionCode` by one: `1.3.0`/4 becomes `1.3.1`/5,
-  then `1.3.2`/6. Move to the next minor only when the owner explicitly asks.
-  A full Git checkout and Python 3 are required. Check the current version with
-  `python3 scripts/release-version.py version`.
-- A push containing several commits publishes each separately. A workflow
-  retry uses the same version and preserves an already published APK. Releases
-  are published after tests and lint pass; the latest download uses the highest
-  semantic version even when jobs finish out of order.
-- The workflow signs the release APK, publishes `A5Cockpit.apk` and
-  `A5Cockpit.apk.sha256`, and removes its temporary keystore. Verify the
-  downloaded APK checksum and its version/signing identity before reporting
-  publication complete.
-- The workflow needs these GitHub Actions secrets:
-  `A5_RELEASE_KEYSTORE_BASE64`, `A5_RELEASE_STORE_PASSWORD`,
-  `A5_RELEASE_KEY_ALIAS`, and `A5_RELEASE_KEY_PASSWORD`. Never print their
-  values or commit them or the keystore.
-- Preserve the established signing identity so installed copies can be updated.
-  Keep a secure backup of the local keystore and credentials in
-  `~/.android/a5-cockpit-release/`. Local builds without release credentials
-  may use the machine's debug key; published releases must use the stable key.
+1. From a clean `master`, run `./scripts/release-local.sh prepare`. This runs
+   the checks, builds the optimized APK locally and verifies its application ID,
+   version, production certificate and SHA-256. Keep the signed artifacts in
+   `out/releases/<commit>/` for publication and retries.
+2. After authorization for this version, run `./scripts/release-local.sh publish`.
+   It pushes the approved commit and tag together, uploads `A5Cockpit.apk` and
+   `A5Cockpit.apk.sha256` to a GitHub Release and compares both downloads with
+   the prepared files before publishing the draft. Report the resulting URL.
+3. GitHub Actions is available for manually requested CI checks. Releases are
+   built and published from the workstation.
+
+Gradle and the release script both use `scripts/release-version.py version`.
+Each first-parent commit increments the patch version and Android versionCode.
+Use a full checkout. Change the minor version only when the owner requests it.
+
+Keep a secure backup of the distribution key and credentials in
+`~/.android/a5-cockpit-release/`. Never print or commit them.

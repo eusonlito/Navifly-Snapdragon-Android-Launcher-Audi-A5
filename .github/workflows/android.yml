@@ -1,35 +1,12 @@
 name: Android CI
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  plan-releases:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    outputs:
-      releases: ${{ steps.releases.outputs.matrix }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Plan a release for every pushed commit
-        id: releases
-        env:
-          BEFORE_COMMIT: ${{ github.event.before }}
-          HEAD_COMMIT: ${{ github.sha }}
-        run: |
-          matrix=$(python3 scripts/release-version.py commits "$BEFORE_COMMIT" "$HEAD_COMMIT")
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -91,106 +68,3 @@ jobs:
       - name: Test, lint and build
         run: |
           ./gradlew --no-daemon testDebugUnitTest lintRelease assembleDebug assembleRelease
-
-  publish-release:
-    needs: plan-releases
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.plan-releases.outputs.releases) }}
-    concurrency:
-      group: release-${{ matrix.commit }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    env:
-      RELEASE_TAG: ${{ matrix.tag }}
-      RELEASE_COMMIT: ${{ matrix.commit }}
-
-    steps:
-      - name: Check out repository and tags
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          ref: ${{ matrix.commit }}
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-        with:
-          packages: platform-tools
-
-      - name: Install Android platform
-        run: sdkmanager "platforms;android-37.0"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-
-      - name: Validate automatic version and source commit
-        run: |
-          version_info=$(python3 scripts/release-version.py version)
-          read -r version code <<< "$version_info"
-          test "$RELEASE_TAG" = "v$version"
-          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
-          echo "Publishing $RELEASE_TAG (Android versionCode $code) from $RELEASE_COMMIT"
-
-      - name: Restore release signing key
-        env:
-          A5_RELEASE_KEYSTORE_BASE64: ${{ secrets.A5_RELEASE_KEYSTORE_BASE64 }}
-        run: |
-          test -n "$A5_RELEASE_KEYSTORE_BASE64"
-          printf '%s' "$A5_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/a5-cockpit-release.jks"
-          test -s "$RUNNER_TEMP/a5-cockpit-release.jks"
-
-      - name: Build signed release APK
-        env:
-          A5_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/a5-cockpit-release.jks
-          A5_RELEASE_STORE_PASSWORD: ${{ secrets.A5_RELEASE_STORE_PASSWORD }}
-          A5_RELEASE_KEY_ALIAS: ${{ secrets.A5_RELEASE_KEY_ALIAS }}
-          A5_RELEASE_KEY_PASSWORD: ${{ secrets.A5_RELEASE_KEY_PASSWORD }}
-          A5_REQUIRE_RELEASE_SIGNING: "true"
-        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
-
-      - name: Prepare release assets
-        run: |
-          mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk dist/A5Cockpit.apk
-          (cd dist && sha256sum A5Cockpit.apk > A5Cockpit.apk.sha256)
-
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
-            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
-          else
-            git tag "$RELEASE_TAG" "$RELEASE_COMMIT"
-            git push origin "refs/tags/$RELEASE_TAG"
-          fi
-
-          if gh release view "$RELEASE_TAG" --json isDraft,assets > release.json 2> release-error.txt; then
-            complete=$(jq -r '.isDraft == false and ([.assets[] | select(.state == "uploaded" and .size > 0) | .name] | contains(["A5Cockpit.apk", "A5Cockpit.apk.sha256"]))' release.json)
-            if [[ "$complete" == true ]]; then
-              echo "$RELEASE_TAG is already published; keeping its APK."
-              exit 0
-            fi
-            gh release upload "$RELEASE_TAG" dist/A5Cockpit.apk dist/A5Cockpit.apk.sha256 --clobber
-          else
-            gh release create "$RELEASE_TAG" dist/A5Cockpit.apk dist/A5Cockpit.apk.sha256 \
-              --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
-          fi
-
-          release_id=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
-            -F draft=false -f make_latest=legacy > /dev/null
-
-      - name: Remove temporary signing key
-        if: always()
-        run: rm -f "$RUNNER_TEMP/a5-cockpit-release.jks"

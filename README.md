@@ -372,27 +372,28 @@ The Gradle wrapper is included:
 `scripts/compile.sh` runs tests, Lint and the optimized release build. It writes
 the APK, its SHA-256 checksum and the R8 mapping, when present, to `out/`.
 
-Every commit integrated into `master` automatically gets a signed APK, SHA-256
-checksum and GitHub Release once its tests, Lint and build pass. GitHub Actions
-creates the version tag; pushing a source commit is enough. A push containing
-several commits publishes each separately, and retries preserve completed releases.
+### Publish a release from the workstation
 
-Gradle uses `scripts/release-version.py` to calculate versions from Git history.
-Each first-parent commit after the automatic-release baseline increases the patch
-version and Android `versionCode`: `1.3.0`/4 → `1.3.1`/5 → `1.3.2`/6. Local builds
-use the same version as CI. The minor version changes only when the repository
-owner requests it. Python 3 and a full Git checkout are required; for a
-shallow clone, run `git fetch --unshallow`. Check the current version with
-`python3 scripts/release-version.py version`.
+From a clean `master` checkout, run `./scripts/release-local.sh prepare`. It runs
+the checks, builds and signs the APK, and verifies its package, version and
+certificate. The APK and checksum are saved under `out/releases/<commit>/`.
 
-Release APKs use the stable signing identity already used by existing installs.
-Its keystore is kept outside the repository and stored as GitHub Actions
-secrets named `A5_RELEASE_KEYSTORE_BASE64`, `A5_RELEASE_STORE_PASSWORD`,
-`A5_RELEASE_KEY_ALIAS` and `A5_RELEASE_KEY_PASSWORD`. Keep a secure backup of
-the keystore and credentials in
-`~/.android/a5-cockpit-release/`; losing this key prevents in-place updates.
-Local builds without release signing variables continue to use the machine's
-debug key.
+After the owner authorizes this version, run `./scripts/release-local.sh publish`.
+It pushes the source and tag together and publishes the prepared files on GitHub
+Releases. It compares both uploaded files with the local copies before making the
+draft public. Retry the same command after an interrupted upload. GitHub Actions
+is available for manual CI runs.
+
+Use a full Git checkout and Python 3. `python3 scripts/release-version.py version`
+prints the version and Android versionCode for the current commit. Each first-parent
+commit increments both as before. Put Android Build Tools (`aapt`, `apksigner`)
+on PATH and authenticate the GitHub CLI with write access to the origin repository.
+
+Keep the distribution keystore outside the repository. The prepare command reads
+a private shell environment file at `~/.android/a5-cockpit-release/credentials.txt`
+or uses the exported variables `A5_RELEASE_KEYSTORE_PATH`, `A5_RELEASE_STORE_PASSWORD`,
+`A5_RELEASE_KEY_ALIAS` and `A5_RELEASE_KEY_PASSWORD`. Keep a secure backup so
+installed copies can continue to receive updates.
 
 ### Emulator and Replay
 

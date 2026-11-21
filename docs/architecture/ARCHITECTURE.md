@@ -171,10 +171,10 @@ un proveedor de almacenamiento concreto.
 
 Sin credenciales de publicación, la compilación local se firma con la clave de
 depuración de la máquina, lo que basta para pruebas directas en el coche. Las
-versiones publicadas se firman en GitHub Actions con una clave estable
+versiones publicadas se firman en el equipo local con una clave estable
 (variables `A5_RELEASE_*`), de modo que las copias instaladas se pueden
 actualizar. La publicación en GitHub Releases, el esquema de versiones
-(`scripts/release-version.py`) y los secretos necesarios se describen en
+(`scripts/release-version.py`) y el paso de autorización se describen en
 `AGENTS.md`; no se documentan valores secretos en el repositorio.
 
 El release sólo incluye código nativo `arm64-v8a`, la arquitectura del Navifly

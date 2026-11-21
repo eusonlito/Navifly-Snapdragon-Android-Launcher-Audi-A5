@@ -7,7 +7,7 @@ integración del Asistente IA del launcher.
 - [Pruebas](TESTING.md): matriz de verificación y pruebas en dispositivo.
 - [Seguridad](SECURITY.md): tratamiento de credenciales, audio y datos sensibles.
 
-**Estado: implementado.** Se distribuye con las releases automáticas; la única
+**Estado: implementado.** Se distribuye con cada release del launcher; la única
 validación abierta es la de voz en el dispositivo físico.
 
 La aplicación existente es la referencia estable. El asistente es una función

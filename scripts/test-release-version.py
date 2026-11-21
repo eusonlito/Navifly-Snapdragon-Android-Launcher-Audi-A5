@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -63,84 +62,74 @@ class ReleaseVersionTest(unittest.TestCase):
         self.assertEqual({"include": [{"commit": merged, "tag": "v1.3.3"}]},
                          RELEASE.release_commits(second, merged))
 
-    def test_release_workflow_publishes_only_pushes_to_master(self):
+    def test_ci_only_runs_on_manual_dispatch(self):
         workflow = (ROOT / ".github/workflows/android.yml").read_text()
-        self.assertIn("  push:\n    branches:\n      - master\n", workflow)
-        for job in ("plan-releases", "publish-release"):
-            stanza = workflow.split(f"  {job}:\n", 1)[1].split("    runs-on:", 1)[0]
-            self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/master'", stanza)
+        self.assertEqual("workflow_dispatch:", workflow.split("\non:\n")[1].split("\n\n")[0].strip())
+        self.assertNotIn("contents: write", workflow)
 
-    def test_actual_publication_preserves_repairs_creates_and_rejects_wrong_tags(self):
-        workflow = (ROOT / ".github/workflows/android.yml").read_text()
-        stanza = workflow.split("      - name: Publish GitHub Release\n", 1)[1]
-        stanza = stanza.split("      - name: Remove temporary signing key\n", 1)[0]
-        publication = textwrap.dedent(stanza.split("        run: |\n", 1)[1])
-        RELEASE.git("init", "--bare", "-q", "origin.git")
-        RELEASE.git("remote", "add", "origin", str(Path("origin.git").resolve()))
+    def test_local_publication_and_retry(self):
+        origin = Path("origin.git").resolve()
+        RELEASE.git("init", "--bare", "-q", str(origin))
+        RELEASE.git("remote", "add", "origin", str(origin))
         Path("bin").mkdir()
-        fake_gh = Path("bin/gh")
-        fake_gh.write_text('''#!/usr/bin/env python3
-import json, sys
+        gh = Path("bin/gh")
+        gh.write_text("""#!/usr/bin/env python3
+import shutil, sys
 from pathlib import Path
 args = sys.argv[1:]
-p = Path("state.json")
-state = json.loads(p.read_text()) if p.exists() else None
-if args[:2] == ["release", "view"]:
-    if state is None: sys.exit(1)
-    print(state["id"] if "--jq" in args else json.dumps(
-        {"databaseId": state["id"], "isDraft": state["draft"], "assets": state["assets"]}))
-    sys.exit(0)
-if args[0] == "api" and "--method" not in args:
-    # GitHub's tag endpoint cannot find draft releases.
-    if state is None or state["draft"]: sys.exit(1)
-    print(json.dumps(state))
-    sys.exit(0)
-if args[:2] == ["release", "create"]:
-    assert state is None and "--draft" in args and "--verify-tag" in args
-    state = {"id": 42, "draft": True, "assets": []}
-if args[:2] in (["release", "create"], ["release", "upload"]):
-    state["assets"] = [{"name": f.name, "state": "uploaded", "size": f.stat().st_size,
-                        "content": f.read_text()} for f in Path("dist").iterdir()]
-elif args[0] == "api" and "--method" in args:
-    assert "draft=false" in args and "make_latest=legacy" in args
-    state["draft"] = False
+state = Path('draft')
+assets = Path('remote-assets')
+if args[:2] == ['repo', 'view']:
+    print('owner/repo')
+elif args[:2] == ['release', 'view']:
+    if not state.exists(): sys.exit(1)
+    print(state.read_text() if '.isDraft' in args else 'release-url')
+elif args[:2] == ['release', 'create']:
+    assert not state.exists() and '--verify-tag' in args and '--draft' in args
+    state.write_text('true')
+    assets.mkdir()
+elif args[:2] == ['release', 'upload']:
+    assert state.read_text() == 'true'
+    for f in args[3:5]: shutil.copy(f, assets)
+elif args[:2] == ['release', 'download']:
+    for f in assets.iterdir(): shutil.copy(f, args[args.index('--dir')+1])
+elif args[:2] == ['release', 'edit']:
+    assert '--draft=false' in args
+    state.write_text('false')
 else:
     raise AssertionError(args)
-p.write_text(json.dumps(state))
-''')
-        fake_gh.chmod(0o700)
+""")
+        gh.chmod(0o700)
         Path("dist").mkdir()
-        Path("dist/A5Cockpit.apk").write_text("new APK")
-        Path("dist/A5Cockpit.apk.sha256").write_text("new checksum")
-        assets = [{"name": name, "state": "uploaded", "size": 7, "content": "old"}
-                  for name in ("A5Cockpit.apk", "A5Cockpit.apk.sha256")]
-        complete = {"id": 42, "draft": False, "assets": assets}
-        env = {**os.environ, "PATH": f"{Path('bin').resolve()}:{os.environ['PATH']}",
-               "RELEASE_COMMIT": self.base, "GITHUB_REPOSITORY": "test/repo"}
-        for case, initial in (("complete", complete), ("incomplete", {"id": 42, "draft": True, "assets": []}),
-                              ("absent", None), ("wrong-tag", complete)):
-            with self.subTest(case=case):
-                tag = f"v-test-{case}"
-                env["RELEASE_TAG"] = tag
-                if initial is None:
-                    Path("state.json").unlink(missing_ok=True)
-                else:
-                    Path("state.json").write_text(json.dumps(initial))
-                if case == "wrong-tag":
-                    RELEASE.git("commit", "--allow-empty", "-qm", "Other commit")
-                    RELEASE.git("tag", tag, "HEAD")
-                result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", publication],
-                                        env=env, capture_output=True, text=True)
-                if case == "wrong-tag":
-                    self.assertNotEqual(0, result.returncode)
-                    self.assertEqual(initial, json.loads(Path("state.json").read_text()))
-                    continue
-                self.assertEqual(0, result.returncode, result.stderr)
-                final = json.loads(Path("state.json").read_text())
-                self.assertFalse(final["draft"])
-                self.assertEqual(self.base, RELEASE.git("rev-parse", f"{tag}^{{commit}}"))
-                self.assertEqual(["old", "old"] if case == "complete" else ["new APK", "new checksum"],
-                                 [asset["content"] for asset in sorted(final["assets"], key=lambda a: a["name"])])
+        Path("download").mkdir()
+        for name in ("A5Cockpit.apk", "A5Cockpit.apk.sha256"):
+            Path("dist", name).write_text(name)
+        cmd = ["bash", "-c", 'source "$1"; publish "$2" v1.3.0 dist download',
+               "_", str(ROOT / "scripts/release-local.sh"), self.base]
+        env = {**os.environ, "PATH": f"{Path('bin').resolve()}:{os.environ['PATH']}"}
+
+        def publish():
+            return subprocess.run(cmd, env=env, capture_output=True, text=True)
+
+        result = publish()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("false", Path("draft").read_text())
+        for ref in ("refs/heads/master", "refs/tags/v1.3.0"):
+            self.assertEqual(self.base, RELEASE.git("--git-dir", str(origin), "rev-parse", ref))
+
+        Path("draft").write_text("true")
+        Path("remote-assets/A5Cockpit.apk").unlink()
+        self.assertEqual(0, publish().returncode)
+        self.assertEqual("false", Path("draft").read_text())
+        self.assertEqual(0, publish().returncode)
+        Path("remote-assets/A5Cockpit.apk").write_text("different")
+        self.assertNotEqual(0, publish().returncode)
+        self.assertEqual("different", Path("remote-assets/A5Cockpit.apk").read_text())
+
+        RELEASE.git("commit", "--allow-empty", "-qm", "Other commit")
+        cmd[-1] = RELEASE.git("rev-parse", "HEAD")
+        self.assertNotEqual(0, publish().returncode)
+        self.assertEqual(self.base, RELEASE.git("--git-dir", str(origin), "rev-parse", "master"))
 
 
 if __name__ == "__main__":

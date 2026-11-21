@@ -377,29 +377,29 @@ El wrapper de Gradle está incluido:
 `scripts/compile.sh` ejecuta pruebas, Lint y la compilación release optimizada.
 Guarda el APK, su SHA-256 y el mapping de R8 —si existe— en `out/`.
 
-Cada commit integrado en `master` genera automáticamente su APK firmado, checksum
-SHA-256 y GitHub Release cuando pasan sus pruebas, Lint y compilación. GitHub
-Actions crea la etiqueta de versión; basta con subir el commit de código. Si un
-push contiene varios commits, se publica cada uno por separado. Los reintentos
-conservan las publicaciones ya completadas.
+### Publicar una versión desde el equipo local
 
-Gradle calcula las versiones desde el historial Git con `scripts/release-version.py`.
-Cada commit de la línea principal posterior al inicio de la publicación automática
-incrementa la versión patch y el `versionCode` de Android:
-`1.3.0`/4 → `1.3.1`/5 → `1.3.2`/6. Las compilaciones locales usan la misma versión
-que CI. La minor sólo cambia cuando lo indique el propietario del repositorio.
-Se necesitan Python 3 y el historial Git completo; si el clon es superficial,
-ejecuta `git fetch --unshallow`. Puedes consultar la versión con
-`python3 scripts/release-version.py version`.
+Desde un checkout limpio de `master`, ejecuta `./scripts/release-local.sh prepare`.
+El comando ejecuta las pruebas, compila y firma el APK y comprueba el paquete,
+la versión y el certificado. El APK y su checksum quedan en `out/releases/<commit>/`.
 
-Los APK de Release usan la identidad de firma estable de las instalaciones
-actuales. El keystore está fuera del repositorio y se guarda como secreto de
-GitHub Actions: `A5_RELEASE_KEYSTORE_BASE64`, `A5_RELEASE_STORE_PASSWORD`,
+Cuando el propietario autorice esa versión, ejecuta `./scripts/release-local.sh publish`.
+Sube el código y la etiqueta juntos y publica los archivos preparados en GitHub
+Releases. Antes de publicar el borrador, descarga ambos archivos y los compara con
+las copias locales. Si se interrumpe la subida, repite el mismo comando.
+GitHub Actions queda disponible para comprobaciones manuales.
+
+Se necesitan Python 3 y el historial Git completo. Consulta la versión y el
+versionCode de Android con `python3 scripts/release-version.py version`. Ambos
+aumentan con cada commit de la línea principal. Incluye las herramientas Android
+`aapt` y `apksigner` en el PATH y autentica la CLI de GitHub con acceso de
+escritura al repositorio de origen.
+
+Guarda la clave de distribución fuera del repositorio. La preparación lee el
+archivo privado de variables de shell `~/.android/a5-cockpit-release/credentials.txt`
+o usa las variables exportadas `A5_RELEASE_KEYSTORE_PATH`, `A5_RELEASE_STORE_PASSWORD`,
 `A5_RELEASE_KEY_ALIAS` y `A5_RELEASE_KEY_PASSWORD`. Conserva una copia segura
-del keystore y las credenciales en
-`~/.android/a5-cockpit-release/`; perder esta clave impide instalar
-actualizaciones sobre las versiones existentes. Las compilaciones locales sin
-las variables de firma siguen usando la clave debug del equipo.
+para que las instalaciones existentes puedan seguir actualizándose.
 
 ### Emulador y Replay
 
