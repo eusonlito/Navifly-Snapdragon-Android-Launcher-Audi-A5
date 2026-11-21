@@ -27,6 +27,17 @@ import java.util.Locale
 
 class HomeThemeTest {
     @Test
+    fun randomThemeIsDrawnOncePerBootAndFixedSelectionSurvivesReboots() {
+        val fixed = HomeThemeSelection(HomeTheme.MOON)
+        assertEquals(fixed, fixed.forBoot(42))
+        val firstBoot = HomeThemeSelection.random(41)
+        assertEquals(firstBoot, firstBoot.forBoot(41))
+        val nextBoot = firstBoot.forBoot(42)
+        assertEquals(42, nextBoot.randomBoot)
+        assertEquals(nextBoot, nextBoot.forBoot(42))
+    }
+
+    @Test
     fun removedCyanSelectionFallsBackToLightBlue() {
         assertEquals(HomeTheme.BLUE_LIGHT, parseHomeTheme("BLUE_CYAN"))
     }

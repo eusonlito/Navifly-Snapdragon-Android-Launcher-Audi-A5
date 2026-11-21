@@ -3,7 +3,6 @@ package com.lito.a5launcher.ui.components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,6 +52,9 @@ private const val GRID_COLUMNS = 4
 /** Theme name under each preview. */
 private val NameSize = 14.sp
 
+// The last card selects a theme at random on each boot.
+private val themeOptions: List<HomeTheme?> = HomeTheme.entries + listOf(null)
+
 /**
  * The one spacing inside a card: from its edge to the preview, from the preview
  * to the name and from the name to the bottom edge. The name is measured by
@@ -74,8 +77,8 @@ internal fun themePreviewRes(theme: HomeTheme): Int = when (theme) {
 /** Grid of home themes, each shown by its screenshot and its name; the active one is outlined. */
 @Composable
 internal fun ThemeSettingsPanel(
-    selected: HomeTheme,
-    onSelected: (HomeTheme) -> Unit,
+    selected: HomeTheme?,
+    onSelected: (HomeTheme?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     SettingsCard(modifier) {
@@ -84,10 +87,10 @@ internal fun ThemeSettingsPanel(
 }
 
 @Composable
-private fun ThemeGrid(selected: HomeTheme, onSelected: (HomeTheme) -> Unit) {
+private fun ThemeGrid(selected: HomeTheme?, onSelected: (HomeTheme?) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val gap = SettingsDimensions.CardGap
-        val rows = (HomeTheme.entries.size + GRID_COLUMNS - 1) / GRID_COLUMNS
+        val rows = (themeOptions.size + GRID_COLUMNS - 1) / GRID_COLUMNS
         val nameHeight = with(LocalDensity.current) { NameSize.toDp() * CAP_HEIGHT_RATIO }
         val columnWidth = (maxWidth - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS
         val rowHeight = (maxHeight - gap * (rows - 1)) / rows
@@ -100,7 +103,7 @@ private fun ThemeGrid(selected: HomeTheme, onSelected: (HomeTheme) -> Unit) {
             Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(gap, Alignment.CenterVertically),
         ) {
-            HomeTheme.entries.chunked(GRID_COLUMNS).forEach { row ->
+            themeOptions.chunked(GRID_COLUMNS).forEach { row ->
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(gap, Alignment.Start),
@@ -123,31 +126,43 @@ private fun ThemeGrid(selected: HomeTheme, onSelected: (HomeTheme) -> Unit) {
 
 @Composable
 private fun ThemeCard(
-    theme: HomeTheme,
+    theme: HomeTheme?,
     selected: Boolean,
     previewWidth: Dp,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(SettingsDimensions.ControlRadius + CardInset)
-    val name = stringResource(theme.labelRes)
+    val name = stringResource(theme?.labelRes ?: R.string.home_theme_random)
     Box(
         Modifier
             .clip(shape)
             .background(SettingsPalette.Raised)
             .border(if (selected) 2.dp else 1.dp, if (selected) SettingsPalette.Accent else SettingsPalette.Border, shape)
-            .clickable(role = Role.RadioButton, onClickLabel = name, onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(CardInset),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(themePreviewRes(theme)),
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier
-                    .width(previewWidth)
-                    .height(previewWidth / PREVIEW_ASPECT)
-                    .clip(RoundedCornerShape(SettingsDimensions.ControlRadius)),
-            )
+            val previewModifier = Modifier
+                .width(previewWidth)
+                .height(previewWidth / PREVIEW_ASPECT)
+                .clip(RoundedCornerShape(SettingsDimensions.ControlRadius))
+            if (theme == null) {
+                Box(previewModifier.background(SettingsPalette.Track), contentAlignment = Alignment.Center) {
+                    Icon(
+                        SettingsIcons.Shuffle,
+                        contentDescription = null,
+                        tint = SettingsPalette.Accent,
+                        modifier = Modifier.size(previewWidth / PREVIEW_ASPECT * .55f),
+                    )
+                }
+            } else {
+                Image(
+                    painter = painterResource(themePreviewRes(theme)),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = previewModifier,
+                )
+            }
             Spacer(Modifier.height(CardInset))
             Text(
                 name,

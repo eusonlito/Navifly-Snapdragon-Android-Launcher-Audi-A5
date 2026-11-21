@@ -45,7 +45,11 @@ class MapDebugLogger private constructor(private val context: Context) {
 
         fun deleteAll(context: Context): Int = get(context).deleteAll()
 
-        fun stats(context: Context): MapDebugLogStats = get(context).stats()
+        suspend fun stats(context: Context): MapDebugLogStats {
+            val logger = get(context)
+            // Include the first queued write when diagnostics have just been enabled.
+            return withContext(logger.ioDispatcher) { logger.stats() }
+        }
 
     }
 
@@ -123,7 +127,7 @@ class MapDebugLogger private constructor(private val context: Context) {
         }.isSuccess
     }
 
-    fun stats(): MapDebugLogStats = synchronized(lock) {
+    private fun stats(): MapDebugLogStats = synchronized(lock) {
         val internalFiles = internalFiles()
         MapDebugLogStats(
             fileCount = internalFiles.size,

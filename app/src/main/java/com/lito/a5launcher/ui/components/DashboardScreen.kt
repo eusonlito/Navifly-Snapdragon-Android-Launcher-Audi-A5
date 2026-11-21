@@ -252,9 +252,26 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     LaunchedEffect(pendingRefuelConfirmation) {
         if (pendingRefuelConfirmation != null) showManualPartialResetConfirmation = false
     }
-    var homeTheme by remember {
-        mutableStateOf(parseHomeTheme(launcherPreferences.getString(HOME_THEME_KEY, null)))
+    val bootCount = remember {
+        android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.BOOT_COUNT, 0)
     }
+    fun saveTheme(selection: HomeThemeSelection) {
+        launcherPreferences.edit {
+            putString(HOME_THEME_KEY, selection.theme.name)
+            if (selection.randomBoot == null) remove(RANDOM_THEME_BOOT_KEY)
+            else putInt(RANDOM_THEME_BOOT_KEY, selection.randomBoot)
+        }
+    }
+    var themeSelection by remember {
+        val saved = HomeThemeSelection(
+            parseHomeTheme(launcherPreferences.getString(HOME_THEME_KEY, null)),
+            launcherPreferences.getInt(RANDOM_THEME_BOOT_KEY, -1).takeIf { it >= 0 },
+        )
+        val current = saved.forBoot(bootCount)
+        if (current != saved) saveTheme(current)
+        mutableStateOf(current)
+    }
+    val homeTheme = themeSelection.theme
     // Each theme arranges the blocks differently, so each keeps its own order.
     fun storedFooterBlockOrder(theme: HomeTheme) = parseFooterBlockOrder(
         launcherPreferences.getString(footerBlockOrderKey(theme), null),
@@ -612,7 +629,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 if (order !== footerBlockOrder) {
                     footerBlockOrder = order
                     launcherPreferences.edit {
-                        putString(footerBlockOrderKey(homeTheme), order.joinToString(",") { it.name })
+                        putString(footerBlockOrderKey(themeSelection.theme), order.joinToString(",") { it.name })
                     }
                 }
             },
@@ -755,11 +772,16 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                 LauncherSettingsOverlay(
                     headerHeight = commandBarHeight,
                     darkModeActive = darkModeActive,
-                    homeTheme = homeTheme,
+                    selectedTheme = themeSelection.theme.takeIf { themeSelection.randomBoot == null },
                     onHomeThemeChanged = { theme ->
-                        homeTheme = theme
-                        footerBlockOrder = storedFooterBlockOrder(theme)
-                        launcherPreferences.edit { putString(HOME_THEME_KEY, theme.name) }
+                        val selection = when {
+                            theme != null -> HomeThemeSelection(theme)
+                            themeSelection.randomBoot == bootCount -> themeSelection
+                            else -> HomeThemeSelection.random(bootCount)
+                        }
+                        saveTheme(selection)
+                        themeSelection = selection
+                        footerBlockOrder = storedFooterBlockOrder(selection.theme)
                         // Choosing a theme is the whole task: go straight back to the home screen.
                         showLauncherSettings = false
                     },
@@ -999,8 +1021,8 @@ internal fun formatOneDecimal(
 private fun LauncherSettingsOverlay(
     headerHeight: androidx.compose.ui.unit.Dp,
     darkModeActive: Boolean,
-    homeTheme: HomeTheme,
-    onHomeThemeChanged: (HomeTheme) -> Unit,
+    selectedTheme: HomeTheme?,
+    onHomeThemeChanged: (HomeTheme?) -> Unit,
     selectedTab: LauncherSettingsTab,
     onSelectedTabChanged: (LauncherSettingsTab) -> Unit,
     diagnostics: MapDiagnostics,
@@ -1186,7 +1208,7 @@ private fun LauncherSettingsOverlay(
                     modifier = Modifier.fillMaxSize(),
                 )
                 LauncherSettingsTab.THEMES -> ThemeSettingsPanel(
-                    selected = homeTheme,
+                    selected = selectedTheme,
                     onSelected = onHomeThemeChanged,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -1439,6 +1461,7 @@ private fun MapSettingsPanel(
                     stringResource(R.string.settings_download),
                     SettingsDimensions.ActionHeight,
                     modifier = Modifier.weight(1f),
+                    enabled = debugLogStats.fileCount > 0,
                     icon = SettingsIcons.Download,
                 ) {
                     onExportDebugLogs { }
@@ -1447,6 +1470,7 @@ private fun MapSettingsPanel(
                     stringResource(R.string.map_clear_logs),
                     SettingsDimensions.ActionHeight,
                     modifier = Modifier.weight(1f),
+                    enabled = debugLogStats.fileCount > 0,
                     destructive = true,
                     icon = SettingsIcons.Trash,
                     onClick = onClearDebugLogs,

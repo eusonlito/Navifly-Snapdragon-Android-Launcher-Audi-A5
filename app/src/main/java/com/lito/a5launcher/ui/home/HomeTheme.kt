@@ -14,6 +14,8 @@ import com.lito.a5launcher.ui.theme.SLineRed
 
 internal const val HOME_THEME_KEY = "home_theme"
 
+internal const val RANDOM_THEME_BOOT_KEY = "random_theme_boot"
+
 internal enum class HomeTheme(val labelRes: Int) {
     CLASSIC(R.string.home_theme_classic),
     HORIZON(R.string.home_theme_horizon),
@@ -29,6 +31,16 @@ internal enum class HomeTheme(val labelRes: Int) {
 internal fun parseHomeTheme(serialized: String?): HomeTheme =
     if (serialized == "BLUE_CYAN") HomeTheme.BLUE_LIGHT
     else HomeTheme.entries.firstOrNull { it.name == serialized } ?: HomeTheme.CLASSIC
+
+/** A fixed theme, or the theme drawn for one Android boot. */
+internal data class HomeThemeSelection(val theme: HomeTheme, val randomBoot: Int? = null) {
+    fun forBoot(boot: Int): HomeThemeSelection =
+        if (randomBoot == null || randomBoot == boot) this else random(boot)
+
+    companion object {
+        fun random(boot: Int) = HomeThemeSelection(HomeTheme.entries.random(), boot)
+    }
+}
 
 /** Visual tokens shared by every home layout; Classic reproduces the original values. */
 @Immutable

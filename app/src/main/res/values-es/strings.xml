@@ -125,6 +125,7 @@
     <string name="home_theme_moon">Luna</string>
     <string name="home_theme_galaxy">Galaxia</string>
     <string name="home_theme_adventure">Aventura</string>
+    <string name="home_theme_random">Aleatorio</string>
     <string name="home_theme_blue_light">Nácar</string>
     <string name="system_application">Aplicación</string>
     <string name="system_version">Versión</string>
@@ -182,7 +183,6 @@
     <string name="device_reboot_cancel">Cancelar</string>
     <string name="device_reboot_failed">No se ha podido enviar la solicitud de reinicio.</string>
     <string name="launcher_update_button">Actualizar</string>
-    <string name="launcher_release_description">Busca la última versión publicada en GitHub e instálala desde aquí.</string>
     <string name="launcher_release_version">Versión publicada</string>
     <string name="launcher_release_checking">Consultando GitHub…</string>
     <string name="launcher_release_check">Buscar</string>

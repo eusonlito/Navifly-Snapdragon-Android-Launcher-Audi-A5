@@ -1,19 +1,19 @@
 # Estado de dependencias
 
-Auditoría actualizada el 19 de noviembre de 2026. Sólo se seleccionan versiones
+Auditoría actualizada el 21 de noviembre de 2026. Sólo se seleccionan versiones
 estables publicadas en los repositorios oficiales.
 
 ## Versiones activas
 
 | Componente | Versión | Estado |
 |---|---:|---|
-| Android Gradle Plugin | 9.5.1 | Actualizado |
-| Gradle Wrapper | 9.9.1 | Actualizado; SHA-256 oficial fijado |
+| Android Gradle Plugin | 9.5.1 | Disponible 9.5.2 |
+| Gradle Wrapper | 9.9.1 | Disponible 9.9.2 |
 | Kotlin integrado / Compose Compiler | 2.4.21 | Versiones coordinadas mediante el plugin Compose |
-| Compose BOM | 2026.09.00 | UI, Runtime y Foundation 1.12.1 |
+| Compose BOM | 2026.09.00 | Disponible 2026.11.01, con Compose UI 1.13.0 y Material 3 1.5.0 |
 | AndroidX Core | 1.19.1 | Actualizado |
 | AndroidX Activity | 1.13.0 | Actualizado |
-| AndroidX Lifecycle | 2.11.0 | Actualizado |
+| AndroidX Lifecycle | 2.11.0 | Disponible 2.11.1 para runtime-ktx y runtime-compose |
 | Core Splashscreen | 1.2.0 | Actualizado |
 | MapLibre Native | 13.7.1 | Última versión de la línea 13.x; el informe sólo señala `2026.11.2-globe`, una variante con proyección de globo y esquema de versión distinto, que no se adopta. Pendiente de validación en el Navifly |
 | OkHttp | 5.5.1 | Actualizado |
@@ -44,10 +44,11 @@ las notas de versión de [AGP](https://developer.android.com/build/releases/abou
 y la [guía de Kotlin](https://kotlinlang.org/docs/gradle-configure-project.html);
 la combinación seleccionada se valida localmente con las pruebas y la compilación.
 
-La combinación actual compila con `testDebugUnitTest` (333 pruebas sin fallos),
-`lintRelease`, `minifyReleaseWithR8` y `assembleDebug`. El informe de
-actualizaciones del 19 de noviembre de 2026 no registra dependencias obsoletas
-salvo la variante `2026.11.2-globe` de MapLibre ni fallos de resolución.
+El informe del 21 de noviembre resolvió todas las dependencias. Las actualizaciones
+de Lint y UTP que aparecen en el informe acompañan a AGP. Para adoptar el nuevo
+BOM habría que instalar el SDK 37.1 en desarrollo y en CI y usarlo como
+`compileSdk`. El AAR de Compose UI 1.13.0 declara `minCompileSdk=37` y
+`minCompileMinorSdk=1`. El proyecto compila actualmente con 37.0.
 
 No se usan versiones dinámicas ni snapshots. La compilación y la prueba en el
 emulador validan el conjunto del software; MapLibre debe validarse además
@@ -97,7 +98,7 @@ procesadas. La configuración de empaquetado evita intentar aplicarles `strip`
 por segunda vez, sin conservar símbolos adicionales ni aumentar el APK.
 
 Lint forma parte de `scripts/compile.sh` y debe finalizar sin errores (el último informe
-local registra 0 errores y 17 advertencias). Sólo se
+local registra 0 errores y 20 advertencias). Sólo se
 excluyen dos reglas deliberadas: compatibilidad ChromeOS/x86, que no corresponde
 al APK específico del coche, y la recomendación Timber originada por una
 dependencia transitiva de MapLibre; el diagnóstico del launcher usa Logcat.

@@ -126,6 +126,7 @@
     <string name="home_theme_moon">Moon</string>
     <string name="home_theme_galaxy">Galaxy</string>
     <string name="home_theme_adventure">Adventure</string>
+    <string name="home_theme_random">Random</string>
     <string name="home_theme_blue_light">Pearl</string>
     <string name="system_application">Application</string>
     <string name="system_version">Version</string>
@@ -183,7 +184,6 @@
     <string name="device_reboot_cancel">Cancel</string>
     <string name="device_reboot_failed">The restart request could not be sent.</string>
     <string name="launcher_update_button">Update</string>
-    <string name="launcher_release_description">Check the latest version published on GitHub and install it here.</string>
     <string name="launcher_release_version">Published version</string>
     <string name="launcher_release_checking">Checking GitHub…</string>
     <string name="launcher_release_check">Check</string>

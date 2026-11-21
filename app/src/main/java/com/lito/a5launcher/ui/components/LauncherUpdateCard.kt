@@ -91,13 +91,6 @@ internal fun LauncherUpdateCard(
     SettingsCard(modifier) {
         SettingsSectionTitle(stringResource(R.string.system_update), SettingsIcons.CloudDownload)
         Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(R.string.launcher_release_description),
-            color = SettingsPalette.MutedText,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-        )
-        Spacer(Modifier.height(12.dp))
         Row(
             Modifier.fillMaxWidth()
                 .height(SettingsDimensions.FieldHeight)
