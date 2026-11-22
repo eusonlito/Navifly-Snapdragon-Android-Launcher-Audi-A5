@@ -9,10 +9,11 @@ import java.io.File
 class ThemeSettingsPanelTest {
     @Test
     fun everyThemeHasItsOwnPreviewImage() {
-        val previews = HomeTheme.entries.map(::themePreviewRes)
-        assertEquals(HomeTheme.entries.size, previews.toSet().size)
-        HomeTheme.entries.forEach { theme ->
-            val file = File("src/main/res/drawable-nodpi/theme_preview_${theme.name.lowercase()}.webp")
+        val options = HomeTheme.entries + listOf(null)
+        val previews = options.map(::themePreviewRes)
+        assertEquals(options.size, previews.toSet().size)
+        options.forEach { theme ->
+            val file = File("src/main/res/drawable-nodpi/theme_preview_${theme?.name?.lowercase() ?: "random"}.webp")
             assertTrue("Missing preview for $theme", file.isFile)
         }
     }

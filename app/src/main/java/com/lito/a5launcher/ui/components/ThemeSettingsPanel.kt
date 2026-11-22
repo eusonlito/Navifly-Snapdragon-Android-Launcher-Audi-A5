@@ -62,7 +62,8 @@ private val themeOptions: List<HomeTheme?> = HomeTheme.entries + listOf(null)
  */
 private val CardInset = 10.dp
 
-internal fun themePreviewRes(theme: HomeTheme): Int = when (theme) {
+internal fun themePreviewRes(theme: HomeTheme?): Int = when (theme) {
+    null -> R.drawable.theme_preview_random
     HomeTheme.CLASSIC -> R.drawable.theme_preview_classic
     HomeTheme.HORIZON -> R.drawable.theme_preview_horizon
     HomeTheme.FACETS -> R.drawable.theme_preview_facets
@@ -142,27 +143,15 @@ private fun ThemeCard(
             .padding(CardInset),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val previewModifier = Modifier
-                .width(previewWidth)
-                .height(previewWidth / PREVIEW_ASPECT)
-                .clip(RoundedCornerShape(SettingsDimensions.ControlRadius))
-            if (theme == null) {
-                Box(previewModifier.background(SettingsPalette.Track), contentAlignment = Alignment.Center) {
-                    Icon(
-                        SettingsIcons.Shuffle,
-                        contentDescription = null,
-                        tint = SettingsPalette.Accent,
-                        modifier = Modifier.size(previewWidth / PREVIEW_ASPECT * .55f),
-                    )
-                }
-            } else {
-                Image(
-                    painter = painterResource(themePreviewRes(theme)),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = previewModifier,
-                )
-            }
+            Image(
+                painter = painterResource(themePreviewRes(theme)),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier
+                    .width(previewWidth)
+                    .height(previewWidth / PREVIEW_ASPECT)
+                    .clip(RoundedCornerShape(SettingsDimensions.ControlRadius)),
+            )
             Spacer(Modifier.height(CardInset))
             Text(
                 name,
