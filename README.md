@@ -65,8 +65,8 @@ Do not install this build expecting compatibility with:
   Settings → Themes. Pearl and the illustrated homes switch to night colours
   with the map. While driving, the illustrated themes cycle through animations
   with 25–50 seconds between them. Tap an illustrated element to animate it,
-  including while parked. Several elements can animate at once. A nearby POI
-  alert interrupts the animations.
+  including while parked. Several elements can animate at once, including while
+  the map shows a nearby POI alert.
 - Reorderable top actions and trip blocks using a long press; each theme keeps
   its own block order.
 - Application launcher, app switcher, settings and original Audi MMI access.

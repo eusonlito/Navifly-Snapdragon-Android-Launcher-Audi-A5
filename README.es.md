@@ -66,8 +66,8 @@ No instales esta versión esperando compatibilidad con:
   miniaturas en Ajustes → Temas. Nácar y los temas ilustrados cambian al modo
   nocturno junto con el mapa. Durante la marcha, los temas ilustrados alternan
   animaciones con pausas de 25 a 50 segundos. Toca los elementos ilustrados para
-  animarlos, también con el coche parado. Puedes animar varios a la vez. Un
-  aviso de POI interrumpe las animaciones.
+  animarlos, también con el coche parado. Pueden animarse varios a la vez,
+  incluso mientras el mapa muestra un aviso de POI.
 - Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
   guarda su propio orden de bloques.
 - Lanzador de aplicaciones, cambio de aplicación, acceso a ajustes y MMI Audi.
