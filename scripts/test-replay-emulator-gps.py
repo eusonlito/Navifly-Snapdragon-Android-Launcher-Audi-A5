@@ -167,6 +167,15 @@ class ReplayEmulatorGpsTest(unittest.TestCase):
         self.assertEqual(endpoint.address, "127.0.0.1:8554")
         self.assertEqual(endpoint.token, "secret")
 
+    def test_reused_port_must_still_belong_to_the_project_avd(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            running = Path(temporary)
+            (running / "pid_42.ini").write_text(
+                "port.serial=5554\navd.id=Other_Project\ngrpc.port=8554\ngrpc.token=other\n"
+            )
+            with self.assertRaises(RuntimeError):
+                REPLAY.resolve_grpc_endpoint("emulator-5554", running, avd="A5_Local_AI_Probe")
+
     def test_endpoint_resolution_ignores_a_runtime_file_removed_mid_scan(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             running = Path(temporary)

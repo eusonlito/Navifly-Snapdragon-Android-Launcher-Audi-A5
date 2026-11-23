@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+PROJECT_AVD="A5_Local_AI_Probe"
 DISPLAY_SIZE="2400x896"
 DISPLAY_DENSITY="320"
 REPLAY_LOG=""
@@ -32,6 +33,7 @@ Uso: ./scripts/emulator.sh --replay RUTA_JSONL [--files DIRECTORIO]
   --files DIRECTORIO   Copia sus ficheros a Downloads/A5-Cockpit.
   -h, --help           Muestra esta ayuda.
 
+Arranca o reutiliza únicamente el AVD $PROJECT_AVD.
 El replay es obligatorio y debe apuntar a un JSONL local no versionado.
 Usa la GPU del equipo; A5_EMULATOR_GPU=swiftshader_indirect fuerza el
 renderizado por software si el equipo no tiene GPU compatible.
@@ -168,119 +170,68 @@ fi
 echo -e "${GREEN}[INFO]${NC} Ejecutable del emulador: ${BOLD}$EMULATOR${NC}"
 echo -e "${GREEN}[INFO]${NC} Ejecutable de ADB: ${BOLD}$ADB_PATH${NC}"
 
-# 3. Reutilizar únicamente un emulador, nunca un dispositivo físico.
-TARGET_SERIAL=$("$ADB_PATH" devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }')
-
-PREFERRED_AVD=""
-if [ -n "$TARGET_SERIAL" ]; then
-    # Un emulador sin ventana (el que deja capture-emulator.sh) no se ve en el
-    # escritorio: se detiene y se vuelve a arrancar el mismo AVD con ventana.
-    RUNNING_AVD=$("$ADB_PATH" -s "$TARGET_SERIAL" emu avd name 2>/dev/null | head -1 | tr -d '\r')
-    if [ -n "$RUNNING_AVD" ] && pgrep -f "qemu-system-[^ ]* -avd $RUNNING_AVD( |$).*-no-window" >/dev/null; then
-        echo -e "${YELLOW}${BOLD}[DETECTADO]${NC} Emulador sin ventana: ${BOLD}$TARGET_SERIAL${NC} ($RUNNING_AVD)"
-        echo -e "Se detiene para arrancarlo de nuevo con ventana."
-        "$ADB_PATH" -s "$TARGET_SERIAL" emu kill >/dev/null 2>&1 || true
-        for _ in $(seq 1 60); do
-            pgrep -f "qemu-system-[^ ]* -avd $RUNNING_AVD( |$)" >/dev/null || break
-            sleep 1
-        done
-        PREFERRED_AVD=$RUNNING_AVD
-        TARGET_SERIAL=""
-    else
-        echo -e "${YELLOW}${BOLD}[DETECTADO]${NC} Emulador activo: ${BOLD}$TARGET_SERIAL${NC}"
-        echo -e "Se reutilizará y se aplicará de nuevo el perfil de pantalla Navifly."
-    fi
-fi
-
-if [ -z "$TARGET_SERIAL" ]; then
-    # 4. Listar AVDs disponibles si no hay ninguno encendido
-    echo -e "${CYAN}[SEARCH]${NC} Buscando dispositivos virtuales (AVDs)..."
-    AVD_LIST=()
-    while IFS= read -r AVD; do
-        if [ -n "$AVD" ]; then
-            AVD_LIST+=("$AVD")
+# El número de puerto depende del orden en que arrancan los AVD.
+find_project_emulator() {
+    local serial transport name
+    while read -r serial transport; do
+        name=$("$ADB_PATH" -t "$transport" shell getprop ro.boot.qemu.avd_name 2>/dev/null | tr -d '\r')
+        if [[ $name == "$PROJECT_AVD" ]]; then
+            printf '%s %s\n' "$serial" "$transport"
+            return 0
         fi
-    done < <("$EMULATOR" -list-avds 2>/dev/null)
+    done < <("$ADB_PATH" devices -l | awk '$1 ~ /^emulator-[0-9]+$/ && $2 == "device" && $NF ~ /^transport_id:/ {
+        sub(/^transport_id:/, "", $NF); print $1, $NF
+    }')
+    return 1
+}
 
-    if [ ${#AVD_LIST[@]} -eq 0 ]; then
-        echo -e "${YELLOW}${BOLD}[ADVERTENCIA]${NC} No se han encontrado dispositivos virtuales (AVD) creados."
-        echo "Crea un AVD en Android Studio -> Device Manager antes de volver a ejecutar."
-        exit 1
-    fi
-
-    SELECTED_AVD=""
-    if [ -n "$PREFERRED_AVD" ]; then
-        SELECTED_AVD="$PREFERRED_AVD"
-        echo -e "${GREEN}[INFO]${NC} Se vuelve a arrancar: ${BOLD}$SELECTED_AVD${NC}"
-    elif [ ${#AVD_LIST[@]} -eq 1 ]; then
-        SELECTED_AVD="${AVD_LIST[0]}"
-        echo -e "${GREEN}[INFO]${NC} Se ha detectado un único dispositivo: ${BOLD}$SELECTED_AVD${NC}"
-    else
-        echo -e "${CYAN}[SELECT]${NC} Selecciona el dispositivo virtual que deseas arrancar:"
-        for i in "${!AVD_LIST[@]}"; do
-            echo -e "  [$i] ${BOLD}${AVD_LIST[$i]}${NC}"
-        done
-
-        echo -n "Introduce el número [0-$((${#AVD_LIST[@]} - 1))]: "
-        read -r INDEX
-
-        if [[ "$INDEX" =~ ^[0-9]+$ ]] && [ "$INDEX" -ge 0 ] && [ "$INDEX" -lt ${#AVD_LIST[@]} ]; then
-            SELECTED_AVD="${AVD_LIST[$INDEX]}"
-        else
-            echo -e "${RED}${BOLD}[ERROR]${NC} Selección no válida. Saliendo..."
+target=$(find_project_emulator)
+if [[ -z $target ]]; then
+    echo "[BOOT] Iniciando $PROJECT_AVD..."
+    "$EMULATOR" -avd "$PROJECT_AVD" -gpu "${A5_EMULATOR_GPU:-host}" \
+        -skin "$DISPLAY_SIZE" -dpi-device "$DISPLAY_DENSITY" -allow-host-audio -no-snapstorage &
+    emulator_pid=$!
+    deadline=$((SECONDS + 180))
+    until target=$(find_project_emulator); do
+        if [[ -n $emulator_pid ]] && ! kill -0 "$emulator_pid" 2>/dev/null; then
+            wait "$emulator_pid" || { echo "No se pudo iniciar $PROJECT_AVD." >&2; exit 1; }
+            emulator_pid=""
+        fi
+        if (( SECONDS >= deadline )); then
+            echo "No se ha podido conectar al AVD $PROJECT_AVD." >&2
             exit 1
         fi
-    fi
-
-    # 5. Lanzar el emulador con la resolución y densidad reales del Navifly.
-    echo ""
-    echo -e "${GREEN}${BOLD}[BOOT]${NC} Iniciando ${BOLD}$SELECTED_AVD${NC} con perfil Navifly..."
-    echo "  - Superficie útil: $DISPLAY_SIZE (Landscape)"
-    echo "  - Densidad lógica: $DISPLAY_DENSITY dpi"
-    echo ""
-
-    # Arrancar proceso en background. El mapa redibuja continuamente a
-    # 2400x896: con renderizado por software (SwiftShader) la ventana deja de
-    # responder, así que se usa la GPU del equipo salvo que se indique otra.
-    "$EMULATOR" \
-        -avd "$SELECTED_AVD" \
-        -gpu "${A5_EMULATOR_GPU:-host}" \
-        -skin "$DISPLAY_SIZE" \
-        -dpi-device "$DISPLAY_DENSITY" \
-        -allow-host-audio \
-        -no-snapstorage > /dev/null 2>&1 &
-
-    # 6. Esperar a que el emulador esté completamente online y listo
-    echo -e "${CYAN}[WAIT]${NC} Esperando a que el emulador responda a ADB..."
-    while [ -z "$TARGET_SERIAL" ]; do
         sleep 1
-        TARGET_SERIAL=$("$ADB_PATH" devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }')
     done
-
-    echo -e "${CYAN}[WAIT]${NC} Esperando a que Android finalice el arranque de la interfaz (boot_completed)..."
-    BOOT_COMPLETED=""
-    while [ "$BOOT_COMPLETED" != "1" ]; do
-        sleep 2
-        BOOT_COMPLETED=$("$ADB_PATH" -s "$TARGET_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || echo "")
-    done
-    echo -e "${GREEN}${BOLD}[LISTO]${NC} ¡El emulador ha arrancado correctamente!"
 fi
+
+read -r TARGET_SERIAL TARGET_TRANSPORT <<< "$target"
+target_adb=("$ADB_PATH" -t "$TARGET_TRANSPORT")
+echo "[AVD] $PROJECT_AVD ($TARGET_SERIAL)"
+deadline=$((SECONDS + 180))
+until [[ $("${target_adb[@]}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r') == 1 ]]; do
+    if ! "${target_adb[@]}" get-state >/dev/null 2>&1 || (( SECONDS >= deadline )); then
+        echo "El AVD $PROJECT_AVD no ha terminado de arrancar." >&2
+        exit 1
+    fi
+    sleep 1
+done
 
 # El skin configura el framebuffer. Estos overrides garantizan también que Android
 # use exactamente la superficie y densidad lógica del dispositivo físico.
 echo -e "${BLUE}[DISPLAY]${NC} Aplicando ${BOLD}$DISPLAY_SIZE @ $DISPLAY_DENSITY dpi${NC}..."
-"$ADB_PATH" -s "$TARGET_SERIAL" shell wm size "$DISPLAY_SIZE"
-"$ADB_PATH" -s "$TARGET_SERIAL" shell wm density "$DISPLAY_DENSITY"
-echo -e "  $("$ADB_PATH" -s "$TARGET_SERIAL" shell wm size | tr -d '\r')"
-echo -e "  $("$ADB_PATH" -s "$TARGET_SERIAL" shell wm density | tr -d '\r')"
+"${target_adb[@]}" shell wm size "$DISPLAY_SIZE"
+"${target_adb[@]}" shell wm density "$DISPLAY_DENSITY"
+echo -e "  $("${target_adb[@]}" shell wm size | tr -d '\r')"
+echo -e "  $("${target_adb[@]}" shell wm density | tr -d '\r')"
 
 # Los selectores SAF de Android no pueden acceder al sistema de archivos del
 # host. Para las pruebas, publicamos explícitamente el directorio solicitado en
 # Downloads, que sí es visible desde el selector nativo del emulador.
 if [ -n "$FILES_DIR" ]; then
     echo -e "${BLUE}[FILES]${NC} Sincronizando ${BOLD}$FILES_DIR${NC}..."
-    "$ADB_PATH" -s "$TARGET_SERIAL" shell mkdir -p "$EMULATOR_FILES_DIR"
-    if "$ADB_PATH" -s "$TARGET_SERIAL" push "$FILES_DIR/." "$EMULATOR_FILES_DIR/"; then
+    "${target_adb[@]}" shell mkdir -p "$EMULATOR_FILES_DIR"
+    if "${target_adb[@]}" push "$FILES_DIR/." "$EMULATOR_FILES_DIR/"; then
         echo -e "${GREEN}[FILES]${NC} Disponibles en ${BOLD}Downloads/A5-Cockpit${NC}."
     else
         echo -e "${RED}${BOLD}[ERROR]${NC} No se pudieron copiar los ficheros al emulador."
@@ -289,7 +240,7 @@ if [ -n "$FILES_DIR" ]; then
 
     python3 -u "$SCRIPT_DIR/watch-emulator-files.py" \
         --adb "$ADB_PATH" \
-        --serial "$TARGET_SERIAL" \
+        --transport-id "$TARGET_TRANSPORT" \
         --source "$FILES_DIR" \
         --destination "$EMULATOR_FILES_DIR" &
     FILES_WATCH_PID=$!
@@ -316,7 +267,7 @@ INSTALL_APK="$REPLAY_WORK_DIR/app-debug-replay.apk"
     "$REPLAY_LOG" \
     "$INSTALL_APK"
 echo -e "${GREEN}[REPLAY]${NC} CAN preparado desde ${BOLD}$REPLAY_LOG${NC}."
-if "$ADB_PATH" -s "$TARGET_SERIAL" install -r "$INSTALL_APK"; then
+if "${target_adb[@]}" install -r "$INSTALL_APK"; then
     echo -e "${GREEN}${BOLD}[OK]${NC} Instalación completada con éxito."
 else
     echo -e "${RED}${BOLD}[ERROR]${NC} Error durante la compilación o instalación del Launcher."
@@ -326,7 +277,7 @@ fi
 # 8. Arrancar la actividad principal automáticamente en el emulador
 echo ""
 echo -e "${GREEN}${BOLD}[START]${NC} Lanzando la interfaz de S-Line en el emulador..."
-"$ADB_PATH" -s "$TARGET_SERIAL" shell am start -n "com.lito.a5launcher/com.lito.a5launcher.MainActivity"
+"${target_adb[@]}" shell am start -n "com.lito.a5launcher/com.lito.a5launcher.MainActivity"
 
 # El servicio reproduce el CAN empaquetado. LocationManager recibe en paralelo
 # el GPS del mismo fichero, con la misma cronología y pausa de bucle.
@@ -338,6 +289,7 @@ GPS_REPLAY_LOG="$REPLAY_WORK_DIR/gps-replay.log"
 python3 "$SCRIPT_DIR/replay-emulator-gps.py" \
     "$REPLAY_LOG" \
     --serial "$TARGET_SERIAL" \
+    --avd "$PROJECT_AVD" \
     --loop >"$GPS_REPLAY_LOG" 2>&1 &
 GPS_REPLAY_PID=$!
 sleep 1
@@ -360,5 +312,5 @@ echo -e "Filtro activo: ${CYAN}TelemetryService${NC}, ${CYAN}LauncherViewModel${
 echo -e "Presiona ${RED}Ctrl+C${NC} para detener la visualización de logs."
 echo "--------------------------------------------------------"
 
-"$ADB_PATH" -s "$TARGET_SERIAL" logcat -c
-"$ADB_PATH" -s "$TARGET_SERIAL" logcat TelemetryService:D LauncherViewModel:D MainActivity:D *:S
+"${target_adb[@]}" logcat -c
+"${target_adb[@]}" logcat TelemetryService:D LauncherViewModel:D MainActivity:D *:S

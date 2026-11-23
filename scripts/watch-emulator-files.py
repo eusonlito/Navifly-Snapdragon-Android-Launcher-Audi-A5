@@ -25,9 +25,9 @@ def snapshot(directory: Path) -> Snapshot:
     return result
 
 
-def adb(adb_path: str, serial: str, *arguments: str) -> subprocess.CompletedProcess[str]:
+def adb(adb_path: str, target: list[str], *arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [adb_path, "-s", serial, *arguments],
+        [adb_path, *target, *arguments],
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -37,7 +37,7 @@ def adb(adb_path: str, serial: str, *arguments: str) -> subprocess.CompletedProc
 
 def remove_remote_files(
     adb_path: str,
-    serial: str,
+    target: list[str],
     destination: str,
     removed: set[str],
 ) -> bool:
@@ -47,7 +47,7 @@ def remove_remote_files(
             continue
         remote = str(PurePosixPath(destination).joinpath(*parts))
         command = f"rm -f {shlex.quote(remote)}"
-        result = adb(adb_path, serial, "shell", command)
+        result = adb(adb_path, target, "shell", command)
         if result.returncode != 0:
             print(f"[FILES] No se pudo eliminar {relative}: {result.stdout.strip()}", flush=True)
             return False
@@ -56,18 +56,18 @@ def remove_remote_files(
 
 def synchronize(
     adb_path: str,
-    serial: str,
+    target: list[str],
     source: Path,
     destination: str,
     removed: set[str],
 ) -> bool:
-    mkdir = adb(adb_path, serial, "shell", "mkdir", "-p", destination)
+    mkdir = adb(adb_path, target, "shell", "mkdir", "-p", destination)
     if mkdir.returncode != 0:
         print(f"[FILES] ADB no está disponible: {mkdir.stdout.strip()}", flush=True)
         return False
-    if not remove_remote_files(adb_path, serial, destination, removed):
+    if not remove_remote_files(adb_path, target, destination, removed):
         return False
-    pushed = adb(adb_path, serial, "push", "--sync", f"{source}{os.sep}.", f"{destination}/")
+    pushed = adb(adb_path, target, "push", "--sync", f"{source}{os.sep}.", f"{destination}/")
     if pushed.returncode != 0:
         print(f"[FILES] Error de sincronización: {pushed.stdout.strip()}", flush=True)
         return False
@@ -78,7 +78,9 @@ def synchronize(
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--adb", required=True)
-    parser.add_argument("--serial", required=True)
+    device = parser.add_mutually_exclusive_group(required=True)
+    device.add_argument("--serial")
+    device.add_argument("--transport-id")
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--destination", required=True)
     parser.add_argument("--interval", type=float, default=1.0)
@@ -93,6 +95,7 @@ def main() -> int:
     if args.interval <= 0:
         raise SystemExit("El intervalo debe ser mayor que cero")
 
+    target = ["-t", args.transport_id] if args.transport_id else ["-s", args.serial]
     previous = snapshot(source)
     try:
         while True:
@@ -104,7 +107,7 @@ def main() -> int:
             if current == previous:
                 continue
             removed = set(previous) - set(current)
-            if synchronize(args.adb, args.serial, source, args.destination, removed):
+            if synchronize(args.adb, target, source, args.destination, removed):
                 previous = current
     except KeyboardInterrupt:
         return 0

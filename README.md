@@ -397,6 +397,8 @@ installed copies can continue to receive updates.
 
 ### Emulator and Replay
 
+The launcher script starts the Android Virtual Device named `A5_Local_AI_Probe` or reuses it if it is already running.
+
 ```bash
 python3 -m pip install -r requirements-emulator.txt
 ./scripts/emulator.sh --replay /path/to/can_bus_log.jsonl

@@ -58,7 +58,9 @@ def grpc_runtime_directories() -> list[Path]:
     return list(dict.fromkeys(candidates))
 
 
-def resolve_grpc_endpoint(serial: str, running_directory: Path | None = None) -> GrpcEndpoint:
+def resolve_grpc_endpoint(
+    serial: str, running_directory: Path | None = None, *, avd: str | None = None,
+) -> GrpcEndpoint:
     serial_port = serial.removeprefix("emulator-")
     directories = [running_directory] if running_directory else grpc_runtime_directories()
     for directory in directories:
@@ -72,6 +74,8 @@ def resolve_grpc_endpoint(serial: str, running_directory: Path | None = None) ->
                 # inspeccionan otros AVD activos.
                 continue
             if properties.get("port.serial") != serial_port:
+                continue
+            if avd is not None and properties.get("avd.id", properties.get("avd.name")) != avd:
                 continue
             grpc_port = properties.get("grpc.port")
             token = properties.get("grpc.token")
@@ -263,6 +267,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("log", type=Path)
     parser.add_argument("--serial", required=True)
+    parser.add_argument("--avd", help="Nombre del AVD esperado para este puerto")
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--loop-pause", type=float, default=2.0)
     parser.add_argument("--check", action="store_true")
@@ -275,7 +280,7 @@ def main() -> None:
             f"duración {timeline.duration_seconds:.3f}s · reloj {timeline.clock_key}"
         )
         return
-    endpoint = resolve_grpc_endpoint(args.serial)
+    endpoint = resolve_grpc_endpoint(args.serial, avd=args.avd)
     client = EmulatorGpsClient(endpoint)
     try:
         # Sitúa el mapa en la primera posición real desde el primer frame. El

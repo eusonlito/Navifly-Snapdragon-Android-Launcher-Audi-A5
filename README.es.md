@@ -403,6 +403,8 @@ para que las instalaciones existentes puedan seguir actualizándose.
 
 ### Emulador y Replay
 
+El script arranca el dispositivo virtual de Android llamado `A5_Local_AI_Probe` o lo reutiliza si ya está abierto.
+
 ```bash
 python3 -m pip install -r requirements-emulator.txt
 ./scripts/emulator.sh --replay /ruta/al/can_bus_log.jsonl
