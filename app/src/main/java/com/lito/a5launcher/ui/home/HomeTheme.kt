@@ -35,11 +35,10 @@ internal fun parseHomeTheme(serialized: String?): HomeTheme =
 /** A fixed theme, or the theme drawn for one Android boot. */
 internal data class HomeThemeSelection(val theme: HomeTheme, val randomBoot: Int? = null) {
     fun forBoot(boot: Int): HomeThemeSelection =
-        if (randomBoot == null || randomBoot == boot) this else random(boot)
+        if (randomBoot == null || randomBoot == boot) this else nextRandom(boot)
 
-    companion object {
-        fun random(boot: Int) = HomeThemeSelection(HomeTheme.entries.random(), boot)
-    }
+    fun nextRandom(boot: Int): HomeThemeSelection =
+        HomeThemeSelection((HomeTheme.entries - theme).random(), boot)
 }
 
 /** Visual tokens shared by every home layout; Classic reproduces the original values. */

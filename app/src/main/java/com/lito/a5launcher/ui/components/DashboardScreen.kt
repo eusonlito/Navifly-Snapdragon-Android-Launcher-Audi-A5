@@ -772,11 +772,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
                     darkModeActive = darkModeActive,
                     selectedTheme = themeSelection.theme.takeIf { themeSelection.randomBoot == null },
                     onHomeThemeChanged = { theme ->
-                        val selection = when {
-                            theme != null -> HomeThemeSelection(theme)
-                            themeSelection.randomBoot == bootCount -> themeSelection
-                            else -> HomeThemeSelection.random(bootCount)
-                        }
+                        val selection = if (theme == null) themeSelection.nextRandom(bootCount) else HomeThemeSelection(theme)
                         saveTheme(selection)
                         themeSelection = selection
                         footerBlockOrder = storedFooterBlockOrder(selection.theme)

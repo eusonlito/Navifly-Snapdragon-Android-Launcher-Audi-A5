@@ -28,13 +28,28 @@ import java.util.Locale
 class HomeThemeTest {
     @Test
     fun randomThemeIsDrawnOncePerBootAndFixedSelectionSurvivesReboots() {
-        val fixed = HomeThemeSelection(HomeTheme.MOON)
-        assertEquals(fixed, fixed.forBoot(42))
-        val firstBoot = HomeThemeSelection.random(41)
-        assertEquals(firstBoot, firstBoot.forBoot(41))
-        val nextBoot = firstBoot.forBoot(42)
-        assertEquals(42, nextBoot.randomBoot)
-        assertEquals(nextBoot, nextBoot.forBoot(42))
+        for (theme in HomeTheme.entries) {
+            val fixed = HomeThemeSelection(theme)
+            assertEquals(fixed, fixed.forBoot(42))
+            val previous = HomeThemeSelection(theme, randomBoot = 41)
+            val next = previous.forBoot(42)
+            assertNotEquals(theme, next.theme)
+            assertEquals(42, next.randomBoot)
+            assertEquals(next, next.forBoot(42))
+        }
+    }
+
+    @Test
+    fun pressingRandomChangesTheThemeEvenWhenRandomIsAlreadySelected() {
+        for (theme in HomeTheme.entries) {
+            val first = HomeThemeSelection(theme).nextRandom(41)
+            assertNotEquals(theme, first.theme)
+            assertEquals(41, first.randomBoot)
+            val second = first.nextRandom(41)
+            assertNotEquals(first.theme, second.theme)
+            assertEquals(41, second.randomBoot)
+            assertEquals(second, second.forBoot(41))
+        }
     }
 
     @Test
