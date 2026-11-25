@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import kotlin.math.min
@@ -86,7 +87,30 @@ internal fun DrawScope.drawSwayingSeaweed(image: ImageBitmap, rect: Rect, p: Flo
             vertices[row * 4 + 3] = image.height * depth
         }
         drawArtMesh(image, 1, rows, vertices, filter)
+        // Keep the swim near the roots, in the exposed corner below the dial.
+        clipRect(0f, 0f, image.width.toFloat(), image.height.toFloat()) {
+            val height = image.height.toFloat()
+            val x = image.width * (.43f + .10f * sin(2f * ART_PI * p))
+            drawJellyfish(Offset(x, height * (1.18f - .44f * artWave(p))), image.width * .16f, p)
+        }
     }
+}
+
+// The same jellyfish seen through the periscope and among the kelp.
+private fun DrawScope.drawJellyfish(head: Offset, radius: Float, p: Float) {
+    val pulse = sin(6f * ART_PI * p)
+    val width = radius * (1f + .12f * pulse)
+    val ink = Color(0xFFDD93BA)
+    for (i in -1..1) {
+        val x = head.x + i * width * .55f
+        drawPath(Path().apply {
+            moveTo(x, head.y)
+            quadraticTo(x - radius * .55f * pulse, head.y + radius * .7f,
+                x + radius * .3f * pulse, head.y + radius * (1.2f - .18f * i))
+        }, ink, style = Stroke(radius * .13f))
+    }
+    drawArc(Color(0xFFEDADCB), 180f, 180f, true, head - Offset(width, radius), Size(2f * width, 2f * radius))
+    drawCircle(Color(0xFFFFE4EA), radius * .16f, head - Offset(width * .36f, radius * .46f))
 }
 
 private fun DrawScope.drawArtMesh(image: ImageBitmap, columns: Int, rows: Int, vertices: FloatArray, filter: ColorFilter?) {
@@ -158,5 +182,11 @@ internal fun DrawScope.drawPeriscope(image: ImageBitmap, rect: Rect, p: Float, f
             moveTo(lens.x, lens.y - 3f); lineTo(end.x, end.y - 18f)
             lineTo(end.x, end.y + 18f); lineTo(lens.x, lens.y + 3f); close()
         }, Brush.linearGradient(listOf(Color(0xC080EAFF), Color.Transparent), lens, end), artWave(p))
+        // Surfaces from below the hull and dives back behind it.
+        val dive = artWave(p)
+        clipRect(left = -30f, top = -85f, right = image.width.toFloat(), bottom = image.height.toFloat()) {
+            drawJellyfish(Offset(26f + 22f * sin(2f * ART_PI * p), image.height + 35f - (image.height + 40f) * dive),
+                21f, p)
+        }
     }
 }

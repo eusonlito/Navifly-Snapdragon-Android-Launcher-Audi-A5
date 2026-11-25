@@ -115,10 +115,7 @@ internal fun IllustratedSpeedInstrument(style: IllustratedStyle, state: HomeStat
             when (style) {
                 IllustratedStyle.SUBMARINE -> drawSwimmingFish(art[2], art[2].rectCentered(d * .09f, d * .07f, d * .2f), motion[TripGesture.FISH], filter)
                 IllustratedStyle.MOON -> {
-                    val p = motion[TripGesture.ASTRONAUT]
-                    val hop = artWave(p)
-                    val astronaut = art[0].rectAboveBase(d * (.5f + .047f * hop * sin(p * ART_PI * 2)), d * (.99f - .09f * hop), d * .25f)
-                    rotate(-10f * hop, astronaut.center) { drawArt(art[0], astronaut, filter = filter) }
+                    drawLunarSurvey(art[0], art[0].rectAboveBase(d * .5f, d * .99f, d * .25f), motion[TripGesture.ASTRONAUT], filter)
                     drawMoonLaunch(art[1], art[1].rectAboveBase(d * .05f, d * .99f, d * .13f), motion[TripGesture.MOON_LAUNCH], filter)
                 }
             }

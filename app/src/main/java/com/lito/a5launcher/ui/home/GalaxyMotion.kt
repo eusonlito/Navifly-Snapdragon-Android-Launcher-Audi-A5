@@ -1,5 +1,6 @@
 package com.lito.a5launcher.ui.home
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -38,6 +39,21 @@ private val auroraLight = Brush.verticalGradient(
     startY = 0f, endY = 1f,
 )
 
+internal fun DrawScope.drawSurveyProbe(position: Offset, span: Float, p: Float) {
+    rotate(-16f + 12f * sin(2f * ART_PI * p), position) {
+        val panel = Size(span * .32f, span * .23f)
+        drawLine(Color(0xFFD3DFEB), position - Offset(span * .4f, 0f), position + Offset(span * .4f, 0f), span * .06f)
+        for (side in -1..1 step 2) {
+            val corner = position + Offset(span * .34f * side - panel.width / 2f, -panel.height / 2f)
+            drawRect(Color(0xFF547BC2), corner, panel)
+            drawLine(Color(0xFFB4DAF6), corner + Offset(panel.width / 2f, 0f),
+                corner + Offset(panel.width / 2f, panel.height), span * .025f)
+        }
+        drawRoundRect(Color(0xFFE8BC6D), position - Offset(span * .13f, span * .16f),
+            Size(span * .26f, span * .32f), CornerRadius(span * .04f))
+    }
+}
+
 internal fun DrawScope.drawAurora(earth: Rect, p: Float) {
     if (p == 0f) return
     val strength = smoothStep(p / .15f) * smoothStep((1f - p) / .17f)
@@ -57,6 +73,10 @@ internal fun DrawScope.drawAurora(earth: Rect, p: Float) {
             drawRect(auroraLight, Offset.Zero, Size(1.02f, 1f), strength * taper * (.83f + .17f * cos(u * 78 + 6 * p)))
         }
     }
+    val travel = smoothStep(p)
+    val position = Offset(size.width * (-.14f + 1.28f * travel),
+        earth.top + size.width * (.065f - .08f * artWave(p)))
+    drawSurveyProbe(position, size.width * .16f, p)
 }
 
 internal fun DrawScope.drawRover(p: Float) {

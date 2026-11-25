@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
-import kotlin.math.cos
 import kotlin.math.sin
 
 internal fun DrawScope.drawUfoBeam(ship: Rect, end: Float, receiver: Offset, p: Float) {
@@ -70,6 +69,29 @@ internal fun DrawScope.drawMoonLaunch(image: ImageBitmap, rest: Rect, p: Float, 
     }
 }
 
+internal fun DrawScope.drawLunarSurvey(image: ImageBitmap, rest: Rect, p: Float, filter: ColorFilter?) {
+    if (p == 0f) return drawArt(image, rest, filter = filter)
+    // Two low-gravity hops, with a stop to plant and unfurl the pennant.
+    val outward = smoothStep(p / .31f)
+    val homeward = smoothStep((p - .68f) / .32f)
+    val hop = sin(ART_PI * outward) + sin(ART_PI * homeward)
+    val astronaut = rest.translate(Offset(rest.width * .52f * (outward - homeward), -rest.height * .24f * hop))
+    val planted = smoothStep((p - .22f) / .18f) * smoothStep((.78f - p) / .17f)
+    if (planted > 0f) {
+        val foot = Offset(rest.right + rest.width * .42f, rest.bottom)
+        val top = foot - Offset(0f, rest.height * .77f * planted)
+        val tip = top + Offset(rest.width * .48f * planted, rest.height * (.09f + .025f * sin(6f * ART_PI * p)))
+        drawLine(Color(0xFFCFD9EC), foot, top, rest.width * .029f)
+        drawPath(Path().apply {
+            moveTo(top.x, top.y)
+            lineTo(tip.x, tip.y)
+            lineTo(top.x, top.y + rest.height * .21f * planted)
+            close()
+        }, Color(0xFFFFC56F))
+    }
+    rotate(-12f * hop, astronaut.center) { drawArt(image, astronaut, filter = filter) }
+}
+
 internal fun DrawScope.drawOrbitingPlanet(image: ImageBitmap, p: Float, saturn: Boolean, filter: ColorFilter?) {
     val w = size.width
     val h = size.height
@@ -78,9 +100,14 @@ internal fun DrawScope.drawOrbitingPlanet(image: ImageBitmap, p: Float, saturn: 
     val spin = 2f * ART_PI * p
     val angle = (if (saturn) 25f else 18f) * sin(spin) * swing
     val body = image.rectCentered(center.x + w * .052f * sin(spin) * swing, center.y - h * .06f * swing, w * (1f - .17f * swing))
-    val orbit = Offset(center.x + w * .46f * cos(2f * spin), center.y + h * .39f * sin(2f * spin))
-    val light = if (saturn) Color(0xFFFFCF97) else Color(0xFF9EE3FF)
-    if (orbit.y < center.y) drawStar(orbit, h * .10f, light.copy(alpha = swing))
     rotate(angle, body.center) { drawArt(image, body, filter = filter) }
-    if (orbit.y >= center.y) drawStar(orbit, h * .10f, light.copy(alpha = swing))
+    val visitor = Offset(w * (-.25f + 1.5f * smoothStep(p)), h * (.72f - .34f * swing))
+    if (saturn) {
+        drawSurveyProbe(visitor, h * .60f, p)
+    } else {
+        val radius = h * .17f
+        drawCircle(Color(0xFFBAC3D2), radius, visitor)
+        drawCircle(Color(0xFF78859B), radius * .30f, visitor - Offset(radius * .28f, radius * .32f))
+        drawCircle(Color(0xFF939FB4), radius * .19f, visitor + Offset(radius * .34f, radius * .24f))
+    }
 }

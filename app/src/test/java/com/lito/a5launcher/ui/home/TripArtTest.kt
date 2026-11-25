@@ -15,7 +15,10 @@ class TripArtTest {
     fun eachStoryPlaysItsActionsInNarrativeOrder() {
         for ((lead, response) in listOf(
             TripGesture.ROVER to TripGesture.LAUNCH,
+            TripGesture.SATURN to TripGesture.AURORA,
+            TripGesture.MOON_PLANET to TripGesture.ASTRONAUT,
             TripGesture.UFO to TripGesture.HEART,
+            TripGesture.PERISCOPE to TripGesture.SEAWEED,
             TripGesture.FISH to TripGesture.SHOAL,
             TripGesture.BUTTERFLY to TripGesture.STARS,
             TripGesture.STARS to TripGesture.PLANE,
