@@ -171,9 +171,9 @@ internal fun IllustratedRpmInstrument(style: IllustratedStyle, state: HomeState,
                 val p = motion[TripGesture.UFO]
                 val bob = artWave(p)
                 val ship = ufo.rectCentered(d * (.5f + .12f * bob * sin(p * 8f)), d * (.68f - .044f * bob), d * .28f)
-                if (p > 0f) drawUfoBeam(ship, d * .815f, bob)
-                rotate(15f * bob * sin(p * 9f), ship.center) { drawArt(ufo, ship, filter = filter) }
                 val base = robot.rectAboveBase(d * .93f, d, d * .19f)
+                if (p > 0f) drawUfoBeam(ship, d * .815f, base.center, p)
+                rotate(15f * bob * sin(p * 9f), ship.center) { drawArt(ufo, ship, filter = filter) }
                 drawArt(robot, base, filter = filter)
                 drawRobotHeart(robot, base, motion[TripGesture.HEART])
                 val badge = Offset(d * .5f, d * .89f)

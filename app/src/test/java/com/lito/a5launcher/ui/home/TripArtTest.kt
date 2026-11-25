@@ -12,6 +12,20 @@ import org.junit.Test
 
 class TripArtTest {
     @Test
+    fun eachStoryPlaysItsActionsInNarrativeOrder() {
+        for ((lead, response) in listOf(
+            TripGesture.ROVER to TripGesture.LAUNCH,
+            TripGesture.UFO to TripGesture.HEART,
+            TripGesture.FISH to TripGesture.SHOAL,
+            TripGesture.BUTTERFLY to TripGesture.STARS,
+            TripGesture.STARS to TripGesture.PLANE,
+        )) {
+            val story = TripArt(lead.theme).gestures
+            assertEquals(response, story[story.indexOf(lead) + 1])
+        }
+    }
+
+    @Test
     fun tapsPlayIndependentlyAndDoNotRestartAnActiveGesture() = runBlocking {
         val art = TripArt(HomeTheme.GALAXY)
         val clock = BroadcastFrameClock()

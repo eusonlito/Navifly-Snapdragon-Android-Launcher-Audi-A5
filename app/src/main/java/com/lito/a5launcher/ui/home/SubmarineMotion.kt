@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -23,11 +24,22 @@ import kotlin.math.sin
 
 private val meshPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
+private fun DrawScope.drawPearl(center: Offset, radius: Float) {
+    drawCircle(Color(0xFFB894CB), radius, center)
+    drawCircle(Color(0xFFFFEACC), radius * .77f, center - Offset(radius * .10f, radius * .10f))
+    drawCircle(Color.White, radius * .26f, center - Offset(radius * .32f, radius * .34f))
+}
+
 internal fun DrawScope.drawSwimmingFish(image: ImageBitmap, rect: Rect, p: Float, filter: ColorFilter?) {
     if (p == 0f) return drawArt(image, rect, filter = filter)
     inArt(image, rect) {
         val kick = artWave(p)
-        translate(130f * kick + 38f * kick * sin(p * 2f * ART_PI), -19f * kick + 27f * kick * sin(p * 4f * ART_PI)) {
+        val dx = 130f * kick + 38f * kick * sin(p * 2f * ART_PI)
+        val dy = -19f * kick + 27f * kick * sin(p * 4f * ART_PI)
+        // The pearl floats up to the mouth, then rides back with the fish.
+        val pearl = if (p < .5f) Offset(427f, 100f + 84f * (1f - kick)) else Offset(297f + dx, 119f + dy)
+        drawPearl(pearl, 16f * smoothStep(p / .12f) * smoothStep((1f - p) / .14f))
+        translate(dx, dy) {
             // Shared vertices keep the outline continuous as the tail bends.
             val columns = 12
             val vertices = FloatArray((columns + 1) * 4)
@@ -99,10 +111,10 @@ private val glassPanes = Path().apply {
 }
 
 internal fun DrawScope.drawShoal(image: ImageBitmap, rect: Rect, p: Float) {
-    if (p == 0f) return
     inArt(image, rect) {
-        clipPath(glassPanes) {
+        if (p > 0f) clipPath(glassPanes) {
             val lead = 97f + 415f * smoothStep(p)
+            drawPearl(Offset(lead + 30f, 96f + 8f * sin(p * 15f)), 10f)
             for (i in 0..3) {
                 val x = lead - i * 34f
                 val y = (if (i % 2 == 1) 116f else 96f) + 8f * sin(p * 15f + i * 1.8f)
@@ -115,6 +127,19 @@ internal fun DrawScope.drawShoal(image: ImageBitmap, rect: Rect, p: Float) {
                 drawOval(color, Offset(x - r, y - r * .55f), Size(2 * r, 1.1f * r))
                 drawCircle(Color(0xFF173A41), r * .13f, Offset(x + r * .5f, y - r * .12f))
             }
+        }
+        // At the far window the pearl drops into the chest on the seabed.
+        val open = smoothStep((p - .40f) / .16f) * smoothStep((.91f - p) / .16f)
+        val drop = smoothStep((p - .54f) / .20f)
+        if (p > .54f && p < .74f) drawPearl(Offset(374f + 36f * drop, 120f + 93f * drop), 10f)
+        val rim = Color(0xFF694331)
+        val brass = Color(0xFFDEA34E)
+        drawRect(rim, Offset(381f, 203f), Size(58f, 29f))
+        drawRect(brass, Offset(385f, 208f), Size(50f, 18f))
+        drawRect(rim, Offset(405f, 206f), Size(10f, 20f))
+        rotate(-54f * open, Offset(382f, 203f)) {
+            drawRect(rim, Offset(380f, 194f), Size(60f, 12f))
+            drawRect(brass, Offset(383f, 196f), Size(54f, 5f))
         }
     }
 }

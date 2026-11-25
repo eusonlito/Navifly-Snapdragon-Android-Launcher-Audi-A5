@@ -40,25 +40,34 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import kotlin.random.Random
 
-internal enum class TripGesture(val theme: HomeTheme, val durationMs: Int, @StringRes val touchLabel: Int) {
-    FISH(HomeTheme.SUBMARINE, 4600, R.string.trip_art_fish),
-    SHOAL(HomeTheme.SUBMARINE, 5500, R.string.trip_art_shoal),
+private const val STORY_INTERVAL_MS = 60_000L
+
+// Within each theme, declaration order is the story's running order.
+internal enum class TripGesture(
+    val theme: HomeTheme,
+    val durationMs: Int,
+    @StringRes val touchLabel: Int,
+) {
     PERISCOPE(HomeTheme.SUBMARINE, 4800, R.string.trip_art_periscope),
     SEAWEED(HomeTheme.SUBMARINE, 6200, R.string.trip_art_seaweed),
+    FISH(HomeTheme.SUBMARINE, 4600, R.string.trip_art_fish),
+    SHOAL(HomeTheme.SUBMARINE, 5500, R.string.trip_art_shoal),
+
+    MOON_LAUNCH(HomeTheme.MOON, 7600, R.string.trip_art_launch),
+    MOON_PLANET(HomeTheme.MOON, 6900, R.string.trip_art_moon_planet),
     ASTRONAUT(HomeTheme.MOON, 5200, R.string.trip_art_astronaut),
     UFO(HomeTheme.MOON, 4900, R.string.trip_art_ufo),
     HEART(HomeTheme.MOON, 4500, R.string.trip_art_robot),
-    MOON_LAUNCH(HomeTheme.MOON, 7600, R.string.trip_art_launch),
-    MOON_PLANET(HomeTheme.MOON, 6900, R.string.trip_art_moon_planet),
-    LAUNCH(HomeTheme.GALAXY, 8000, R.string.trip_art_launch),
-    AURORA(HomeTheme.GALAXY, 5700, R.string.trip_art_aurora),
+
     ROVER(HomeTheme.GALAXY, 7300, R.string.trip_art_rover),
+    LAUNCH(HomeTheme.GALAXY, 8000, R.string.trip_art_launch),
     SATURN(HomeTheme.GALAXY, 7200, R.string.trip_art_saturn),
-    PLANE(HomeTheme.ADVENTURE, 8900, R.string.trip_art_plane),
+    AURORA(HomeTheme.GALAXY, 5700, R.string.trip_art_aurora),
+
     BUTTERFLY(HomeTheme.ADVENTURE, 6500, R.string.trip_art_butterfly),
     STARS(HomeTheme.ADVENTURE, 5400, R.string.trip_art_stars),
+    PLANE(HomeTheme.ADVENTURE, 8900, R.string.trip_art_plane),
 }
 
 internal class TripArt(theme: HomeTheme?) {
@@ -102,7 +111,7 @@ internal fun rememberTripArt(theme: HomeTheme, speed: State<Int>, canPlay: () ->
     LaunchedEffect(art, lifecycle) {
         val durationScale = coroutineContext[MotionDurationScale]
         var next = 0
-        var due = SystemClock.uptimeMillis() + 2000L
+        var due = SystemClock.uptimeMillis() + STORY_INTERVAL_MS
         snapshotFlow {
             lifecycle.value.isAtLeast(Lifecycle.State.RESUMED) && allowed() && (durationScale?.scaleFactor ?: 1f) > 0f
         }.collectLatest { enabled ->
@@ -114,12 +123,9 @@ internal fun rememberTripArt(theme: HomeTheme, speed: State<Int>, canPlay: () ->
                     while (true) {
                         delay(due - SystemClock.uptimeMillis())
                         val gesture = art.gestures[next]
-                        next = (next + 1) % art.gestures.size
-                        // An interruption restores the still art and preserves the next turn.
-                        val pause = Random.nextLong(25_000L, 50_001L)
-                        due = SystemClock.uptimeMillis() + pause
+                        due = SystemClock.uptimeMillis() + STORY_INTERVAL_MS
                         art.play(gesture)
-                        due = SystemClock.uptimeMillis() + pause
+                        next = (next + 1) % art.gestures.size
                     }
                 }
             }

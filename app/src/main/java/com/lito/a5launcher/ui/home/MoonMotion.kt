@@ -15,7 +15,8 @@ import androidx.compose.ui.graphics.drawscope.scale
 import kotlin.math.cos
 import kotlin.math.sin
 
-internal fun DrawScope.drawUfoBeam(ship: Rect, end: Float, strength: Float) {
+internal fun DrawScope.drawUfoBeam(ship: Rect, end: Float, receiver: Offset, p: Float) {
+    val strength = artWave(p)
     val x = ship.center.x
     val y = ship.top + ship.height * .78f
     if (end <= y) return
@@ -27,6 +28,11 @@ internal fun DrawScope.drawUfoBeam(ship: Rect, end: Float, strength: Float) {
         close()
     }
     drawPath(path, Brush.verticalGradient(listOf(Color(0x9986FFE8), Color.Transparent), y, end), alpha = strength)
+    // Lower the star down the beam, then send it across to the robot's visor.
+    val release = smoothStep((p - .44f) / .48f)
+    val star = Offset(x + (receiver.x - x) * release,
+        y + (end - y) * smoothStep(p / .44f) + (receiver.y - end) * release - ship.height * .33f * sin(ART_PI * release))
+    drawStar(star, ship.width * .105f * smoothStep(p / .12f), Color(0xFF75FFFF))
 }
 
 internal fun DrawScope.drawRobotHeart(image: ImageBitmap, rect: Rect, p: Float) {
@@ -37,7 +43,8 @@ internal fun DrawScope.drawRobotHeart(image: ImageBitmap, rect: Rect, p: Float) 
         rotate(-9f, center) {
             drawRoundRect(Color(0xFF171951), Offset(100f, 144f), Size(151f, 90f), CornerRadius(26f), alpha = alpha)
             scale(1f + .23f * sin(p * ART_PI * 6) * artWave(p), center) {
-                drawPath(Path().apply {
+                if (p < .32f) drawStar(center, 23f, Color(0xFF75FFFF).copy(alpha = alpha))
+                else drawPath(Path().apply {
                     moveTo(175f, 219f)
                     cubicTo(122f, 188f, 144f, 151f, 175f, 172f)
                     cubicTo(206f, 151f, 228f, 188f, 175f, 219f)
@@ -59,10 +66,6 @@ internal fun DrawScope.drawMoonLaunch(image: ImageBitmap, rest: Rect, p: Float, 
     val arc = sin(2f * ART_PI * p)
     val moving = rest.translate(Offset(rest.width * (.38f + .18f * arc) * lift, -size.height * .55f * lift))
     rotate(12f * arc * lift, moving.center) {
-        for (i in 1..7) {
-            val trail = Offset(moving.center.x - rest.width * .043f * i * arc, moving.bottom - rest.height * .07f + rest.height * .032f * i * lift)
-            drawCircle(Color(0xFFFFBC78), rest.width * (.045f + i * .015f) * lift, trail, alpha = lift * .74f * (1f - i / 8f))
-        }
         drawArt(image, moving, filter = filter)
     }
 }

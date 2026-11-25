@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -15,24 +14,20 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 
+private fun DrawScope.drawSample(center: Offset, radius: Float) {
+    drawCircle(Color(0x5542E5D8), radius * 1.5f, center)
+    drawSparkle(center, radius, Color(0xFF63F1DB))
+    drawSparkle(center, radius * .48f, Color(0xFFE6FFED))
+}
+
 internal fun DrawScope.drawGalaxyLaunch(rocket: ImageBitmap, rest: Rect, p: Float, filter: ColorFilter?) {
     if (p == 0f) return drawArt(rocket, rest, filter = filter)
-    val width = size.width
     val travel = artWave(p)
     val arc = sin(2f * ART_PI * p)
     val offset = Offset(-rest.width * .42f * travel, -rest.top * (.50f + .30f * arc) * travel)
     val tilt = -9f * arc * travel
     val rect = rest.translate(offset)
     rotate(tilt, rect.center) {
-        val power = smoothStep(p / .08f) * smoothStep((1f - p) / .22f)
-        val nozzle = rect.center + Offset(-rect.width * .29f, rect.height * .29f)
-        val tail = nozzle + Offset(-width * .15f, width * .067f) * power
-        if (power > 0f) {
-            drawLine(
-                Brush.linearGradient(listOf(Color.Transparent, Color(0xFFFFAD65), Color(0xFFFFEDAE)), tail, nozzle),
-                tail, nozzle, width * .018f * power, cap = StrokeCap.Round,
-            )
-        }
         drawArt(rocket, rect, filter = filter)
     }
 }
@@ -67,12 +62,18 @@ internal fun DrawScope.drawAurora(earth: Rect, p: Float) {
 internal fun DrawScope.drawRover(p: Float) {
     if (p == 0f) return
     val width = size.width
-    val x = width * (-.12f + 1.24f * p)
-    val y = size.height - width * (.095f + .014f * artWave(p * 3f))
+    // Brake beside the sample, hold while the mast lifts it, then drive out.
+    val travel = .5f * (smoothStep(p / .40f) + smoothStep((p - .60f) / .40f))
+    val x = width * (-.12f + 1.24f * travel)
+    val y = size.height - width * (.095f + .014f * artWave(travel * 3f))
+    val pickup = smoothStep((p - .40f) / .20f)
+    val sampleX = if (p < .40f) width * .5f else x
+    drawSample(Offset(sampleX + width * .047f, y - width * (.008f + .087f * pickup)),
+        width * .031f * smoothStep(p / .12f))
     withTransform({
         translate(x, y)
         scale(width / 248f, width / 248f, Offset.Zero)
-        rotate(7f * sin(p * 23), Offset.Zero)
+        rotate(7f * sin(travel * 23), Offset.Zero)
     }) {
         for (i in 1..5) {
             val dust = (p * 7f + i * .19f) % 1f
@@ -86,7 +87,7 @@ internal fun DrawScope.drawRover(p: Float) {
             drawCircle(Color(0xFF8795AA), 5.8f, hub)
             drawCircle(Color(0xFF192438), 4.5f, hub)
             drawCircle(Color.LightGray, 1.4f, hub)
-            rotate(1130f * p, hub) {
+            rotate(1130f * travel, hub) {
                 drawLine(Color(0xFFB0BCCE), hub + Offset(0f, -3.5f), hub + Offset(0f, 3.5f), 1f)
             }
         }

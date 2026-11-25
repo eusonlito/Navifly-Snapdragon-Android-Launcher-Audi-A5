@@ -63,9 +63,10 @@ Do not install this build expecting compatibility with:
 - Nine home themes (Classic, Horizon, Facets, Telemetry, Pearl,
   Submarine, Moon, Galaxy and Adventure), chosen from previews in
   Settings → Themes. Pearl and the illustrated homes switch to night colours
-  with the map. While driving, the illustrated themes cycle through animations
-  with 25–50 seconds between them. Tap an illustrated element to animate it,
-  including while parked. Several elements can animate at once, including while
+  with the map. While driving, the characters play out short stories: the rover collects a sample,
+  the UFO delivers a star to the robot, the fish bring a pearl to a chest and
+  the butterfly releases a golden star. One action starts per minute while driving.
+  Tap an illustrated element to animate it, including while parked. Several elements can animate at once, including while
   the map shows a nearby POI alert.
 - Reorderable top actions and trip blocks using a long press; each theme keeps
   its own block order.

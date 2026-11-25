@@ -64,9 +64,11 @@ No instales esta versión esperando compatibilidad con:
 - Nueve temas para la home (Clásico, Horizonte, Facetas, Telemetría, Nácar,
   Submarino, Luna, Galaxia y Aventura), elegibles con
   miniaturas en Ajustes → Temas. Nácar y los temas ilustrados cambian al modo
-  nocturno junto con el mapa. Durante la marcha, los temas ilustrados alternan
-  animaciones con pausas de 25 a 50 segundos. Toca los elementos ilustrados para
-  animarlos, también con el coche parado. Pueden animarse varios a la vez,
+  nocturno junto con el mapa. Durante la marcha, los personajes encadenan pequeñas
+  historias: el róver recoge una muestra, el ovni entrega una estrella al robot,
+  los peces llevan una perla al cofre y la mariposa suelta una estrella dorada.
+  En marcha comienza una acción por minuto. También puedes tocar los personajes
+  para animarlos con el coche parado. Pueden animarse varios a la vez,
   incluso mientras el mapa muestra un aviso de POI.
 - Barra superior y bloques de viaje reordenables manteniendo pulsado; cada tema
   guarda su propio orden de bloques.

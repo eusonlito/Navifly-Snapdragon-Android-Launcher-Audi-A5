@@ -34,9 +34,6 @@ internal fun DrawScope.drawAdventureFlight(image: ImageBitmap, rect: Rect, right
             translate(dx * image.width / rect.width, image.height * .095f * sin(angle))
             rotate(-18f * sin(angle), pivot)
         }) {
-            val glow = artWave(p)
-            val nozzle = Offset(image.width * .689f, image.height * .63f)
-            drawCircle(Color(0xFFFFC57A), image.height * (.055f + .065f * glow), nozzle, alpha = glow * .7f)
             drawArtSlice(image, split, 0, image.width - split, image.height, filter = filter)
         }
     }
@@ -48,6 +45,11 @@ internal fun DrawScope.drawButterfly(p: Float) {
     val unit = size.height / 896f
     val x = -60 + (size.width / unit * .72f + 60f) * sin(ART_PI * p) + 8f * sin(2 * u) * artWave(p)
     val y = 853 - 48 * artWave(p) + 15f * sin(2f * u) * artWave(p)
+    // A golden star rides on the butterfly and lifts off as it turns home.
+    val release = smoothStep((p - .48f) / .42f)
+    val starX = if (p < .48f) x else size.width / unit * .72f - 13f * release
+    val starY = if (p < .48f) y - 16f else 788f - 105f * release
+    drawStar(Offset(starX * unit, starY * unit), unit * 11f * smoothStep((1f - p) / .12f), Color(0xFFFFDB72))
     withTransform({
         translate(x * unit, y * unit)
         rotate(-19f * cos(ART_PI * p) + 10 * sin(2 * u), Offset.Zero)
