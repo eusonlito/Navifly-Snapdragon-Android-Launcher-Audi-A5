@@ -197,8 +197,10 @@ ahora mediante proporciones calculadas con `BoxWithConstraints`:
   banda, y el freno utiliza el símbolo automovilístico completo `(P)`. Los
   recursos conservan sus proporciones sin deformar sus trazados.
 * El testigo de luces usa el pictograma vectorial de luz de cruce de la misma
-  familia. Se ilumina en verde cuando el modo oscuro efectivo del mapa está
-  activo, tanto por detección automática como por selección manual en Ajustes.
+  familia. Se ilumina en verde en cuanto el coche enciende las luces de posición
+  (`KSW_DATA_SMALL_LIGHT_ON`) y se apaga con ellas. No depende del mapa: ni el
+  modo claro u oscuro fijado en Ajustes ni la espera de 60 segundos del modo
+  automático cambian lo que muestra.
 * La fila de testigos se centra dentro del espacio libre delimitado por el final
   de `AUTONOMÍA` y el comienzo de `ODÓMETRO`; no se centra respecto a la pantalla
   completa ni utiliza un desplazamiento visual fijo.

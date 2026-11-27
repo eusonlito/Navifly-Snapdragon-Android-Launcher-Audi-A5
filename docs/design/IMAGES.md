@@ -37,7 +37,7 @@ que apenas hay imágenes rasterizadas.
 | `ic_witness_door_front_left.xml`, `_front_right.xml`, `_rear_left.xml`, `_rear_right.xml` | Capas de puerta alineadas con la carrocería; sólo se pintan en rojo las abiertas según `DoorStatus` |
 | `ic_witness_seatbelt.xml` | Cinturón de seguridad |
 | `ic_witness_parking_brake.xml` | Freno de estacionamiento `(P)` |
-| `ic_witness_lights.xml` | Luz de cruce; verde con el modo oscuro efectivo del mapa |
+| `ic_witness_lights.xml` | Luz de cruce; verde mientras el coche tiene encendidas las luces de posición |
 
 Los testigos se muestran a 30 dp (puertas), 34 dp (cinturón) y 38 dp (freno y
 luces) en la escala 1 del tema Clásico; el resto de temas los escalan con el

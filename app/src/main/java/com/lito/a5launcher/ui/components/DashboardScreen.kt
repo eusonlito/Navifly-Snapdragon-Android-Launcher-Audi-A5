@@ -571,7 +571,7 @@ fun DashboardScreen(viewModel: LauncherViewModel, modifier: Modifier = Modifier)
     }
     val homeTokensState = rememberUpdatedState(homeTokens)
     val darkModeActiveState = rememberUpdatedState(darkModeActive)
-    val homeLightsActiveState = rememberUpdatedState(darkModeActive || (homeTheme == HomeTheme.BLUE_LIGHT && lightsOn == true))
+    val homeLightsActiveState = rememberUpdatedState(lightsWitnessActive(lightsOn))
     val assistantEnabledState = rememberUpdatedState(
         assistantController.settings.provider != AssistantProvider.DISABLED,
     )
@@ -1734,6 +1734,13 @@ private fun PoiItemRow(icon: ImageVector, label: String, detail: String, onDelet
         )
     }
 }
+
+/**
+ * The lights witness mirrors the car's position lights as soon as they change.
+ * It does not follow the map: a fixed light or dark map, or the delay before the
+ * automatic map turns dark, must not hide or fake the real state.
+ */
+internal fun lightsWitnessActive(lightsOn: Boolean?): Boolean = lightsOn == true
 
 internal const val LAUNCHER_SETTINGS_TAB_KEY = "launcher_settings_tab"
 
